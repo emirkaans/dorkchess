@@ -21,6 +21,14 @@ describe('mimari', () => {
     }
   });
 
+  it("oyun durumu (session, reducer) React'siz: Node'da test edilebilir", () => {
+    for (const file of ['src/ui/game/session.ts', 'src/ui/game/reducer.ts']) {
+      const code = readFileSync(file, 'utf8');
+      expect(code, file).not.toMatch(/from ['"](react|react-dom)/);
+      expect(code, file).not.toMatch(/\b(document|window|navigator)\s*[.[]/);
+    }
+  });
+
   it('UI kodunda varyanta veya taşa özel dal yok', () => {
     const ids = listVariants().map((v) => v.id);
     for (const file of sources('src/ui')) {
