@@ -19,7 +19,8 @@
     "sf-label": "node --experimental-strip-types --no-warnings scripts/sf-label.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "parity": "node --experimental-strip-types --no-warnings scripts/parity.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
