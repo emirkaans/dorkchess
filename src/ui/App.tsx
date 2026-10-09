@@ -12,7 +12,7 @@ import {
   timeoutWinner,
 } from '../clock/clock.ts';
 import type { ClockState } from '../clock/clock.ts';
-import { createGame, getVariant, isInCheck, makeMove, opposite, setupStartPosition, toFen } from '../engine/index.ts';
+import { createGame, getVariant, isInCheck, legalMoves, makeMove, opposite, setupStartPosition, toFen } from '../engine/index.ts';
 import type {
   Color,
   GameEndReason,
@@ -24,6 +24,7 @@ import type {
   VariantDefinition,
 } from '../engine/index.ts';
 import { Board } from './Board.tsx';
+import type { Premove } from './Board.tsx';
 import { ClockView } from './ClockView.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
@@ -172,6 +173,8 @@ export function App() {
   const [showHighlight, setShowHighlight] = useState(true);
   const [thinking, setThinking] = useState(false);
   const [hint, setHint] = useState<{ game: GameState; arrow: readonly [Square, Square] } | null>(null);
+  /** Move queued while the bot thinks; played as soon as it is legal (tied to its game). */
+  const [premove, setPremove] = useState<(Premove & { key: number }) | null>(null);
   const [hintBusy, setHintBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -217,6 +220,7 @@ export function App() {
     toMove.kind === 'bot' && !outcome && !setup && atEnd && !showNewGame && !showRules && !(watching && run === 'pause');
 
   const startGame = (s: GameSettings) => {
+    setPremove(null);
     saveSettings(s);
     botRef.current?.stop();
     helperRef.current?.stop();
@@ -262,6 +266,23 @@ export function App() {
     setNotice(null);
     setRun((r) => (r === 'step' ? 'pause' : r));
   };
+
+  // A queued premove is played as soon as it is the human's turn, if it is legal then
+  // (promotions become queens, as on lichess); otherwise it is dropped.
+  useEffect(() => {
+    if (!premove) return;
+    if (premove.key !== session.key || outcome || !atEnd) {
+      setPremove(null);
+      return;
+    }
+    if (toMove.kind !== 'human' || setup) return;
+    setPremove(null);
+    const candidates = legalMoves(variant, game.position).filter((m) => m.from === premove.from && m.to === premove.to);
+    if (!candidates.length) return;
+    const queen = candidates.find((m) => m.promotion === variant.promotionTypes[0]);
+    play(queen ?? candidates[0]);
+    // Runs when the position changes (the bot has moved) or a premove is queued.
+  }, [game, premove]);
 
   // The bot moves whenever it is its turn at the end of the timeline.
   const thinkToken = useRef(0);
@@ -377,6 +398,7 @@ export function App() {
 
   /** Against the bot: take back the last own move together with the bot's answer. */
   const undoPair = () => {
+    setPremove(null);
     botRef.current?.stop();
     setSession((s) => {
       const states = s.timeline.states;
@@ -451,6 +473,9 @@ export function App() {
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
     !!outcome || promotion !== null || setup !== null || !humanToMove || (!atEnd && (vsBot || timed));
+  // Premoves: against the bot, while it is the bot's turn and the game is on.
+  const premoveColor: Color | null =
+    vsBot && humanColor && !humanToMove && !outcome && !setup && atEnd && promotion === null ? humanColor : null;
   // With a clock, taking back moves and hints are off.
   const canUndoPair = vsBot && !timed && timeline.states.length > 1;
 
@@ -513,6 +538,10 @@ export function App() {
               bandRanks={variant.highlight?.ranks ?? []}
               arrows={hint && hint.game === game ? [hint.arrow] : []}
               disabled={boardDisabled}
+              premoveColor={premoveColor}
+              premove={premove && premove.key === session.key ? premove : null}
+              onPremove={(p) => setPremove({ ...p, key: session.key })}
+              onCancelPremove={() => setPremove(null)}
               onMove={onMove}
             />
             {setup && (

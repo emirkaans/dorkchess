@@ -64,7 +64,7 @@ describe('Kural kartı bileşeni', () => {
     expect(html).toContain(escapeHtml(ex.caption));
     expect(html).toContain(`Örnek 1/${v.rules.examples.length}`);
     expect(html.match(/class="square /g)).toHaveLength(64);
-    expect(html.match(/class="arrow-line"/g) ?? []).toHaveLength(ex.arrows.length);
+    expect(html.match(/class="arrow-line /g) ?? []).toHaveLength(ex.arrows.length);
     expect(html).toContain('Bu varyant için bir daha gösterme');
   });
 

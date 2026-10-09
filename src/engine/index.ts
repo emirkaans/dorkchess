@@ -14,4 +14,5 @@ export {
   undoMove,
 } from './game.ts';
 export { moveToSan, parseFen, toFen } from './notation.ts';
+export { premoveTargets } from './premove.ts';
 export { getVariant, listVariants, registerVariant } from './variants/index.ts';

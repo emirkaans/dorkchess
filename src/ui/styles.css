@@ -160,6 +160,7 @@ button:disabled {
   background: var(--dark);
 }
 .square.last::before,
+.square.premove::before,
 .square.selected::before,
 .square.check::before {
   content: '';
@@ -171,6 +172,17 @@ button:disabled {
 }
 .square.selected::before {
   background: var(--selected);
+}
+/* Queued premove: from and to squares */
+.square.premove::before {
+  background: rgba(20, 30, 85, 0.45);
+}
+.hint.premove-hint {
+  background: rgba(20, 30, 85, 0.45);
+}
+.hint.capture.premove-hint {
+  background: transparent;
+  border-color: rgba(20, 30, 85, 0.45);
 }
 .square.zone::after {
   content: '';
@@ -540,14 +552,34 @@ button.primary {
   pointer-events: none;
   z-index: 5;
 }
+/* Hint arrows (app) and shapes drawn with the right mouse button, in lichess colours. */
 .arrow-line {
-  stroke: rgba(30, 140, 60, 0.8);
   stroke-width: 0.16;
   stroke-linecap: round;
+  opacity: 0.85;
 }
-.arrow-head {
-  fill: rgba(30, 140, 60, 0.9);
+.arrow-line.preview {
+  opacity: 0.55;
 }
+.arrow-line.hint { stroke: rgb(30, 140, 60); }
+.arrow-head.hint { fill: rgb(30, 140, 60); }
+.arrow-line.green { stroke: rgb(21, 120, 27); }
+.arrow-head.green { fill: rgb(21, 120, 27); }
+.arrow-line.red { stroke: rgb(136, 32, 32); }
+.arrow-head.red { fill: rgb(136, 32, 32); }
+.arrow-line.blue { stroke: rgb(0, 48, 136); }
+.arrow-head.blue { fill: rgb(0, 48, 136); }
+.arrow-line.yellow { stroke: rgb(230, 143, 0); }
+.arrow-head.yellow { fill: rgb(230, 143, 0); }
+.shape-circle {
+  fill: none;
+  stroke-width: 0.07;
+  opacity: 0.85;
+}
+.shape-circle.green { stroke: rgb(21, 120, 27); }
+.shape-circle.red { stroke: rgb(136, 32, 32); }
+.shape-circle.blue { stroke: rgb(0, 48, 136); }
+.shape-circle.yellow { stroke: rgb(230, 143, 0); }
 
 /* ---------- clock ---------- */
 
