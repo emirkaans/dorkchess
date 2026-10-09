@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { LEVELS } from '../ai/levels.ts';
 import { TIME_CONTROLS } from '../clock/clock.ts';
 import { listVariants } from '../engine/index.ts';
 import { BOT_DELAYS, MODE_NAMES } from './settings.ts';
 import type { GameSettings, Mode } from './settings.ts';
+import { useDialogFocus } from './useDialogFocus.ts';
 
 interface Props {
   initial: GameSettings;
@@ -28,6 +29,8 @@ function LevelSelect({ value, onChange, label }: { value: number; onChange: (n: 
 
 /** "Yeni oyun" screen: mode, variant, bot options. */
 export function NewGameDialog({ initial, onStart, onCancel }: Props) {
+  const dialogRef = useRef<HTMLFormElement>(null);
+  useDialogFocus(dialogRef, onCancel);
   const [s, setS] = useState(initial);
   const set = (patch: Partial<GameSettings>) => setS((prev) => ({ ...prev, ...patch }));
 
@@ -35,7 +38,10 @@ export function NewGameDialog({ initial, onStart, onCancel }: Props) {
     <div className="modal-backdrop screen" onClick={onCancel}>
       <form
         className="modal new-game"
+        ref={dialogRef}
         role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         aria-label="Yeni oyun"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {

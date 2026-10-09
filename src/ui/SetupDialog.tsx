@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import type { SetupQuestion, VariantDefinition } from '../engine/index.ts';
 import { PieceView } from './PieceView.tsx';
+import { useDialogFocus } from './useDialogFocus.ts';
 
 interface Props {
   variant: VariantDefinition;
@@ -11,9 +13,18 @@ interface Props {
 
 /** Pre-game choice dialog; driven entirely by the variant's setup questions. */
 export function SetupDialog({ variant, question, step, total, onPick }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef);
   return (
     <div className="modal-backdrop">
-      <div className="modal setup" role="dialog" aria-label={question.title}>
+      <div
+        className="modal setup"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-label={question.title}
+      >
         <p>
           {question.title}
           {total > 1 && (

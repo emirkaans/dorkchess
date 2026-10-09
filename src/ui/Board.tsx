@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   FILES,
   fileOf,
@@ -9,6 +9,7 @@ import {
   premoveTargets,
   rankOf,
   royalSquares,
+  squareName,
 } from '../engine/index.ts';
 import type { Color, Move, Position, Square, VariantDefinition } from '../engine/index.ts';
 import { PieceView } from './PieceView.tsx';
@@ -69,6 +70,8 @@ interface Drawing {
   to: Square;
   color: ShapeColor;
 }
+
+const COLOR_WORD = { w: 'beyaz', b: 'siyah' } as const;
 
 const colorFor = (e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }): ShapeColor =>
   e.ctrlKey || e.metaKey ? 'yellow' : e.shiftKey ? 'red' : e.altKey ? 'blue' : 'green';
@@ -175,6 +178,52 @@ export function Board({
     });
   };
 
+  /**
+   * A click (or Enter / Space) on a square: completes a move from the selected
+   * piece, selects one of our pieces, or clears the selection. Returns true if
+   * a piece got selected (the pointer handler then starts a drag).
+   */
+  const activate = (sq: Square): boolean => {
+    if (disabled && !premoving) return false;
+    if (selected !== null && tryMove(selected, sq)) return false;
+    const piece = position.board[sq];
+    const own = premoving ? premoveColor : position.turn;
+    if (piece && piece.color === own) {
+      setSelected(sq);
+      return true;
+    }
+    setSelected(null);
+    if (premoving && premove) onCancelPremove?.();
+    return false;
+  };
+
+  // Keyboard: one square is focusable at a time (roving tab index); arrows move it.
+  const [focusSq, setFocusSq] = useState<Square>(makeSquare(4, 1));
+  const squareRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step: Record<string, [number, number]> = {
+      ArrowUp: [0, 1],
+      ArrowDown: [0, -1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+    };
+    if (e.key in step) {
+      e.preventDefault();
+      const [df, dr] = step[e.key];
+      // On a flipped board "up" means towards rank 1.
+      const f = Math.min(7, Math.max(0, fileOf(focusSq) + (flipped ? -df : df)));
+      const r = Math.min(7, Math.max(0, rankOf(focusSq) + (flipped ? -dr : dr)));
+      const next = makeSquare(f, r);
+      setFocusSq(next);
+      squareRefs.current[next]?.focus();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      activate(focusSq);
+    } else if (e.key === 'Escape') {
+      setSelected(null);
+    }
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const sq = squareAt(e.clientX, e.clientY);
     if (e.button === 2) {
@@ -191,17 +240,10 @@ export function Board({
     if (e.button !== 0) return;
     // A left click clears the drawings, as on lichess and chess.com.
     if (shapes.arrows.length || shapes.circles.length) setShapes({ arrows: [], circles: [] });
-    if (sq === null || (disabled && !premoving)) return;
-    if (selected !== null && tryMove(selected, sq)) return;
-    const piece = position.board[sq];
-    const own = premoving ? premoveColor : position.turn;
-    if (piece && piece.color === own) {
-      setSelected(sq);
+    if (sq === null) return;
+    if (activate(sq)) {
       updateDrag({ from: sq, x: e.clientX, y: e.clientY, moved: false });
       e.currentTarget.setPointerCapture(e.pointerId);
-    } else {
-      setSelected(null);
-      if (premoving && premove) onCancelPremove?.();
     }
   };
 
@@ -263,8 +305,32 @@ export function Board({
         bandEdge(sq),
       ].join(' ');
       const dragging = drag?.moved && drag.from === sq;
+      // Screen-reader label: square, piece (or empty) and states shown only by colour.
+      const label = [
+        squareName(sq),
+        piece ? `${COLOR_WORD[piece.color]} ${variant.pieces[piece.type].name.toLocaleLowerCase('tr')}` : 'boş',
+        selected === sq ? 'seçili' : '',
+        target || premoveDest ? 'gidilebilir' : '',
+        lastMove && (lastMove.from === sq || lastMove.to === sq) ? 'son hamle' : '',
+        checkSquares.includes(sq) ? 'şah altında' : '',
+        highlight.includes(sq) && variant.highlight ? variant.highlight.label.toLocaleLowerCase('tr') : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
       squares.push(
-        <div key={sq} className={classes} data-square={sq}>
+        <div
+          key={sq}
+          ref={(el) => {
+            squareRefs.current[sq] = el;
+          }}
+          className={classes}
+          data-square={sq}
+          role="button"
+          aria-label={label}
+          aria-pressed={selected === sq}
+          tabIndex={sq === focusSq ? 0 : -1}
+          onFocus={() => setFocusSq(sq)}
+        >
           {piece && !dragging && <PieceView variant={variant} piece={piece} position={position} square={sq} />}
           {target && <span className={target.captured ? 'hint capture' : 'hint'} />}
           {premoveDest && <span className={piece ? 'hint capture premove-hint' : 'hint premove-hint'} />}
@@ -286,6 +352,9 @@ export function Board({
     <div
       ref={boardRef}
       className={`board${disabled && !premoving ? ' disabled' : ''}`}
+      role="group"
+      aria-label={`Satranç tahtası, ${flipped ? 'siyah' : 'beyaz'} altta. Ok tuşlarıyla gezin, Enter ile seç ve oyna.`}
+      onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

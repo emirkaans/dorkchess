@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import type { Color, PieceType, VariantDefinition } from '../engine/index.ts';
 import { PieceView } from './PieceView.tsx';
+import { useDialogFocus } from './useDialogFocus.ts';
 
 interface Props {
   variant: VariantDefinition;
@@ -10,9 +12,19 @@ interface Props {
 }
 
 export function PromotionDialog({ variant, color, options, onPick, onCancel }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onCancel);
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Terfi seçimi">
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-label="Terfi seçimi"
+      >
         <p>Terfi:</p>
         <div className="promo-options">
           {options.map((t) => (

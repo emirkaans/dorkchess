@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { VariantDefinition } from '../engine/index.ts';
 import { Diagram } from './Diagram.tsx';
 import { isRuleCardHidden, setRuleCardHidden } from './settings.ts';
+import { useDialogFocus } from './useDialogFocus.ts';
 
 interface Props {
   variant: VariantDefinition;
@@ -12,6 +13,8 @@ const AUTOPLAY_MS = 2000;
 
 /** The variant's rule card: summary, bullets and example diagrams (prev/next, autoplay). */
 export function RuleCardModal({ variant, onClose }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
   const { rules } = variant;
   const examples = rules.examples;
   const [index, setIndex] = useState(0);
@@ -35,7 +38,10 @@ export function RuleCardModal({ variant, onClose }: Props) {
     <div className="modal-backdrop screen" onClick={onClose}>
       <div
         className="modal rule-card"
+        ref={dialogRef}
         role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         aria-label={`${rules.title} kuralları`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -82,7 +88,7 @@ export function RuleCardModal({ variant, onClose }: Props) {
           Bu varyant için bir daha gösterme
         </label>
         <div className="modal-actions">
-          <button type="button" className="primary" onClick={onClose} autoFocus>
+          <button type="button" className="primary" onClick={onClose} data-autofocus>
             Tamam
           </button>
         </div>

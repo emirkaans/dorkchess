@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Modal } from './Modal.tsx';
 import { getVariant } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
 import { exportPgn, importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
@@ -40,8 +41,8 @@ export function HistoryModal({ onClose }: Props) {
   };
 
   return (
-    <div className="modal-backdrop screen" onClick={onClose}>
-      <div className="modal history" role="dialog" aria-label="Oyun geçmişi" onClick={(e) => e.stopPropagation()}>
+    <Modal label="Oyun geçmişi" className="history" onClose={onClose}>
+      <div>
         {open ? (
           <Replay game={open} onBack={() => setOpen(null)} />
         ) : (
@@ -103,7 +104,7 @@ export function HistoryModal({ onClose }: Props) {
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

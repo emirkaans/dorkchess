@@ -6,6 +6,7 @@ import { ClockView } from './ClockView.tsx';
 import { GameControls } from './GameControls.tsx';
 import { GameViewer } from './GameViewer.tsx';
 import { HistoryModal } from './HistoryModal.tsx';
+import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
@@ -162,6 +163,16 @@ export function App() {
   const premoveColor: Color | null =
     vsBot && humanColor && !humanToMove && !outcome && !setup && atEnd && promotion === null ? humanColor : null;
 
+  // Text for screen readers: who played what, then how the game ended.
+  const lastPlayed = view.endState.moves.at(-1);
+  const mover = view.endState.position.turn === 'w' ? 'b' : 'w';
+  const announcement = [
+    lastPlayed ? `${COLOR_NAME[mover]}: ${lastPlayed.san}` : '',
+    view.finalOutcome ? outcomeText(view.finalOutcome) : '',
+  ]
+    .filter(Boolean)
+    .join('. ');
+
   let status: string;
   if (outcome) status = outcomeText(outcome);
   else if (setup) status = 'Oyun öncesi seçim bekleniyor…';
@@ -228,6 +239,10 @@ export function App() {
           </div>
           {timed && <ClockView clock={session.clock} color={flipped ? 'b' : 'w'} players={players} />}
           <div className={`status${thinking ? ' thinking' : ''}`}>{status}</div>
+          {/* Screen readers: the last move and the result are announced. */}
+          <div className="sr-only" aria-live="polite">
+            {announcement}
+          </div>
           {notice && <div className="notice">{notice}</div>}
           {view.finalOutcome && view.endState.moves.length > 0 && (
             <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
@@ -291,29 +306,20 @@ export function App() {
 
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
       {sharedGame && (
-        <div className="modal-backdrop screen" onClick={() => setSharedGame(null)}>
-          <div
-            className="modal history"
-            role="dialog"
-            aria-label="Paylaşılan oyun"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2>Paylaşılan oyun · {getVariantName(sharedGame)}</h2>
-            <GameViewer variant={variantOf(sharedGame)} states={sharedGame}>
-              <button onClick={() => setSharedGame(null)}>Kapat</button>
-            </GameViewer>
-          </div>
-        </div>
+        <Modal label="Paylaşılan oyun" className="history" onClose={() => setSharedGame(null)}>
+          <h2>Paylaşılan oyun · {getVariantName(sharedGame)}</h2>
+          <GameViewer variant={variantOf(sharedGame)} states={sharedGame}>
+            <button onClick={() => setSharedGame(null)}>Kapat</button>
+          </GameViewer>
+        </Modal>
       )}
       {showAnalysis && (
-        <div className="modal-backdrop screen" onClick={() => setShowAnalysis(false)}>
-          <div className="modal history" role="dialog" aria-label="Oyun analizi" onClick={(e) => e.stopPropagation()}>
-            <h2>Analiz</h2>
-            <GameViewer variant={variant} states={timeline.states} autoAnalyse>
-              <button onClick={() => setShowAnalysis(false)}>Kapat</button>
-            </GameViewer>
-          </div>
-        </div>
+        <Modal label="Oyun analizi" className="history" onClose={() => setShowAnalysis(false)}>
+          <h2>Analiz</h2>
+          <GameViewer variant={variant} states={timeline.states} autoAnalyse>
+            <button onClick={() => setShowAnalysis(false)}>Kapat</button>
+          </GameViewer>
+        </Modal>
       )}
       {showRules && <RuleCardModal variant={variant} onClose={() => setShowRules(false)} />}
       {showNewGame && (

@@ -237,3 +237,43 @@ describe('uygulama: paylaşım linki', () => {
     expect(document.querySelector('.notice')?.textContent).toContain('Link açılamadı');
   });
 });
+
+describe('uygulama: erişilebilirlik', () => {
+  const square = (name: string) => document.querySelector(`[data-square="${parseSquare(name)}"]`) as HTMLElement;
+
+  it('klavyeyle oynama: ok tuşları, Enter ile seç ve oyna', () => {
+    startGame({ mode: 'hotseat' });
+    expect(square('e2').tabIndex).toBe(0); // tek odaklanabilir kare
+    expect(square('e3').tabIndex).toBe(-1);
+    square('e2').focus();
+    fireEvent.keyDown(board(), { key: 'Enter' });
+    expect(square('e2').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(board(), { key: 'ArrowUp' });
+    fireEvent.keyDown(board(), { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(square('e4'));
+    fireEvent.keyDown(board(), { key: 'Enter' });
+    expect(moves()).toEqual(['e4']);
+  });
+
+  it('kareler ekran okuyucu için etiketli; hamleler duyurulur', () => {
+    startGame({ mode: 'hotseat' });
+    expect(square('e2').getAttribute('aria-label')).toBe('e2, beyaz piyon');
+    expect(square('e4').getAttribute('aria-label')).toBe('e4, boş');
+    move('e2', 'e4');
+    expect(square('e4').getAttribute('aria-label')).toBe('e4, beyaz piyon, son hamle');
+    expect(document.querySelector('[aria-live]')?.textContent).toBe('Beyaz: e4');
+  });
+
+  it('pencere: açılınca içine odaklanır, Esc kapatır, odak açan düğmeye döner', () => {
+    startGame({ mode: 'hotseat' });
+    const rulesButton = screen.getByRole('button', { name: 'Kurallar' });
+    rulesButton.focus();
+    fireEvent.click(rulesButton);
+    const dialog = screen.getByRole('dialog', { name: /kuralları/ });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement?.textContent).toBe('Tamam');
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: /kuralları/ })).toBeNull();
+    expect(document.activeElement).toBe(rulesButton);
+  });
+});
