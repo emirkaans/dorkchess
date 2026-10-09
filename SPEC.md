@@ -1,13 +1,17 @@
 # Proje: Dorkchess – Satranç Varyantları
 
-Bu dosya iki bölümden oluşur:
+Bu dosya üç bölümden oluşur:
 - **Bölüm A – v1 (TAMAMLANDI):** kural motoru, 4 varyant, yerel iki kişilik oyun. Referans
   olarak duruyor; mevcut kod bu kurallara uyuyor olmalı. Bozma, sadece gerekirse genişlet.
-- **Bölüm B – v2 (ŞİMDİ YAPILACAK):** bilgisayar rakibi (seviyeli), satranç saati, kural
-  kartları, bot vs bot test modu; ikinci öncelikte oyun kaydı, ses, tema.
+- **Bölüm B – v2 (TAMAMLANDI):** bilgisayar rakibi (seviyeli), satranç saati, kural kartları,
+  bot vs bot test modu, oyun kaydı, ses, tema. Sonradan yapılanlar ve şartnameden sapmalar
+  Bölüm B'nin sonundaki "v2 sonrası durum" başlığında.
+- **Bölüm C – v3 (ŞİMDİ YAPILACAK):** altyapı (CI, lint), kod sağlığı (oyun durumu katmanı,
+  testler), ürün ve kullanıcı deneyimi (mobil, PWA, erişilebilirlik, analiz modu, paylaşım,
+  çok dillilik).
 
-Önce bu dosyanın tamamını oku, sonra mevcut kodu incele, ardından Bölüm B'deki
-"v2 çalışma sırası"nı uygula.
+Önce bu dosyanın tamamını oku, sonra mevcut kodu incele, ardından Bölüm C'deki
+"v3 çalışma sırası"nı uygula.
 
 ---------------------------------------------------------------------------------------
 
@@ -207,7 +211,7 @@ Tam FIDE kuralları: rok, en passant, terfi (V/K/F/A seçimi), mat, pat, 50 haml
 
 ---------------------------------------------------------------------------------------
 
-# BÖLÜM B – v2 (ŞİMDİ YAPILACAK)
+# BÖLÜM B – v2 (TAMAMLANDI)
 
 ## v2 amacı
 1. Kullanıcı bilgisayara karşı 5 farklı seviyede, dört varyantın hepsinde oynayabilsin.
@@ -437,3 +441,161 @@ Her büyük adımın sonunda bana 3-5 satırlık durum özeti ver.
 ## Kapsam dışı (v2'de YAPMA)
 Çevrimiçi oyun, hesap/giriş, reyting, sunucu/backend, mobil uygulama, açılış kitabı,
 oyun sonu tabloları, sinir ağı tabanlı değerlendirme, kullanıcı tanımlı varyant editörü.
+
+## v2 sonrası durum (gerçekleşen, şartnameden sapmalar dahil)
+v2 çalışma sırasının 11 adımı tamamlandı. Bunun üzerine yapılanlar ve yukarıdaki
+metinden bilinçli olarak ayrılan noktalar:
+
+- **Güçlü motor.** Arama, değiştirilebilir hızlı bir tahta üzerinde çalışıyor
+  (`src/engine/fast/`: make/unmake, Zobrist hash, taş listeleri, varyant kancaları).
+  Okunabilir motor (`src/engine/`) kuralların referansı olarak kaldı; ikisi testlerle
+  karşılaştırılıyor. Arama: PVS, aspiration window, transpozisyon tablosu (2^20 kayıt,
+  B1'deki 2^18 yerine), null-move, LMR, razoring, futility, SEE, tekil uzatma, killer /
+  history / karşı hamle sıralaması. Değerlendirme: oyun evresine göre geçişli konum
+  tabloları, piyon yapısı, şah saldırısı, piyonla tehdit, hareketlilik; ağırlıklar
+  Stockfish değerlendirmeleriyle etiketlenmiş konumlarla ayarlandı (`src/ai/eval-params.ts`).
+- **Seviye süreleri değişti** (kullanıcı isteği: bot 1 saniyenin altında cevap versin):
+  seviye 4 = 0,5 sn, seviye 5 = 0,95 sn (B1 tablosundaki 1,5 / 3 sn yerine). "Seviye 4
+  araması süre sınırını %20'den fazla aşmıyor" testi yeni süreyle çalışıyor.
+- **Ölçülen güç:** seviye 5, Stockfish 19'a karşı (UCI_LimitStrength, UCI_Elo 2500, iki
+  taraf da hamle başına ~1 sn, standart satranç, 40 oyun) %55 puan aldı: Stockfish Elo
+  ölçeğinde ≈2535 (95%: 2432–2644). Ölçek bilgisayar listelerinin ölçeği, FIDE değil;
+  varyantlarda güç ölçülmedi.
+- **Geliştirme araçları:** `npm run match` (sürüm vs sürüm), `npm run sf-match`
+  (Stockfish'e karşı kalibrasyon), `npm run gen-data` + `npm run sf-label` + `npm run tune`
+  (değerlendirme ayarı). Stockfish yalnızca yerel bir geliştirme aracı (`data/`, git dışı);
+  uygulamaya dahil değil.
+- **Arayüze eklenenler:** premove (bota karşı, bot düşünürken bir hamle sıraya konur;
+  yasal olursa hemen oynanır, terfi otomatik vezir) ve sağ tıkla ok / halka çizimi
+  (lichess renkleri: düz yeşil, Shift kırmızı, Alt mavi, Ctrl sarı; sol tık temizler).
+- **Jester (v1'den sapma, kullanıcı kararı):** rakip son hamlesini Jester ile yaptıysa,
+  Jester varsayılan At formuna değil, oynanan Jester'in hamle anındaki formuna geçer.
+  Bölüm A'daki form tablosu ve "Rakip Jester oynayınca at formu" testi bu kararla
+  değiştirildi kabul edilir. Ayrıca oyun başında her oyuncu hangi taşının Jester
+  olacağını seçer (v1 sonrası eklendi).
+
+---------------------------------------------------------------------------------------
+
+# BÖLÜM C – v3 (ŞİMDİ YAPILACAK)
+
+## v3 amacı
+1. Projeyi güvenle büyütülebilir hale getirmek: her push'ta otomatik kontrol, ortak kod stili.
+2. Kodun en kırılgan iki yerini sağlamlaştırmak: arayüzdeki oyun durumu ve iki motorun
+   birbirinden kopma riski.
+3. Uygulamayı telefonda da rahatça kullanılır, kurulabilir ve çevrimdışı çalışır yapmak.
+4. Oyuncuya yeni değer katmak: analiz modu, oyun paylaşımı, erişilebilirlik, İngilizce.
+Hâlâ backend YOK; her şey tarayıcıda çalışır.
+
+## C1. Altyapı
+- **CI:** `.github/workflows/ci.yml`; her push ve pull request'te Node 22 ile `npm ci`,
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`, `npm run build`.
+  Herhangi biri başarısızsa iş kırmızı olur.
+- Zamana duyarlı testler (süre sınırı, robustness) CI makinesinde kararsız olmamalı:
+  süre toleransları paylaşımlı makineye göre ayarlanır ya da bu testler ortam değişkeniyle
+  CI'da gevşetilir; hiçbir test sessizce atlanmaz.
+- **Lint:** ESLint (flat config) + typescript-eslint + eslint-plugin-react-hooks
+  (`rules-of-hooks` hata, `exhaustive-deps` uyarı → C2 sonunda hata). `npm run lint`.
+- **Format:** Prettier; mevcut stile en yakın ayar (tek tırnak, 2 boşluk, satır genişliği
+  mevcut koda göre). `npm run format`, `npm run format:check`. Toplu yeniden biçimlendirme
+  ayrı bir commit olur (davranış değişikliğiyle karışmasın).
+- Mimari kuralları (engine/ai/clock/rules/storage DOM'suz) lint kuralı olarak da yazılabilir;
+  `tests/architecture.test.ts` kalır.
+
+## C2. Kod sağlığı
+- **Oyun durumu katmanı:** `src/ui/App.tsx` (~650 satır, 23 useState/useEffect) bölünür.
+  - Saf bir reducer (`src/ui/game/` altında, React'siz): oturum, zaman çizelgesi, kurulum
+    soruları, sonuç (teslim / anlaşma / süre), saat, premove. Eylemler: oyunu başlat,
+    hamle oyna, geri al (çift), kurulum cevabı, premove sıraya koy / iptal, saat tik /
+    süre bitimi, teslim, beraberlik kabulü.
+  - Yan etkiler (bot worker'ı, ses, kayıt, ayarlar) ayrı hook'larda: `useGame`,
+    `useBot`, `useClock` gibi.
+  - Hedef: `App.tsx` 250 satırın altında, yalnızca düzen ve bileşen bağlama.
+- **İki motorun uyumu:** okunabilir motor ile hızlı tahta arasında kopma, yeni varyant
+  eklerken en büyük risk. Mevcut `tests/fast-board.test.ts` güçlendirilir:
+  - Her kayıtlı varyant için otomatik (yeni varyant ek kod gerektirmeden kapsanır).
+  - Daha çok ve daha çeşitli konum: rastgele oyunlar + hedefli FEN'ler (terfi, rok,
+    en passant, Jester'in her formu ve her başlangıç seçimi, Diplomat aurası açık/kapalı).
+  - Her konumda: yasal hamle listeleri, şah durumu, oyun sonu (mat / pat / yetersiz
+    materyal), make/unmake sonrası konum ve hash. Örnek konumlarda perft(3); daha derin
+    perft yalnızca isteğe bağlı (yavaş) bir komutla.
+- **Arayüz testleri:** bileşen testleri için DOM ortamı (happy-dom veya jsdom +
+  Testing Library). En az şu etkileşimler test edilir: hamle oynama (tık ve sürükle),
+  terfi penceresi, bot sırası ve "Bot düşünüyor…" (bot istemcisi sahte), premove'un bot
+  hamlesinden sonra oynanması / yasal değilse iptali, bota karşı geri alma, saat
+  gösterimi ve süre bitimi (sahte saat), sağ tıkla ok çizimi.
+
+## C3. Ürün ve kullanıcı deneyimi
+- **Mobil:** dar ekranlar için `@media` kuralları; 360 px genişlikte yatay kaydırma yok,
+  tahta ekran genişliğini (16 px kenar boşluğuyla) kullanır, saatler ve düğmeler tahtanın
+  altında sarar, yan panel tahtanın altına iner. Dokunmatik sürükle-bırak ve tık-tık
+  hamleleri telefonda (ve tarayıcının mobil emülasyonunda) denenir; premove ve sağ tık
+  çizimi dokunmatikte devre dışı ya da uzun basmayla.
+- **PWA:** `public/` altında web manifest, ikonlar (192, 512, maskable) ve service worker.
+  Uygulama kabuğu, worker paketi ve varlıklar önbelleğe alınır; ilk ziyaretten sonra bot
+  dahil her şey çevrimdışı çalışır ve uygulama telefona kurulabilir. Yeni sürüm
+  yayınlanınca kullanıcıya "yenile" bildirimi.
+- **Erişilebilirlik:**
+  - Tahta kareleri anlamlı etiket taşır ("e4, beyaz at", "e5, boş").
+  - Klavyeyle oynama: ok tuşlarıyla kareler arasında gezinme, Enter / Boşluk ile seç ve
+    oyna, Esc ile seçimi bırak.
+  - Yapılan hamleler ve oyun sonu bir ARIA canlı bölgesinden duyurulur.
+  - Pencerelerde odak yönetimi (açılınca içine, kapanınca geri).
+  - Renk tek bilgi taşıyıcısı olmaz (ör. şah çekilen kare için metin de var).
+- **Analiz modu:** oyun bitince ve Geçmiş'teki tekrar izlemede:
+  - Değerlendirme çubuğu (eval bar) ve hamle hamle değerlendirme grafiği.
+  - Her konum için motorun en iyi hamlesi okla gösterilir.
+  - Büyük kayıplar işaretlenir (ör. hamle sonrası değerlendirme düşüşü > 200 puan: hata).
+  - Arama mevcut worker ile, konum başına sabit kısa süreyle (ör. 0,3 sn) arka planda
+    yapılır; arayüz donmaz, iptal edilebilir. Dört varyantta da çalışır.
+- **Oyun paylaşımı:** kayıtlı bir oyun ya da tek bir konum URL'ye kodlanır (ör. `#g=` /
+  `#fen=`, base64url; varyant, başlangıç konumu, hamleler). Link açılınca oyun tekrar
+  izleme ya da analiz olarak, konum ise tahtada açılır. Bozuk veya geçersiz link anlaşılır
+  bir mesajla reddedilir. Backend gerekmez.
+- **Çok dillilik (i18n):** arayüz metinleri kod içinden bir sözlük katmanına taşınır
+  (`src/i18n/`: `tr`, `en`; `t(anahtar, parametreler)`). Varyant açıklamaları ve kural
+  kartları da çevrilir (varyant tanımları dil başına içerik ya da anahtar taşır).
+  Varsayılan dil tarayıcıdan, seçim hatırlanır. Türkçe ve İngilizce eksiksiz.
+
+## v3 testleri (zorunlu)
+- CI'da tüm adımlar (typecheck, lint, format kontrolü, test, build) geçiyor.
+- Oyun durumu reducer'ı için birim testleri (her eylem; geri alma, premove, süre bitimi,
+  teslim / beraberlik).
+- Motor uyum testi: her varyantta güçlendirilmiş karşılaştırma (C2).
+- C2'deki arayüz etkileşim testleri.
+- Paylaşım: kodla → çöz gidiş-dönüşü her varyantta aynı oyunu verir; bozuk link reddedilir.
+- i18n: her iki dilde de sözlükte eksik anahtar yok (test sözlükleri karşılaştırır).
+- Analiz: değerlendirme dizisi doğru uzunlukta, mat konumunda mat skoru, hata işaretleme eşiği.
+
+## v3 kabul kriterleri
+- Her push'ta CI çalışıyor ve yeşil.
+- `npm run lint` ve `npm run format:check` temiz.
+- `App.tsx` 250 satırın altında; oyun durumu React'siz bir reducer'da ve test ediliyor.
+- 360 px genişlikte uygulama yatay kaydırmasız, dokunmatikle oynanabiliyor.
+- Uygulama kurulabiliyor ve ilk ziyaretten sonra çevrimdışı bota karşı oynanabiliyor.
+- Tahta klavyeyle oynanabiliyor; ekran okuyucu hamleleri duyuruyor.
+- Biten oyun analiz edilebiliyor (eval bar, en iyi hamle oku, hata işaretleri).
+- Oyun ve konum linkle paylaşılabiliyor.
+- Arayüz Türkçe ve İngilizce kullanılabiliyor.
+- v1 ve v2 testleri geçmeye devam ediyor; bot gücü ve 1 sn altı yanıt süresi korunuyor.
+- README güncel: CI, lint/format komutları, PWA, paylaşım, dil ekleme.
+
+## v3 çalışma sırası
+1. CI + ESLint + Prettier (C1). Format değişiklikleri ayrı commit.
+2. Oyun durumu reducer'ı + hook'lar (C2); davranış değişmeden, testlerle.
+3. Motor uyum testini güçlendir (C2).
+4. Arayüz bileşen testleri (C2).
+5. Mobil düzen (C3).
+6. PWA (C3).
+7. Analiz modu (C3).
+8. Oyun paylaşımı (C3).
+9. Erişilebilirlik (C3).
+10. i18n (C3).
+11. README.
+Her adımdan sonra testleri çalıştır, geçmeyen test varsa bir sonraki adıma geçme.
+Her büyük adımın sonunda 3-5 satırlık durum özeti ver.
+
+## Kapsam dışı (v3'te YAPMA)
+Çevrimiçi oyun, hesap/giriş, reyting, sunucu/backend, yerel mobil uygulama (PWA yeterli),
+açılış kitabı, oyun sonu tabloları, sinir ağı tabanlı değerlendirme, kullanıcı tanımlı
+varyant editörü, yeni varyant. Motor gücü üzerinde çalışma bu sürümün hedefi değil
+(yalnızca gerilememesi korunur).
