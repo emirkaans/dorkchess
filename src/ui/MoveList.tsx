@@ -1,3 +1,4 @@
+import type { MoveMark } from '../ai/analysis.ts';
 import type { GameState } from '../engine/index.ts';
 
 interface Props {
@@ -6,9 +7,11 @@ interface Props {
   /** Number of moves currently shown on the board. */
   cursor: number;
   onSelect: (cursor: number) => void;
+  /** Analysis marks per move (blunder "??", mistake "?"). */
+  marks?: readonly MoveMark[];
 }
 
-export function MoveList({ game, cursor, onSelect }: Props) {
+export function MoveList({ game, cursor, onSelect, marks = [] }: Props) {
   // Number moves from the first state's move number and side.
   let first: GameState = game;
   while (first.previous) first = first.previous;
@@ -34,10 +37,11 @@ export function MoveList({ game, cursor, onSelect }: Props) {
             c ? (
               <button
                 key={j}
-                className={c.index === cursor - 1 ? 'mv current' : 'mv'}
+                className={[c.index === cursor - 1 ? 'mv current' : 'mv', marks[c.index] ?? ''].join(' ')}
                 onClick={() => onSelect(c.index + 1)}
               >
                 {c.san}
+                {marks[c.index] === 'blunder' ? '??' : marks[c.index] === 'mistake' ? '?' : ''}
               </button>
             ) : (
               <span key={j} className="mv">

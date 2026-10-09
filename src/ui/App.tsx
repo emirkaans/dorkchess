@@ -4,6 +4,7 @@ import type { Color, Move, PieceType } from '../engine/index.ts';
 import { Board } from './Board.tsx';
 import { ClockView } from './ClockView.tsx';
 import { GameControls } from './GameControls.tsx';
+import { GameViewer } from './GameViewer.tsx';
 import { HistoryModal } from './HistoryModal.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
@@ -26,6 +27,7 @@ export function App() {
   const [showNewGame, setShowNewGame] = useState(true);
   const [showRules, setShowRules] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
   const [copied, setCopied] = useState(false);
@@ -175,6 +177,11 @@ export function App() {
           {timed && <ClockView clock={session.clock} color={flipped ? 'b' : 'w'} players={players} />}
           <div className={`status${thinking ? ' thinking' : ''}`}>{status}</div>
           {notice && <div className="notice">{notice}</div>}
+          {view.finalOutcome && view.endState.moves.length > 0 && (
+            <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
+              Oyunu analiz et
+            </button>
+          )}
           <GameControls
             vsBot={vsBot}
             watching={watching}
@@ -229,6 +236,16 @@ export function App() {
       </main>
 
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      {showAnalysis && (
+        <div className="modal-backdrop screen" onClick={() => setShowAnalysis(false)}>
+          <div className="modal history" role="dialog" aria-label="Oyun analizi" onClick={(e) => e.stopPropagation()}>
+            <h2>Analiz</h2>
+            <GameViewer variant={variant} states={timeline.states} autoAnalyse>
+              <button onClick={() => setShowAnalysis(false)}>Kapat</button>
+            </GameViewer>
+          </div>
+        </div>
+      )}
       {showRules && <RuleCardModal variant={variant} onClose={() => setShowRules(false)} />}
       {showNewGame && (
         <NewGameDialog

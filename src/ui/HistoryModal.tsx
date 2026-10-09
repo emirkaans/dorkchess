@@ -1,11 +1,9 @@
 import { useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
 import { getVariant } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
 import { exportPgn, importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
 import type { SavedGame } from '../storage/games.ts';
-import { Board } from './Board.tsx';
-import { MoveList } from './MoveList.tsx';
+import { GameViewer } from './GameViewer.tsx';
 
 interface Props {
   onClose: () => void;
@@ -111,9 +109,7 @@ export function HistoryModal({ onClose }: Props) {
 function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
   const variant = getVariant(game.variantId);
   const states = useMemo<GameState[]>(() => replay(game), [game]);
-  const [cursor, setCursor] = useState(states.length - 1);
   const [copied, setCopied] = useState(false);
-  const state = states[cursor];
   const pgn = useMemo(() => exportPgn(game), [game]);
 
   const copy = async () => {
@@ -140,55 +136,11 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
       <h2>
         {variantName(game.variantId)} · {game.white} – {game.black} · {game.result}
       </h2>
-      <div className="replay-body">
-        <div className="diagram" style={{ '--board': 'min(80vw, 360px)' } as CSSProperties}>
-          <Board
-            variant={variant}
-            position={state.position}
-            lastMove={state.moves.at(-1)?.move ?? null}
-            flipped={false}
-            highlight={variant.highlight ? variant.highlight.squares(state.position) : []}
-            bandRanks={variant.highlight?.ranks ?? []}
-            disabled
-            onMove={() => {}}
-          />
-        </div>
-        <div className="replay-side">
-          <MoveList game={states.at(-1)!} cursor={cursor} onSelect={setCursor} />
-        </div>
-      </div>
-      <input
-        type="range"
-        className="replay-slider"
-        min={0}
-        max={states.length - 1}
-        value={cursor}
-        onChange={(e) => setCursor(Number(e.target.value))}
-        aria-label="Hamle"
-      />
-      <div className="controls">
-        <button onClick={() => setCursor(0)} disabled={cursor === 0}>
-          ⏮
-        </button>
-        <button onClick={() => setCursor((c) => Math.max(0, c - 1))} disabled={cursor === 0}>
-          ◀
-        </button>
-        <span className="muted replay-pos">
-          {cursor}/{states.length - 1}
-        </span>
-        <button
-          onClick={() => setCursor((c) => Math.min(states.length - 1, c + 1))}
-          disabled={cursor === states.length - 1}
-        >
-          ▶
-        </button>
-        <button onClick={() => setCursor(states.length - 1)} disabled={cursor === states.length - 1}>
-          ⏭
-        </button>
+      <GameViewer variant={variant} states={states}>
         <button onClick={copy}>{copied ? 'Kopyalandı ✓' : 'Metni kopyala'}</button>
         <button onClick={download}>İndir (.pgn)</button>
         <button onClick={onBack}>← Listeye dön</button>
-      </div>
+      </GameViewer>
     </div>
   );
 }
