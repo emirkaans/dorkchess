@@ -20,7 +20,7 @@ export const phaseWeight = (letter: string, value: number) =>
   letter === 'p' || letter === 'k' ? 0 : Math.max(0, Math.min(4, Math.round(value / 250)));
 const MAX_PHASE = 24;
 
-interface Tables {
+export interface Tables {
   /** [type * 128 + side * 64 + sq] -> value + PST, per phase */
   readonly mg: Int16Array;
   readonly eg: Int16Array;
@@ -29,11 +29,13 @@ interface Tables {
   readonly bishop: number;
   readonly rook: number;
   readonly king: number;
-  readonly mobilityTypes: readonly { type: number; letter: string }[];
+  readonly mobilityTypes: readonly { type: number; wm: number; we: number; base: number; ka: number }[];
+  /** Types worth threatening with a pawn: capturable, valued, not pawn or royal. */
+  readonly threatTypes: readonly number[];
 }
 
 const tablesCache = new WeakMap<VariantDefinition, Tables>();
-function tablesFor(b: FastBoard): Tables {
+export function tablesFor(b: FastBoard): Tables {
   let t = tablesCache.get(b.v);
   if (t) return t;
   const n = b.types.length;
@@ -61,7 +63,18 @@ function tablesFor(b: FastBoard): Tables {
     bishop: ix('b'),
     rook: ix('r'),
     king: ix('k'),
-    mobilityTypes: ['n', 'b', 'r', 'q'].filter((l) => ix(l) >= 0).map((l) => ({ type: ix(l), letter: l })),
+    mobilityTypes: ['n', 'b', 'r', 'q']
+      .filter((l) => ix(l) >= 0)
+      .map((l) => ({
+        type: ix(l),
+        wm: WEIGHTS.mobility[l][0],
+        we: WEIGHTS.mobility[l][1],
+        base: WEIGHTS.mobilityBase[l],
+        ka: WEIGHTS.kingAttack[l],
+      })),
+    threatTypes: b.types
+      .filter((ty) => !ty.isPawn && !ty.royal && ty.capturable && (b.v.pieceValues[ty.letter] ?? 0) > 0)
+      .map((ty) => ty.index),
   };
   tablesCache.set(b.v, t);
   return t;
@@ -78,6 +91,8 @@ const pcFiles = new Uint8Array(PAWN_CACHE * 2);
 /** Per entry, side and file: lowest / highest pawn rank (8 / -1 when none). */
 const pcMin = new Int8Array(PAWN_CACHE * 16);
 const pcMax = new Int8Array(PAWN_CACHE * 16);
+/** Per entry and side: squares attacked by that side's pawns (low / high 32 squares). */
+const pcAtt = new Int32Array(PAWN_CACHE * 4);
 let pcVariant: VariantDefinition | null = null;
 
 /** Fills (or finds) the pawn cache entry of the current pawn structure; returns its index. */
@@ -108,6 +123,21 @@ function pawnEntry(b: FastBoard, pawn: number): number {
       if (r > pcMax[k]) pcMax[k] = r;
     }
     pcFiles[e * 2 + side] = files;
+    let lo = 0;
+    let hi = 0;
+    const fw = side === 0 ? 8 : -8;
+    for (let i = b.count(pawn, side as Side) - 1; i >= 0; i--) {
+      const s = list[i];
+      const to = s + fw;
+      if (to < 0 || to > 63) continue;
+      for (const t of [(s & 7) > 0 ? to - 1 : -1, (s & 7) < 7 ? to + 1 : -1]) {
+        if (t < 0) continue;
+        if (t < 32) lo |= 1 << t;
+        else hi |= 1 << (t - 32);
+      }
+    }
+    pcAtt[e * 4 + side * 2] = lo;
+    pcAtt[e * 4 + side * 2 + 1] = hi;
   }
   for (let side = 0; side < 2; side++) {
     const sign = side === 0 ? 1 : -1;
@@ -228,13 +258,20 @@ export function evaluateBoard(b: FastBoard, opts: EvalOptions = {}, alpha = -Inf
     }
   }
 
+  if (t.pawn >= 0) {
+    const threats = pawnThreats(b, t);
+    mg += W.threatByPawn[0] * threats;
+    eg += W.threatByPawn[1] * threats;
+  }
+
   if (opts.mobility && t.mobilityTypes.length) {
     const ph0 = Math.min(b.phase, MAX_PHASE);
     const cheap = (b.side === 0 ? 1 : -1) * Math.round((mg * ph0 + eg * (MAX_PHASE - ph0)) / MAX_PHASE);
-    if (cheap + LAZY_MARGIN > alpha && cheap - LAZY_MARGIN < beta) mobilityTerms(b, t, (dm, de) => {
-      mg += dm;
-      eg += de;
-    });
+    if (cheap + LAZY_MARGIN > alpha && cheap - LAZY_MARGIN < beta) {
+      mobilityTerms(b, t);
+      mg += mobMg + attackMg;
+      eg += mobEg;
+    }
   }
 
   const ph = Math.min(b.phase, MAX_PHASE);
@@ -245,22 +282,110 @@ export function evaluateBoard(b: FastBoard, opts: EvalOptions = {}, alpha = -Inf
   return score + W.tempo;
 }
 
-function mobilityTerms(b: FastBoard, t: Tables, add: (mg: number, eg: number) => void): void {
-  const W = WEIGHTS;
-  {
-    for (const { type, letter } of t.mobilityTypes) {
-      const [wm, we] = W.mobility[letter];
-      const base = W.mobilityBase[letter];
-      for (let side = 0; side < 2; side++) {
-        const sign = side === 0 ? 1 : -1;
-        const list = b.squares(type, side as Side);
-        for (let i = b.count(type, side as Side) - 1; i >= 0; i--) {
-          const m = b.reachCount(list[i], side as Side) - base;
-          add(sign * wm * m, sign * we * m);
-        }
+/** Enemy pieces attacked by a pawn: White's count minus Black's (pawn attack maps come from the pawn cache). */
+export function pawnThreats(b: FastBoard, t: Tables): number {
+  const e = pawnEntry(b, t.pawn);
+  let n = 0;
+  const types = t.threatTypes;
+  for (let k = 0; k < types.length; k++) {
+    const type = types[k];
+    for (let side = 0; side < 2; side++) {
+      const base = e * 4 + (side ^ 1) * 2;
+      const lo = pcAtt[base];
+      const hi = pcAtt[base + 1];
+      const list = b.squares(type, side as Side);
+      for (let i = b.count(type, side as Side) - 1; i >= 0; i--) {
+        const s = list[i];
+        const hit = s < 32 ? (lo >>> s) & 1 : (hi >>> (s - 32)) & 1;
+        if (hit) n += side === 0 ? -1 : 1;
       }
     }
   }
+  return n;
+}
+
+/** Mobility and king attack totals of the last mobilityTerms call (White's view). */
+let mobMg = 0;
+let mobEg = 0;
+let attackMg = 0;
+/** Per side: squares around that side's king (king square and neighbours). */
+const ZONE = [new Uint8Array(64), new Uint8Array(64)];
+/** Per side and mobility type: king-zone squares attacked (for the tuner's linear form). */
+export const attackHits = [new Int32Array(8), new Int32Array(8)];
+export const attackers = new Int32Array(2);
+
+function fillZones(b: FastBoard, king: number): void {
+  for (let side = 0; side < 2; side++) {
+    const z = ZONE[side];
+    z.fill(0);
+    if (king < 0 || b.count(king, side as Side) !== 1) continue;
+    const k = b.squares(king, side as Side)[0];
+    const kf = k & 7;
+    const kr = k >> 3;
+    for (let f = Math.max(0, kf - 1); f <= Math.min(7, kf + 1); f++) {
+      for (let r = Math.max(0, kr - 1); r <= Math.min(7, kr + 1); r++) z[r * 8 + f] = 1;
+    }
+  }
+}
+
+/**
+ * Sets mobMg / mobEg (reachable squares beyond the type's average, weighted)
+ * and attackMg (king attack: attacked squares around the enemy king, weighted
+ * by attacker type, scaled by the number of attacking pieces).
+ */
+function mobilityTerms(b: FastBoard, t: Tables): void {
+  const W = WEIGHTS;
+  let mg = 0;
+  let eg = 0;
+  let att = 0;
+  fillZones(b, t.king);
+  const types = t.mobilityTypes;
+  for (let side = 0; side < 2; side++) {
+    const enemyZone = ZONE[side ^ 1];
+    const hitsByType = attackHits[side];
+    let units = 0;
+    let count = 0;
+    let smg = 0;
+    let seg = 0;
+    for (let k = 0; k < types.length; k++) {
+      const { type, wm, we, base, ka } = types[k];
+      const list = b.squares(type, side as Side);
+      const n = b.count(type, side as Side);
+      let hitsT = 0;
+      for (let i = 0; i < n; i++) {
+        const r = b.reachZone(list[i], side as Side, enemyZone);
+        const m = (r & 255) - base;
+        smg += wm * m;
+        seg += we * m;
+        const hits = r >> 8;
+        if (hits) {
+          hitsT += hits;
+          count++;
+        }
+      }
+      hitsByType[k] = hitsT;
+      units += ka * hitsT;
+    }
+    attackers[side] = count;
+    const a = (units * W.kingAttackScale[Math.min(count, 7)]) / 100;
+    if (side === 0) {
+      mg += smg;
+      eg += seg;
+      att += a;
+    } else {
+      mg -= smg;
+      eg -= seg;
+      att -= a;
+    }
+  }
+  mobMg = mg;
+  mobEg = eg;
+  attackMg = att;
+}
+
+/** Runs the mobility / king attack pass alone (for the tuner's linear form). */
+export function mobilityPass(b: FastBoard): void {
+  mobilityTerms(b, tablesFor(b));
 }
 
 /** Evaluation of an engine position (convenience for tests and tools). */

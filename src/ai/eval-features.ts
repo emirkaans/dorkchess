@@ -5,6 +5,7 @@
 import type { FastBoard } from '../engine/fast/board.ts';
 import type { Side } from '../engine/fast/hooks.ts';
 import type { EvalParams } from './eval-params.ts';
+import { attackHits, attackers, mobilityPass, pawnThreats, tablesFor } from './evaluate.ts';
 
 export const PST_LETTERS = ['p', 'n', 'b', 'r', 'q', 'k'] as const;
 const MOB_LETTERS = ['n', 'b', 'r', 'q'] as const;
@@ -21,7 +22,9 @@ const ROOK_SEMI = 792;
 const MOBILITY = 794; // + mobLetterIndex * 2 + phase
 const KING_SHIELD = 802;
 const TEMPO = 803;
-export const PARAM_COUNT = 804;
+const KING_ATTACK = 804; // + mobLetterIndex
+const THREAT_PAWN = 808;
+export const PARAM_COUNT = 810;
 
 /** Parameters that never occur and stay fixed (pawn table rows of ranks 1 and 8). */
 export function isFrozen(i: number): boolean {
@@ -50,6 +53,8 @@ export function toVector(p: EvalParams): Float64Array {
   MOB_LETTERS.forEach((l, i) => ([v[MOBILITY + i * 2], v[MOBILITY + i * 2 + 1]] = p.mobility[l]));
   v[KING_SHIELD] = p.kingShieldMissing;
   v[TEMPO] = p.tempo;
+  MOB_LETTERS.forEach((l, i) => (v[KING_ATTACK + i] = p.kingAttack[l]));
+  [v[THREAT_PAWN], v[THREAT_PAWN + 1]] = p.threatByPawn;
   return v;
 }
 
@@ -68,6 +73,8 @@ export function fromVector(v: Float64Array, base: EvalParams): EvalParams {
     rookSemiOpenFile: pair(ROOK_SEMI),
     mobility: Object.fromEntries(MOB_LETTERS.map((l, i) => [l, pair(MOBILITY + i * 2)])),
     kingShieldMissing: r(v[KING_SHIELD]),
+    kingAttack: Object.fromEntries(MOB_LETTERS.map((l, i) => [l, r(v[KING_ATTACK + i])])),
+    threatByPawn: pair(THREAT_PAWN),
     pstMg: Object.fromEntries(PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + li * 2 * 64 + i]))])),
     pstEg: Object.fromEntries(PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + (li * 2 + 1) * 64 + i]))])),
   };
@@ -224,6 +231,21 @@ export function features(b: FastBoard, p: EvalParams, phaseWeight: (letter: stri
     }
   });
 
+  // King attack: linear in the per-type weights once the attacker-count scale is fixed.
+  mobilityPass(b);
+  const tables = tablesFor(b);
+  for (let side = 0; side < 2; side++) {
+    const scale = p.kingAttackScale[Math.min(attackers[side], 7)] / 100;
+    tables.mobilityTypes.forEach((mt, k) => {
+      const li = (MOB_LETTERS as readonly string[]).indexOf(b.types[mt.type].letter);
+      add(KING_ATTACK + li, (side === 0 ? 1 : -1) * scale * attackHits[side][k] * fm);
+    });
+  }
+  if (pawn >= 0) {
+    const threats = pawnThreats(b, tables);
+    add(THREAT_PAWN, threats * fm);
+    add(THREAT_PAWN + 1, threats * fe);
+  }
   const hook = b.hooks.evaluate;
   if (hook) f.constant += hook(b, 0) - hook(b, 1);
   add(TEMPO, b.side === 0 ? 1 : -1);

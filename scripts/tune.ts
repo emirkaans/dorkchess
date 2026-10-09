@@ -27,6 +27,13 @@ const write = args.includes('--write');
 /** L2 pull towards the starting parameters (keeps rarely seen squares and mid/end-game pairs sane). */
 const lambda = Number(arg('--lambda', '1e-7'));
 const lr = Number(arg('--lr', '0.5'));
+/**
+ * Weight of the Stockfish evaluation in the target (lines "<fen>|<result>|<cp>",
+ * see sf-label.ts): target = w * sigmoid(k * cp) + (1 - w) * result. With w > 0
+ * the sigmoid scale k is fixed (--k, default = Texel K 1) instead of fitted.
+ */
+const sfWeight = Number(arg('--sf-weight', '0'));
+const fixedK = Number(arg('--k', String(Math.LN10 / 400)));
 
 // --- load data into flat sparse arrays ---
 const idx: number[] = [];
@@ -40,7 +47,8 @@ for (const src of sources) {
   const b = new FastBoard(v);
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!line) continue;
-    const [fen, res] = line.split('|');
+    const [fen, res, cp] = line.split('|');
+    if (sfWeight > 0 && cp === undefined) throw new Error(`Stockfish puanı yok: ${path}`);
     b.load(parseFen(v, fen));
     const f = features(b, EVAL_PARAMS, phaseWeight);
     for (let k = 0; k < f.index.length; k++) {
@@ -49,7 +57,8 @@ for (const src of sources) {
     }
     start.push(idx.length);
     constant.push(f.constant);
-    result.push(Number(res));
+    const sfTarget = sfWeight > 0 ? 1 / (1 + Math.exp(-fixedK * Math.max(-2000, Math.min(2000, Number(cp))))) : 0;
+    result.push(sfWeight * sfTarget + (1 - sfWeight) * Number(res));
   }
   console.log(`${variantId}: ${path} okundu, toplam ${result.length} konum`);
 }
@@ -94,7 +103,8 @@ for (let k = 0.001; k <= 0.03; k += 0.0005) {
   const e = error(sc, k, false);
   if (e < bestE) [bestE, bestK] = [e, k];
 }
-const K = bestK;
+const K = sfWeight > 0 ? fixedK : bestK;
+if (sfWeight > 0) bestE = error(sc, K, false);
 console.log(`K = ${K.toFixed(4)} (≈ ${(K * 400 / Math.LN10).toFixed(2)} Texel ölçeğinde), başlangıç hatası eğitim ${bestE.toFixed(5)} / doğrulama ${error(sc, K, true).toFixed(5)}`);
 
 // --- Adam ---
@@ -171,6 +181,9 @@ export const EVAL_PARAMS: EvalParams = {
   mobility: { ${Object.entries(p.mobility).map(([k, a]) => `${k}: ${arr(a)}`).join(', ')} },
   mobilityBase: { ${Object.entries(p.mobilityBase).map(([k, a]) => `${k}: ${a}`).join(', ')} },
   kingShieldMissing: ${p.kingShieldMissing},
+  kingAttack: { ${Object.entries(p.kingAttack).map(([k, a]) => `${k}: ${a}`).join(', ')} },
+  kingAttackScale: ${arr(p.kingAttackScale)},
+  threatByPawn: ${arr(p.threatByPawn)},
   pstMg: {
 ${table(p.pstMg)}
   },

@@ -32,7 +32,7 @@ export const LEVELS: readonly LevelConfig[] = [
   { level: 2, name: 'Mahalle', maxDepth: 2, quiescence: false, transpositionTable: false, mobility: false, pick: 'top3-weighted', margin: 0, timeLimitMs: 300 },
   { level: 3, name: 'Kulüp', maxDepth: 3, quiescence: true, transpositionTable: false, mobility: false, pick: 'near-best', margin: 50, timeLimitMs: 700 },
   { level: 4, name: 'Usta', maxDepth: 64, quiescence: true, transpositionTable: true, mobility: false, pick: 'best', margin: 0, timeLimitMs: 500 },
-  { level: 5, name: 'Dork', maxDepth: 64, quiescence: true, transpositionTable: true, mobility: true, pick: 'best', margin: 0, timeLimitMs: 1000 },
+  { level: 5, name: 'Dork', maxDepth: 64, quiescence: true, transpositionTable: true, mobility: true, pick: 'best', margin: 0, timeLimitMs: 950 },
 ];
 
 export function levelConfig(level: number): LevelConfig {

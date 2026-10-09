@@ -63,6 +63,12 @@ const defaultNow = (): number => (globalThis as { performance?: { now(): number 
 
 const ABORT = Symbol('abort');
 
+/** A new iteration starts only before this share of the time limit (the limit itself aborts it). */
+const SOFT_LIMIT = 0.6;
+
+/** Ordering score band of captures whose SEE has not been computed yet (just under winning captures). */
+const UNCHECKED = (1 << 26) - (1 << 24);
+
 // ---------------------------------------------------------------------------
 // Transposition table
 
@@ -133,6 +139,12 @@ class Searcher {
   private readonly history = new Int32Array(2 * 64 * 64);
   /** Best reply found to the previous move (indexed by its from/to). */
   private readonly counter = new Int32Array(64 * 64);
+  private readonly seeGain = new Int32Array(40);
+  /** Static evaluation per ply (for the "improving" flag); -INF when unknown. */
+  private readonly evalStack = new Int32Array(MAX_PLY + 2);
+  private readonly seeAttackers = new Int8Array(32);
+  private readonly seeSaveSq = new Int8Array(96);
+  private readonly seeSaveCode = new Int8Array(96);
   /** Quiet moves tried at each ply (for the history penalty). */
   private readonly quietsTried = new Int32Array(MAX_PLY * 64);
   private readonly moveBuf = new Int32Array(MAX_PLY * MAX_MOVES);
@@ -202,6 +214,74 @@ class Searcher {
     return false;
   }
 
+  /**
+   * Static exchange evaluation of capture `m`: material balance after the
+   * best sequence of recaptures on the target square, each side taking with
+   * its least valuable piece and free to stop. Works on temporary square edits
+   * (no make/unmake, so pins and changing Jester forms are ignored, as in a
+   * classic SEE); the variant's capture rules still apply through attackersTo.
+   */
+  private see(m: number): number {
+    const b = this.b;
+    const sq = b.sq;
+    const from = moveFrom(m);
+    const to = moveTo(m);
+    const victim = b.captured(m);
+    if (victim === 0 || sq[to] === 0) return victim ? this.values[codeType(victim)] : 0; // en passant: plain gain
+    const gain = this.seeGain;
+    const saveSq = this.seeSaveSq;
+    const saveCode = this.seeSaveCode;
+    let saved = 0;
+    const move = (f: number, code: number) => {
+      saveSq[saved] = f;
+      saveCode[saved++] = sq[f];
+      saveSq[saved] = to;
+      saveCode[saved++] = sq[to];
+      sq[to] = code;
+      sq[f] = 0;
+    };
+    gain[0] = this.values[codeType(victim)];
+    const promo = movePromo(m);
+    const mover = sq[from];
+    const moverSide = mover > 0 ? 1 : -1;
+    let piece = this.values[promo >= 0 ? promo : codeType(mover)];
+    move(from, promo >= 0 ? moverSide * (promo + 1) : mover);
+    let side: Side = b.side === 0 ? 1 : 0;
+    let d = 0;
+    const buf = this.seeAttackers;
+    for (;;) {
+      d++;
+      gain[d] = piece - gain[d - 1];
+      if (Math.max(-gain[d - 1], gain[d]) < 0 || d >= gain.length - 1) break;
+      const n = b.attackersTo(to, side, buf);
+      if (n === 0) break;
+      let bi = 0;
+      let bv = INF;
+      for (let k = 0; k < n; k++) {
+        const v = this.values[codeType(sq[buf[k]])];
+        if (v < bv) [bv, bi] = [v, k];
+      }
+      const f = buf[bi];
+      const code = sq[f];
+      const t = b.types[codeType(code)];
+      const lastRank = side === 0 ? 7 : 0;
+      const p = t.isPawn && to >> 3 === lastRank && b.promoTypes.length ? b.promoTypes[0] : -1;
+      move(f, p >= 0 ? (code > 0 ? 1 : -1) * (p + 1) : code);
+      piece = this.values[p >= 0 ? p : t.index];
+      side = side === 0 ? 1 : 0;
+    }
+    while (saved > 0) {
+      saved--;
+      sq[saveSq[saved]] = saveCode[saved];
+    }
+    while (--d) gain[d - 1] = -Math.max(-gain[d - 1], gain[d]);
+    return gain[0];
+  }
+
+  seeOf(m: number): number {
+    return this.see(m);
+  }
+
   /** Ordering scores for moves [start, end). */
   private scoreMoves(start: number, end: number, ttMove: number, ply: number): void {
     const b = this.b;
@@ -220,7 +300,9 @@ class Searcher {
         if (victim !== 0) {
           const vv = this.values[codeType(victim)];
           const av = this.values[codeType(b.sq[moveFrom(m)])];
-          s = (vv >= av ? 1 << 26 : 1 << 21) + vv * 16 - av;
+          // Winning or even captures first. Captures by a more valuable piece are
+          // checked with SEE only when picked (see pickChecked); losing ones go after the killers.
+          s = (vv >= av ? 1 << 26 : UNCHECKED) + vv * 16 - av;
         } else if (promo >= 0) s = (1 << 25) + this.values[promo];
         else if (m === k1) s = 1 << 24;
         else if (m === k2) s = (1 << 24) - 1;
@@ -228,6 +310,20 @@ class Searcher {
         else s = this.history[hist + moveFrom(m) * 64 + moveTo(m)];
       }
       this.scoreBuf[i] = s;
+    }
+  }
+
+  /**
+   * Like pick, but a capture whose SEE is still unknown is checked first: a
+   * losing one is demoted below the quiet killers and the next best is picked.
+   */
+  private pickChecked(i: number, end: number): number {
+    for (;;) {
+      const m = this.pick(i, end);
+      const s = this.scoreBuf[i];
+      if (s < UNCHECKED || s >= 1 << 26) return m;
+      this.scoreBuf[i] = this.see(m) >= 0 ? s - UNCHECKED + (1 << 26) : s - UNCHECKED + (1 << 21);
+      if (this.scoreBuf[i] >= 1 << 26) return m;
     }
   }
 
@@ -263,19 +359,17 @@ class Searcher {
     // In check every evasion is searched; otherwise captures and promotions only.
     const end = b.generate(this.moveBuf, start, !inCheck);
     this.scoreMoves(start, end, 0, ply);
-    const other: Side = b.side === 0 ? 1 : 0;
     let legal = 0;
     for (let i = start; i < end; i++) {
-      const m = this.pick(i, end);
+      const m = this.pickChecked(i, end);
       if (!inCheck) {
         const victim = b.captured(m);
         const promo = movePromo(m);
         const gain = (victim ? this.values[codeType(victim)] : 0) + (promo >= 0 ? this.values[promo] : 0);
         // Delta pruning: even winning this piece can't lift the score to alpha.
         if (promo < 0 && standPat + gain + 200 < alpha) continue;
-        // Losing capture: a more valuable piece takes a defended one.
-        const mover = b.sq[moveFrom(m)];
-        if (promo < 0 && this.values[codeType(mover)] > gain + 50 && b.attacked(moveTo(m), other, mover)) continue;
+        // Losing capture by static exchange evaluation (already computed when picked).
+        if (promo < 0 && this.scoreBuf[i] < 1 << 26) continue;
       }
       if (!b.make(m)) continue;
       legal++;
@@ -310,7 +404,16 @@ class Searcher {
     return this.evaluate();
   }
 
-  private negamax(depth: number, alpha: number, beta: number, ply: number, pv: boolean, allowNull: boolean): number {
+  /** `excluded`: a move left out of this search (singular extension test); such searches neither cut on nor store TT entries. */
+  private negamax(
+    depth: number,
+    alpha: number,
+    beta: number,
+    ply: number,
+    pv: boolean,
+    allowNull: boolean,
+    excluded = 0,
+  ): number {
     if ((++this.nodes & 1023) === 0) this.checkTime();
     const b = this.b;
     if (ply > 0) {
@@ -333,7 +436,7 @@ class Searcher {
       const i = lo & tt.mask;
       if (tt.flags[i] && tt.keys[i] === hi) {
         ttMove = tt.moves[i];
-        if (!pv && tt.depths[i] >= depth) {
+        if (!pv && excluded === 0 && tt.depths[i] >= depth) {
           const s = fromTT(tt.scores[i], ply);
           const f = tt.flags[i];
           if (f === FLAG_EXACT || (f === FLAG_LOWER && s >= beta) || (f === FLAG_UPPER && s <= alpha)) return s;
@@ -343,11 +446,35 @@ class Searcher {
     // Internal iterative reduction: without a known best move, search a bit shallower.
     if (depth >= 4 && ttMove === 0) depth--;
 
+    // Singular extension: if every other move falls clearly short of the table move's
+    // score, the table move is the only good one and gets searched one ply deeper.
+    let singular = 0;
+    if (tt && excluded === 0 && ply > 0 && depth >= 8 && ttMove !== 0) {
+      const i = lo & tt.mask;
+      if (tt.flags[i] && tt.keys[i] === hi && tt.flags[i] !== FLAG_UPPER && tt.depths[i] >= depth - 3) {
+        const ttScore = fromTT(tt.scores[i], ply);
+        if (Math.abs(ttScore) < MATE_BOUND) {
+          const sBeta = ttScore - 2 * depth;
+          const s = this.negamax((depth - 1) >> 1, sBeta - 1, sBeta, ply, false, false, ttMove);
+          if (s < sBeta) singular = 1;
+          else if (sBeta >= beta) return sBeta; // multi-cut: several moves beat beta anyway
+        }
+      }
+    }
+
     // Only used for pruning decisions, so the lazy bounds are the node's own.
     const staticEval = inCheck || pv ? -INF : this.evaluate(alpha, beta);
+    this.evalStack[ply] = staticEval;
+    // Improving: better than two plies ago (our previous turn), so prune less.
+    const improving = ply >= 2 && staticEval > -INF && staticEval > this.evalStack[ply - 2] ? 1 : 0;
     if (!pv && !inCheck && Math.abs(beta) < MATE_BOUND) {
       // Reverse futility: far above beta even with a safety margin.
-      if (depth <= 6 && staticEval - 90 * depth >= beta) return staticEval;
+      if (depth <= 6 && staticEval - 80 * (depth - improving) >= beta) return staticEval;
+      // Razoring: hopeless near the leaves unless a capture sequence saves it.
+      if (depth <= 2 && staticEval + 250 * depth <= alpha) {
+        const q = this.params.quiescence ? this.quiesce(alpha, beta, ply) : staticEval;
+        if (q <= alpha) return q;
+      }
       // Null move: if passing still fails high, the position is good enough.
       if (allowNull && depth >= 3 && staticEval >= beta && this.hasPieces(b.side)) {
         const r = 3 + (depth >> 2);
@@ -369,12 +496,17 @@ class Searcher {
     let quiets = 0;
     const side = b.side;
     for (let i = start; i < end; i++) {
-      const m = this.pick(i, end);
+      const m = this.pickChecked(i, end);
+      if (m === excluded) continue;
       const quiet = b.captured(m) === 0 && movePromo(m) < 0;
       if (!pv && !inCheck && quiet && legal > 0 && best > -MATE_BOUND) {
         // Late move pruning and futility pruning of quiet moves near the leaves.
-        if (depth <= 3 && legal >= 3 + 2 * depth * depth) continue;
+        if (depth <= 3 && legal >= (3 + 2 * depth * depth) / (2 - improving)) continue;
         if (depth <= 2 && staticEval + 100 + 100 * depth <= alpha) continue;
+      }
+      // SEE pruning: captures that lose material clearly, near the leaves.
+      if (!pv && !inCheck && !quiet && depth <= 4 && legal > 0 && best > -MATE_BOUND && this.scoreBuf[i] < 1 << 25) {
+        if (this.see(m) < -100 * depth) continue;
       }
       if (!b.make(m)) continue;
       legal++;
@@ -382,7 +514,7 @@ class Searcher {
       this.pushKey(ply + 1);
       let score: number;
       if (legal === 1) {
-        score = -this.negamax(depth - 1, -beta, -alpha, ply + 1, pv, true);
+        score = -this.negamax(depth - 1 + (m === ttMove ? singular : 0), -beta, -alpha, ply + 1, pv, true);
       } else {
         let r = 0;
         if (depth >= 3 && quiet && !inCheck && legal > (pv ? 3 : 2) && !b.inCheck()) {
@@ -423,9 +555,9 @@ class Searcher {
         }
       }
     }
-    if (legal === 0) return inCheck ? -MATE + ply : 0;
+    if (legal === 0) return excluded !== 0 ? alpha : inCheck ? -MATE + ply : 0;
 
-    if (tt) {
+    if (tt && excluded === 0) {
       const i = lo & tt.mask;
       if (!tt.flags[i] || tt.keys[i] === hi || tt.gens[i] !== tt.gen || depth >= tt.depths[i] - 2) {
         tt.keys[i] = hi;
@@ -507,11 +639,26 @@ class Searcher {
       order = scores.map((s) => s.move);
       this.params.onInfo?.({ depth, score: scores[0].score, pv: [], nodes: this.nodes });
       if (Math.abs(scores[0].score) > MATE_BOUND || rootMoves.length === 1) break;
-      // Soft limit: the next iteration usually takes longer than all previous ones together.
-      if (this.elapsed() > this.params.timeLimitMs * 0.45 || this.params.shouldStop?.()) break;
+      // Soft limit: an iteration started late would most likely be aborted unfinished.
+      if (this.elapsed() > this.params.timeLimitMs * SOFT_LIMIT || this.params.shouldStop?.()) break;
     }
     return { scores, depth };
   }
+}
+
+/** SEE of a legal engine move in `pos`, in centipawns (exposed for tests). */
+export function staticExchange(v: VariantDefinition, pos: Position, move: Move): number {
+  const s = new Searcher(v, pos, [], {
+    maxDepth: 1,
+    quiescence: false,
+    transpositionTable: false,
+    mobility: false,
+    timeLimitMs: 1000,
+    rootExact: { topK: 1, margin: 0 },
+  });
+  const promo = move.promotion ? s.b.typeIndex.get(move.promotion)! : -1;
+  const m = s.b.legalMoves().find((x) => moveFrom(x) === move.from && moveTo(x) === move.to && movePromo(x) === promo)!;
+  return s.seeOf(m);
 }
 
 /**

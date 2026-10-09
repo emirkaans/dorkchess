@@ -37,13 +37,13 @@ describe('seviyeler', () => {
       [2, 'Mahalle', 300],
       [3, 'Kulüp', 700],
       [4, 'Usta', 500],
-      [5, 'Dork', 1000],
+      [5, 'Dork', 950],
     ]);
     expect(() => levelConfig(6)).toThrow();
   });
 
   it('saatli oyunda bot süresi = min(seviye sınırı, kalan/30 + artış)', () => {
-    expect(botTimeMs(5)).toBe(1000);
+    expect(botTimeMs(5)).toBe(950);
     expect(botTimeMs(5, { remainingMs: 15_000, incrementMs: 0 })).toBe(500);
     expect(botTimeMs(3, { remainingMs: 600_000, incrementMs: 2000 })).toBe(700);
   });

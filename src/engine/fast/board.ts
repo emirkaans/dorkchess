@@ -21,7 +21,8 @@ export const moveTo = (m: number) => (m >> 6) & 63;
 /** Promotion type index, or -1. */
 export const movePromo = (m: number) => ((m >> 12) & 15) - 1;
 export const moveFlag = (m: number) => m >> 16;
-const encode = (from: number, to: number, promo: number, flag: number) => from | (to << 6) | ((promo + 1) << 12) | (flag << 16);
+/** Encodes a move (see the layout above); `promo` is a type index or -1. */
+export const encodeMove = (from: number, to: number, promo: number, flag: number) => from | (to << 6) | ((promo + 1) << 12) | (flag << 16);
 
 /** Piece code: +(type+1) for white, -(type+1) for black, 0 = empty. */
 export const codeSide = (c: number): Side => (c > 0 ? 0 : 1);
@@ -116,8 +117,20 @@ export interface FastType {
   readonly patterns: readonly [readonly Compiled[], readonly Compiled[]];
 }
 
-/** Reverse-attack entry: walk `back` from the target; a piece whose type bit is in `mask` attacks it. */
-interface AttackEntry {
+/**
+ * Reverse attack along one unit direction: walking `back` from the target,
+ * the first piece attacks it if its type bit is in `adjMask` (one-step
+ * attackers: king steps, pawn captures) or `slideMask` (sliders); further
+ * away only sliders count.
+ */
+interface AttackRay {
+  readonly back: Int8Array;
+  readonly slideMask: number;
+  readonly adjMask: number;
+}
+
+/** Reverse attack by a non-unit offset (knight-like jump, or a rare long slider). */
+interface AttackJump {
   readonly back: Int8Array;
   readonly mask: number;
   readonly slide: boolean;
@@ -143,9 +156,12 @@ export class FastBoard {
   readonly typeIndex: ReadonlyMap<PieceType, number>;
   readonly promoTypes: readonly number[];
   private readonly rookType: number;
+  private readonly canCaptureType: Uint8Array;
+  private readonly capturableType: Uint8Array;
   private readonly dynamicTypes: readonly number[];
   private readonly royalTypes: readonly number[];
-  private readonly attackEntries: readonly [readonly AttackEntry[], readonly AttackEntry[]];
+  private readonly attackRays: readonly [readonly AttackRay[], readonly AttackRay[]];
+  private readonly attackJumps: readonly [readonly AttackJump[], readonly AttackJump[]];
 
   // --- position ---
   readonly sq = new Int8Array(64);
@@ -182,6 +198,8 @@ export class FastBoard {
   private readonly uMove = new Int32Array(MAX_STACK);
   private readonly uCaptured = new Int8Array(MAX_STACK);
   private readonly uMover = new Int8Array(MAX_STACK);
+  /** Check status of the side to move per stack level: -1 unknown, 0 no, 1 yes. */
+  private readonly checkMemo = new Int8Array(MAX_STACK + 1).fill(-1);
   private readonly uCastling = new Uint8Array(MAX_STACK);
   private readonly uEp = new Int8Array(MAX_STACK);
   private readonly uHalf = new Int16Array(MAX_STACK);
@@ -228,10 +246,15 @@ export class FastBoard {
     this.typeIndex = new Map(letters.map((l, i) => [l, i]));
     this.promoTypes = v.promotionTypes.map((t) => this.typeIndex.get(t)!);
     this.rookType = this.typeIndex.get('r') ?? -1;
+    this.canCaptureType = Uint8Array.from(this.types, (t) => (t.canCapture ? 1 : 0));
+    this.capturableType = Uint8Array.from(this.types, (t) => (t.capturable ? 1 : 0));
     this.pawnType = this.typeIndex.get('p') ?? -1;
     this.dynamicTypes = this.types.filter((t) => t.dynamic).map((t) => t.index);
     this.royalTypes = this.types.filter((t) => t.royal).map((t) => t.index);
-    this.attackEntries = [this.buildAttacks(0), this.buildAttacks(1)];
+    const w = this.buildAttacks(0);
+    const bl = this.buildAttacks(1);
+    this.attackRays = [w.rays, bl.rays];
+    this.attackJumps = [w.jumps, bl.jumps];
 
     const slots = letters.length * 2;
     this.listSq = Array.from({ length: slots }, () => new Int8Array(64));
@@ -260,17 +283,28 @@ export class FastBoard {
   }
 
   /** Reverse-attack tables of the static capturing types of `side`. */
-  private buildAttacks(side: Side): AttackEntry[] {
-    const byKey = new Map<string, { back: Int8Array; mask: number; slide: boolean }>();
+  private buildAttacks(side: Side): { rays: AttackRay[]; jumps: AttackJump[] } {
+    const rays = new Map<string, { back: Int8Array; slideMask: number; adjMask: number }>();
+    const jumps = new Map<string, { back: Int8Array; mask: number; slide: boolean }>();
     for (const t of this.types) {
       if (t.dynamic || !t.canCapture) continue;
+      const bit = 1 << t.index;
+      const add = ([dx, dy]: Dir, slide: boolean) => {
+        const back = stepTable([-dx, -dy]);
+        if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+          const key = dx + ',' + dy;
+          const r = rays.get(key) ?? { back, slideMask: 0, adjMask: 0 };
+          if (slide) r.slideMask |= bit;
+          else r.adjMask |= bit;
+          rays.set(key, r);
+        } else {
+          const key = (slide ? 's' : 'j') + dx + ',' + dy;
+          const j = jumps.get(key) ?? { back, mask: 0, slide };
+          j.mask |= bit;
+          jumps.set(key, j);
+        }
+      };
       for (const p of t.patterns[side]) {
-        const add = (dir: Dir, slide: boolean) => {
-          const key = `${slide ? 's' : 'j'}${dir[0]},${dir[1]}`;
-          const e = byKey.get(key) ?? { back: stepTable([-dir[0], -dir[1]]), mask: 0, slide };
-          e.mask |= 1 << t.index;
-          byKey.set(key, e);
-        };
         if (p.kind === 2) {
           const fw = side === 0 ? 1 : -1;
           add([-1, fw], false);
@@ -281,7 +315,7 @@ export class FastBoard {
         }
       }
     }
-    return [...byKey.values()];
+    return { rays: [...rays.values()], jumps: [...jumps.values()] };
   }
 
   // -------------------------------------------------------------------------
@@ -328,6 +362,7 @@ export class FastBoard {
     this.fullmove = pos.fullmove;
     this.extra.fill(0);
     this.hooks.readExtra?.(this, pos);
+    this.checkMemo.fill(-1);
     this.rehash();
     return this;
   }
@@ -431,9 +466,10 @@ export class FastBoard {
 
   /** May the piece on `from` capture the piece `victim` standing on `victimSq`? (side checks done by caller) */
   private canTake(from: number, victimSq: number, attacker: number, victim: number): boolean {
-    if (!this.types[codeType(attacker)].canCapture || !this.types[codeType(victim)].capturable) return false;
+    if (!this.canCaptureType[codeType(attacker)] || !this.capturableType[codeType(victim)]) return false;
     return !this.hooks.captureAllowed || this.hooks.captureAllowed(this, from, victimSq, victim);
   }
+
 
   // -------------------------------------------------------------------------
   // Attacks
@@ -445,9 +481,27 @@ export class FastBoard {
   attacked(target: number, by: Side, victim: number = this.sq[target]): boolean {
     const sq = this.sq;
     const hook = this.hooks.captureAllowed;
-    const entries = this.attackEntries[by];
-    for (let i = 0; i < entries.length; i++) {
-      const e = entries[i];
+    const rays = this.attackRays[by];
+    for (let i = 0; i < rays.length; i++) {
+      const r = rays[i];
+      let s = r.back[target];
+      if (s < 0) continue;
+      let mask = r.slideMask | r.adjMask;
+      if (sq[s] === 0) {
+        if (!r.slideMask) continue;
+        mask = r.slideMask;
+        s = r.back[s];
+        while (s >= 0 && sq[s] === 0) s = r.back[s];
+        if (s < 0) continue;
+      }
+      const c = sq[s];
+      if (codeSide(c) !== by || !((mask >> codeType(c)) & 1)) continue;
+      if (hook && victim !== 0 && !hook(this, s, target, victim)) continue;
+      return true;
+    }
+    const jumps = this.attackJumps[by];
+    for (let i = 0; i < jumps.length; i++) {
+      const e = jumps[i];
       let s = e.back[target];
       if (e.slide) while (s >= 0 && sq[s] === 0) s = e.back[s];
       if (s < 0) continue;
@@ -468,6 +522,62 @@ export class FastBoard {
       }
     }
     return false;
+  }
+
+  /**
+   * Squares of `by`'s pieces that could capture the piece on `target`
+   * (pseudo-legal: legality is left to make). Writes them to `out`, returns the count.
+   */
+  attackersTo(target: number, by: Side, out: Int8Array): number {
+    const sq = this.sq;
+    const victim = sq[target];
+    if (victim === 0 || !this.types[codeType(victim)].capturable) return 0;
+    const hook = this.hooks.captureAllowed;
+    let n = 0;
+    const rays = this.attackRays[by];
+    for (let i = 0; i < rays.length; i++) {
+      const r = rays[i];
+      let s = r.back[target];
+      if (s < 0) continue;
+      let mask = r.slideMask | r.adjMask;
+      if (sq[s] === 0) {
+        if (!r.slideMask) continue;
+        mask = r.slideMask;
+        s = r.back[s];
+        while (s >= 0 && sq[s] === 0) s = r.back[s];
+        if (s < 0) continue;
+      }
+      const c = sq[s];
+      if (codeSide(c) !== by || !((mask >> codeType(c)) & 1)) continue;
+      if (hook && !hook(this, s, target, victim)) continue;
+      out[n++] = s;
+    }
+    const jumps = this.attackJumps[by];
+    for (let i = 0; i < jumps.length; i++) {
+      const e = jumps[i];
+      let s = e.back[target];
+      if (e.slide) while (s >= 0 && sq[s] === 0) s = e.back[s];
+      if (s < 0) continue;
+      const c = sq[s];
+      if (c === 0 || codeSide(c) !== by || !((e.mask >> codeType(c)) & 1)) continue;
+      if (hook && !hook(this, s, target, victim)) continue;
+      let dup = false;
+      for (let k = 0; k < n; k++) if (out[k] === s) dup = true;
+      if (!dup) out[n++] = s;
+    }
+    for (const type of this.dynamicTypes) {
+      if (!this.types[type].canCapture) continue;
+      const list = this.listSq[type * 2 + by];
+      const code = makeCode(type, by);
+      for (let i = this.listCount[type * 2 + by] - 1; i >= 0; i--) {
+        const s = list[i];
+        // The squares may have been edited temporarily (SEE): trust the square, not the list.
+        if (sq[s] !== code || !this.reaches(s, by, this.patternsOf(type, by), target)) continue;
+        if (hook && !hook(this, s, target, victim)) continue;
+        out[n++] = s;
+      }
+    }
+    return n;
   }
 
   /** Could a piece of `side` on `from` with `patterns` capture on `target`? */
@@ -498,18 +608,23 @@ export class FastBoard {
   reachCount(from: number, side: Side): number {
     let n = 0;
     const sq = this.sq;
-    for (const p of this.patternsOf(codeType(sq[from]), side)) {
+    const ps = this.patternsOf(codeType(sq[from]), side);
+    for (let pi = 0; pi < ps.length; pi++) {
+      const p = ps[pi];
       if (p.kind === 2) continue;
-      for (const t of p.tables) {
+      const tables = p.tables;
+      const step = p.kind === 1;
+      for (let ti = 0; ti < tables.length; ti++) {
+        const t = tables[ti];
         let s = t[from];
         while (s >= 0) {
           const c = sq[s];
           if (c === 0) n++;
           else {
-            if (codeSide(c) !== side) n++;
+            if ((c > 0 ? 0 : 1) !== side) n++;
             break;
           }
-          if (p.kind === 1) break;
+          if (step) break;
           s = t[s];
         }
       }
@@ -517,8 +632,54 @@ export class FastBoard {
     return n;
   }
 
+
+  /**
+   * Like reachCount, plus how many of those squares are marked in `zone`:
+   * returns count | zoneHits << 8 (mobility and king attack in one pass).
+   */
+  reachZone(from: number, side: Side, zone: Uint8Array): number {
+    let n = 0;
+    let hits = 0;
+    const sq = this.sq;
+    const ps = this.patternsOf(codeType(sq[from]), side);
+    for (let pi = 0; pi < ps.length; pi++) {
+      const p = ps[pi];
+      if (p.kind === 2) continue;
+      const tables = p.tables;
+      const step = p.kind === 1;
+      for (let ti = 0; ti < tables.length; ti++) {
+        const t = tables[ti];
+        let s = t[from];
+        while (s >= 0) {
+          const c = sq[s];
+          hits += zone[s];
+          if (c === 0) n++;
+          else {
+            if ((c > 0 ? 0 : 1) !== side) n++;
+            break;
+          }
+          if (step) break;
+          s = t[s];
+        }
+      }
+    }
+    return n | (hits << 8);
+  }
+
   /** Is any royal piece of `side` attacked? */
   inCheck(side: Side = this.side): boolean {
+    // The side to move's check status is cached per stack level (cleared by make / makeNull / load).
+    if (side === this.side) {
+      const memo = this.checkMemo[this.ply];
+      if (memo >= 0) return memo === 1;
+      const r = this.computeCheck(side);
+      this.checkMemo[this.ply] = r ? 1 : 0;
+      return r;
+    }
+    return this.computeCheck(side);
+  }
+
+  private computeCheck(side: Side): boolean {
     const other: Side = side === 0 ? 1 : 0;
     for (const type of this.royalTypes) {
       const slot = type * 2 + side;
@@ -538,60 +699,70 @@ export class FastBoard {
     const sq = this.sq;
     const lastRank = side === 0 ? 7 : 0;
     const startRank = side === 0 ? 1 : 6;
-    for (let type = 0; type < this.types.length; type++) {
+    const promos = this.promoTypes;
+    const nTypes = this.types.length;
+    for (let type = 0; type < nTypes; type++) {
       const slot = type * 2 + side;
       const count = this.listCount[slot];
       if (!count) continue;
       const list = this.listSq[slot];
       const patterns = this.patternsOf(type, side);
+      const captures = this.canCaptureType[type] === 1;
+      const castles = !capturesOnly && this.types[type].castles;
       for (let i = 0; i < count; i++) {
         const from = list[i];
         const me = sq[from];
-        for (const p of patterns) {
+        for (let pi = 0; pi < patterns.length; pi++) {
+          const p = patterns[pi];
           if (p.kind === 2) {
             const push = p.push[side][from];
-            if (!capturesOnly && push >= 0 && sq[push] === 0) {
+            if (push >= 0 && sq[push] === 0) {
               if (p.promotion && push >> 3 === lastRank) {
-                for (const pt of this.promoTypes) out[n++] = encode(from, push, pt, 0);
-              } else {
-                out[n++] = encode(from, push, -1, 0);
+                // Promotions count as tactical moves, so they are generated even with capturesOnly.
+                for (let k = 0; k < promos.length; k++) out[n++] = encodeMove(from, push, promos[k], 0);
+              } else if (!capturesOnly) {
+                out[n++] = encodeMove(from, push, -1, 0);
                 if (p.doublePush && from >> 3 === startRank) {
                   const two = p.push[side][push];
-                  if (two >= 0 && sq[two] === 0) out[n++] = encode(from, two, -1, FLAG_DOUBLE);
+                  if (two >= 0 && sq[two] === 0) out[n++] = encodeMove(from, two, -1, FLAG_DOUBLE);
                 }
               }
-            } else if (capturesOnly && push >= 0 && sq[push] === 0 && p.promotion && push >> 3 === lastRank) {
-              for (const pt of this.promoTypes) out[n++] = encode(from, push, pt, 0); // promotions count as tactical
             }
+            if (!captures) continue;
+            const caps = p.caps[side];
             for (let k = 0; k < 2; k++) {
-              const to = p.caps[side][k][from];
+              const to = caps[k][from];
               if (to < 0) continue;
               const target = sq[to];
               if (target !== 0) {
-                if (codeSide(target) !== side && this.canTake(from, to, me, target)) {
+                if ((target > 0 ? 0 : 1) !== side && this.canTake(from, to, me, target)) {
                   if (p.promotion && to >> 3 === lastRank) {
-                    for (const pt of this.promoTypes) out[n++] = encode(from, to, pt, 0);
-                  } else out[n++] = encode(from, to, -1, 0);
+                    for (let q = 0; q < promos.length; q++) out[n++] = encodeMove(from, to, promos[q], 0);
+                  } else out[n++] = encodeMove(from, to, -1, 0);
                 }
               } else if (p.enPassant && to === this.ep) {
                 const victimSq = (from & ~7) | (to & 7);
                 const victim = sq[victimSq];
-                if (victim !== 0 && codeSide(victim) !== side && this.canTake(from, victimSq, me, victim)) {
-                  out[n++] = encode(from, to, -1, FLAG_EP);
+                if (victim !== 0 && (victim > 0 ? 0 : 1) !== side && this.canTake(from, victimSq, me, victim)) {
+                  out[n++] = encodeMove(from, to, -1, FLAG_EP);
                 }
               }
             }
             continue;
           }
           const slide = p.kind === 0;
-          for (const t of p.tables) {
+          const tables = p.tables;
+          for (let ti = 0; ti < tables.length; ti++) {
+            const t = tables[ti];
             let to = t[from];
             while (to >= 0) {
               const target = sq[to];
               if (target === 0) {
-                if (!capturesOnly) out[n++] = encode(from, to, -1, 0);
+                if (!capturesOnly) out[n++] = encodeMove(from, to, -1, 0);
               } else {
-                if (codeSide(target) !== side && this.canTake(from, to, me, target)) out[n++] = encode(from, to, -1, 0);
+                if (captures && (target > 0 ? 0 : 1) !== side && this.canTake(from, to, me, target)) {
+                  out[n++] = encodeMove(from, to, -1, 0);
+                }
                 break;
               }
               if (!slide) break;
@@ -599,11 +770,12 @@ export class FastBoard {
             }
           }
         }
-        if (!capturesOnly && this.types[type].castles) n = this.castles(out, n, from, side);
+        if (castles) n = this.castles(out, n, from, side);
       }
     }
     return n;
   }
+
 
   private castles(out: Int32Array, n: number, from: number, side: Side): number {
     const rank = side === 0 ? 0 : 7;
@@ -626,7 +798,7 @@ export class FastBoard {
       if (inCheck) return n;
       // Destination safety is verified by the legality check.
       if (this.attacked(makeSquare(transit, rank), other, king)) continue;
-      out[n++] = encode(from, makeSquare(flag === FLAG_CASTLE_K ? 6 : 2, rank), -1, flag);
+      out[n++] = encodeMove(from, makeSquare(flag === FLAG_CASTLE_K ? 6 : 2, rank), -1, flag);
     }
     return n;
   }
@@ -735,10 +907,11 @@ export class FastBoard {
     this.hashLo = lo;
     this.hashHi = hi;
 
-    if (this.inCheck(side)) {
+    if (this.computeCheck(side)) {
       this.unmake();
       return false;
     }
+    this.checkMemo[this.ply] = -1;
     return true;
   }
 
@@ -792,6 +965,7 @@ export class FastBoard {
     }
     this.halfmove++;
     this.side = this.side === 0 ? 1 : 0;
+    this.checkMemo[this.ply] = -1;
     this.hashLo ^= this.zSideLo;
     this.hashHi ^= this.zSideHi;
   }
