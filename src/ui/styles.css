@@ -751,3 +751,64 @@ button.primary {
   align-self: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- narrow screens (phones) ---------- */
+
+@media (max-width: 640px) {
+  :root {
+    /* Full width minus the 16px side gutters; never taller than the screen allows. */
+    --board: min(calc(100vw - 32px), 560px, max(260px, calc(100vh - 150px)));
+  }
+  .app {
+    padding: 8px 16px 20px;
+  }
+  .toolbar {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .toolbar h1 {
+    font-size: 1.1rem;
+  }
+  .game-label {
+    flex-basis: 100%;
+    order: 1;
+    font-size: 0.82rem;
+  }
+  .toolbar button,
+  .toolbar select {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+  }
+  .pref {
+    font-size: 0.8rem;
+  }
+  .layout {
+    gap: 12px;
+  }
+  .side {
+    flex-basis: 100%;
+  }
+  .controls {
+    gap: 6px;
+  }
+  .controls button {
+    padding: 5px 9px;
+    font-size: 0.88rem;
+  }
+  .moves {
+    max-height: 180px;
+  }
+  .modal-backdrop.screen {
+    padding: 8px;
+    align-items: flex-start;
+  }
+  .modal.new-game,
+  .modal.rule-card,
+  .modal.history {
+    width: 100%;
+  }
+  .history-table th:nth-child(3),
+  .history-table td:nth-child(3) {
+    display: none; /* mode column: least important on a phone */
+  }
+}
