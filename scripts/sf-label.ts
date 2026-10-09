@@ -42,9 +42,10 @@ async function worker(): Promise<void> {
   const sf = spawn(sfPath, [], { stdio: 'pipe' });
   const rl = createInterface({ input: sf.stdout });
   let waiting: ((l: string) => void) | null = null;
-  let lastScore: string | null = null;
+  // Last "info ... score" line of the running search (set by the line reader).
+  const last = { score: null as string | null };
   rl.on('line', (l) => {
-    if (l.startsWith('info') && l.includes(' score ')) lastScore = l;
+    if (l.startsWith('info') && l.includes(' score ')) last.score = l;
     if (waiting && (l === 'uciok' || l === 'readyok' || l.startsWith('bestmove'))) {
       const w = waiting;
       waiting = null;
@@ -62,9 +63,11 @@ async function worker(): Promise<void> {
   while (next < sample.length) {
     const line = sample[next++];
     const [fen, result] = line.split('|');
-    lastScore = null;
+    last.score = null;
     await ask(`position fen ${fen}\ngo depth ${depth}`);
-    const m = (lastScore as string | null)?.match(/score (cp|mate) (-?\d+)/);
+    // Read through a function: TypeScript would otherwise keep last.score narrowed to null across the await.
+    const scoreLine = (): string | null => last.score;
+    const m = scoreLine()?.match(/score (cp|mate) (-?\d+)/);
     done++;
     if (!m || m[1] === 'mate') {
       skipped++;
