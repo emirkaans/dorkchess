@@ -812,3 +812,18 @@ button.primary {
     display: none; /* mode column: least important on a phone */
   }
 }
+
+/* ---------- app update (service worker) ---------- */
+
+.update-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 0.9rem;
+}

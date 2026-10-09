@@ -13,6 +13,7 @@ import { SetupDialog } from './SetupDialog.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
 import { COLOR_NAME, botName, newSession, outcomeText } from './game/session.ts';
+import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
 import type { Prefs } from './prefs.ts';
 import { isRuleCardHidden, loadSettings, saveSettings } from './settings.ts';
@@ -31,6 +32,9 @@ export function App() {
   const [showHighlight, setShowHighlight] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
+  // A new app version is installed and waiting (service worker): offer a reload.
+  const [updateReady, setUpdateReady] = useState(false);
+  useEffect(() => onUpdateReady(() => setUpdateReady(true)), []);
   useEffect(() => {
     applyPrefs(prefs);
     savePrefs(prefs);
@@ -113,6 +117,14 @@ export function App() {
 
   return (
     <div className="app">
+      {updateReady && (
+        <div className="update-bar" role="status">
+          Yeni sürüm hazır.{' '}
+          <button className="primary" onClick={applyUpdate}>
+            Yenile
+          </button>
+        </div>
+      )}
       <Toolbar
         label={`${variant.name} · ${settings.mode === 'hotseat' ? 'İki kişi' : `${botName(players.w)} – ${botName(players.b)}`}`}
         prefs={prefs}

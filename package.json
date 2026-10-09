@@ -20,7 +20,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "parity": "node --experimental-strip-types --no-warnings scripts/parity.ts"
+    "parity": "node --experimental-strip-types --no-warnings scripts/parity.ts",
+    "icons": "node --experimental-strip-types --no-warnings scripts/make-icons.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
