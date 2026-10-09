@@ -21,6 +21,8 @@ interface Props {
   highlight: readonly Square[];
   /** Board rows (0-based ranks) to outline faintly as one band. */
   bandRanks: readonly number[];
+  /** Arrows drawn over the board (e.g. hint), as [from, to]. */
+  arrows?: readonly (readonly [Square, Square])[];
   disabled: boolean;
   /** Called with all legal moves matching from/to (several when promoting). */
   onMove: (candidates: Move[]) => void;
@@ -33,7 +35,7 @@ interface Drag {
   moved: boolean;
 }
 
-export function Board({ variant, position, lastMove, flipped, highlight, bandRanks, disabled, onMove }: Props) {
+export function Board({ variant, position, lastMove, flipped, highlight, bandRanks, arrows = [], disabled, onMove }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Square | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -161,6 +163,7 @@ export function Board({ variant, position, lastMove, flipped, highlight, bandRan
       onPointerCancel={() => updateDrag(null)}
     >
       {squares}
+      {arrows.length > 0 && <ArrowLayer arrows={arrows} flipped={flipped} />}
       {dragPiece && drag && rect && (
         <div
           className="drag-ghost"
@@ -175,5 +178,41 @@ export function Board({ variant, position, lastMove, flipped, highlight, bandRan
         </div>
       )}
     </div>
+  );
+}
+
+/** Arrows in board coordinates (one unit per square), drawn above the pieces. */
+function ArrowLayer({ arrows, flipped }: { arrows: readonly (readonly [Square, Square])[]; flipped: boolean }) {
+  const center = (sq: Square) => {
+    const col = flipped ? 7 - fileOf(sq) : fileOf(sq);
+    const row = flipped ? rankOf(sq) : 7 - rankOf(sq);
+    return [col + 0.5, row + 0.5] as const;
+  };
+  return (
+    <svg className="arrows" viewBox="0 0 8 8" aria-hidden="true">
+      <defs>
+        <marker id="arrowhead" viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
+          <path d="M0 0 L4 2 L0 4 Z" className="arrow-head" />
+        </marker>
+      </defs>
+      {arrows.map(([from, to], i) => {
+        const [x1, y1] = center(from);
+        const [x2, y2] = center(to);
+        // Stop short of the target centre so the head sits on the square.
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        const k = len > 0 ? (len - 0.3) / len : 1;
+        return (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x1 + (x2 - x1) * k}
+            y2={y1 + (y2 - y1) * k}
+            className="arrow-line"
+            markerEnd="url(#arrowhead)"
+          />
+        );
+      })}
+    </svg>
   );
 }

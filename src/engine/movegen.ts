@@ -2,6 +2,7 @@ import { fileOf, forward, makeSquare, offset, opposite, rankOf } from './board.t
 import type {
   CastlingRights,
   Color,
+  Dir,
   Move,
   MovePattern,
   Piece,
@@ -198,12 +199,34 @@ function patternAttacks(pos: Position, from: Square, color: Color, pattern: Move
   }
 }
 
+/** The eight unit directions; every piece reaching `target` along one of them is the first piece on that ray. */
+const UNIT_DIRS: readonly Dir[] = [
+  [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1],
+];
+
+const isUnit = ([x, y]: Dir) => Math.abs(x) <= 1 && Math.abs(y) <= 1;
+
+/** Reversed non-unit directions of a pattern (cached per pattern object; patterns are shared constants). */
+const jumpCache = new WeakMap<MovePattern, readonly Dir[]>();
+function reversedJumps(pattern: MovePattern): readonly Dir[] {
+  let dirs = jumpCache.get(pattern);
+  if (!dirs) {
+    dirs = pattern.kind === 'pawn' ? [] : pattern.dirs.filter((d) => !isUnit(d)).map(([x, y]): Dir => [-x, -y]);
+    jumpCache.set(pattern, dirs);
+  }
+  return dirs;
+}
+
 /**
  * Is `target` attacked by any piece of color `by`? Respects variant rules:
  * pieces that cannot capture (e.g. Bürokrat) attack nothing, and every piece
  * (including non-capturable ones) blocks sliding lines. `victim` is the piece
  * considered to stand on `target` (defaults to its occupant); it feeds the
  * variant's position-dependent capture rule, if any.
+ *
+ * Works backwards from `target`: the first piece on each of the eight rays is
+ * checked against its own patterns (covers sliders, king-like steps and pawns),
+ * then jumps in non-unit directions (knight-like) are looked up per piece type.
  */
 export function isSquareAttacked(
   v: VariantDefinition,
@@ -212,12 +235,29 @@ export function isSquareAttacked(
   by: Color,
   victim: Piece | null = pos.board[target] ?? null,
 ): boolean {
-  for (let sq = 0; sq < 64; sq++) {
-    const p = pos.board[sq];
-    if (!p || p.color !== by || !v.canCapture(p)) continue;
-    if (v.captureAllowed && victim && !v.captureAllowed(pos, sq, target, p, victim)) continue;
-    for (const pattern of pieceDef(v, p.type).patterns(pos, by)) {
-      if (patternAttacks(pos, sq, by, pattern, target)) return true;
+  const board = pos.board;
+  const attacks = (sq: Square, p: Piece, pattern: MovePattern) =>
+    patternAttacks(pos, sq, by, pattern, target) &&
+    !(v.captureAllowed && victim && !v.captureAllowed(pos, sq, target, p, victim));
+
+  for (const dir of UNIT_DIRS) {
+    let sq = offset(target, dir);
+    while (sq !== -1 && !board[sq]) sq = offset(sq, dir);
+    if (sq === -1) continue;
+    const p = board[sq]!;
+    if (p.color !== by || !v.canCapture(p)) continue;
+    for (const pattern of pieceDef(v, p.type).patterns(pos, by)) if (attacks(sq, p, pattern)) return true;
+  }
+
+  for (const type of v.pieceTypes) {
+    for (const pattern of pieceDef(v, type).patterns(pos, by)) {
+      for (const back of reversedJumps(pattern)) {
+        let sq = offset(target, back);
+        if (pattern.kind === 'slide') while (sq !== -1 && !board[sq]) sq = offset(sq, back);
+        if (sq === -1) continue;
+        const p = board[sq];
+        if (p && p.type === type && p.color === by && v.canCapture(p) && attacks(sq, p, pattern)) return true;
+      }
     }
   }
   return false;

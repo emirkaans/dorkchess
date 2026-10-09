@@ -1,3 +1,5 @@
+import type { RuleCard } from '../rules/cards.ts';
+
 // Core engine types. This module (and the whole engine folder) must stay free of
 // React / DOM imports so it can run unchanged on a server.
 
@@ -190,6 +192,18 @@ export interface VariantDefinition {
     readonly squares: (pos: Position) => readonly Square[];
     readonly ranks?: readonly number[];
   };
+  /**
+   * Material values in centipawns, per piece type (used by the bot's evaluation).
+   * Kings are 0: mate is scored separately.
+   */
+  readonly pieceValues: Readonly<Record<PieceType, number>>;
+  /**
+   * Optional variant-specific evaluation term in centipawns for `color` in `pos`
+   * (e.g. Diplomat zone bonus). Positive = good for `color`.
+   */
+  readonly evaluateExtra?: (pos: Position, color: Color) => number;
+  /** Rule card shown before a game (see src/rules/cards.ts). */
+  readonly rules: RuleCard;
   /** Initial variant extra state. */
   readonly initialExtra: () => VariantExtra;
   /** Compute the extra state after `move` is played from `pos`. */

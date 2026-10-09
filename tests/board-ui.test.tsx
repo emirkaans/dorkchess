@@ -4,6 +4,9 @@ import { parseSquare as sq } from '../src/engine/board.ts';
 import { parseFen } from '../src/engine/notation.ts';
 import { getVariant } from '../src/engine/variants/index.ts';
 import { Board } from '../src/ui/Board.tsx';
+import { RuleCardModal } from '../src/ui/RuleCardModal.tsx';
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;').replace(/"/g, '&quot;');
 
 /** Class list of each square in the server-rendered board, keyed by square index. */
 function squareClasses(html: string): Map<number, string> {
@@ -48,5 +51,25 @@ describe('Board bileşeni', () => {
     const flipped = render(v.startPosition, true);
     expect(flipped.get(sq('a4'))).toContain('band-top');
     expect(flipped.get(sq('a5'))).toContain('band-bottom');
+  });
+});
+
+describe('Kural kartı bileşeni', () => {
+  it.each(['burokrat', 'jester', 'diplomat'])('%s: başlık, maddeler ve ilk örnek diyagramı', (id) => {
+    const v = getVariant(id);
+    const html = renderToStaticMarkup(<RuleCardModal variant={v} onClose={() => {}} />);
+    const ex = v.rules.examples[0];
+    expect(html).toContain(v.rules.title);
+    for (const b of v.rules.bullets) expect(html).toContain(escapeHtml(b));
+    expect(html).toContain(escapeHtml(ex.caption));
+    expect(html).toContain(`Örnek 1/${v.rules.examples.length}`);
+    expect(html.match(/class="square /g)).toHaveLength(64);
+    expect(html.match(/class="arrow-line"/g) ?? []).toHaveLength(ex.arrows.length);
+    expect(html).toContain('Bu varyant için bir daha gösterme');
+  });
+
+  it('standart: örnek yoksa diyagram da yok', () => {
+    const html = renderToStaticMarkup(<RuleCardModal variant={getVariant('standard')} onClose={() => {}} />);
+    expect(html).not.toContain('class="diagram"');
   });
 });

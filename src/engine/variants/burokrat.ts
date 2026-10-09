@@ -1,7 +1,7 @@
-import { ALL_DIRS } from '../board.ts';
-import type { MovePattern, PieceDefinition } from '../types.ts';
+import { ALL_DIRS, offset } from '../board.ts';
+import type { Color, MovePattern, PieceDefinition, Position } from '../types.ts';
 import { SLAB_BASE, glyphStyleSvg } from './icons.ts';
-import { STANDARD_PIECES, defineVariant } from './standard.ts';
+import { STANDARD_PIECES, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
 
 /** One step in any direction; capture-free because the piece has canCapture: false. */
 const BUROKRAT_STEP: MovePattern = { kind: 'step', dirs: ALL_DIRS };
@@ -19,12 +19,27 @@ export const BUROKRAT: PieceDefinition = {
   name: 'Bürokrat',
   fenChar: 'u',
   sanLetter: 'U',
-  patterns: () => [BUROKRAT_STEP],
+  patterns: fixedPatterns(BUROKRAT_STEP),
   canCapture: false,
   capturable: false,
   material: 'none',
   icon: { kind: 'svg', svg: burokratSvg },
 };
+
+/** Shield bonus: +15 for each own Bürokrat standing next to the own king. */
+function shieldBonus(pos: Position, color: Color): number {
+  let bonus = 0;
+  for (let sq = 0; sq < 64; sq++) {
+    const p = pos.board[sq];
+    if (p?.type !== 'k' || p.color !== color) continue;
+    for (const dir of ALL_DIRS) {
+      const n = offset(sq, dir);
+      const q = n === -1 ? null : pos.board[n];
+      if (q?.type === 'u' && q.color === color) bonus += 15;
+    }
+  }
+  return bonus;
+}
 
 export const burokrat = defineVariant({
   id: 'burokrat',
@@ -39,4 +54,37 @@ export const burokrat = defineVariant({
   startPosition: 'rnbqkbur/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBUR w KQkq - 0 1',
   pieces: { ...STANDARD_PIECES, u: BUROKRAT },
   promotionTypes: ['q', 'r', 'b', 'n'],
+  pieceValues: { ...STANDARD_VALUES, u: 100 },
+  evaluateExtra: shieldBonus,
+  rules: {
+    title: 'Bürokrat',
+    summary: "g1/g8'deki atların yerine Bürokrat başlar: kimseyi yemez, kimse onu yiyemez, ama yol keser.",
+    bullets: [
+      'Her yöne 1 kare, yalnızca boş kareye gider.',
+      'Hiçbir taşı yiyemez; hiçbir taş (şah dahil) onu yiyemez.',
+      'Şah çekmez, hiçbir kareyi tehdit etmez.',
+      'Kale, fil ve vezirin yolunu keser; araya girip şahı kurtarabilir.',
+      "Piyon Bürokrat'a terfi edemez.",
+    ],
+    examples: [
+      {
+        fen: '4k3/8/8/3p4/3U4/3P4/8/4K3 w - - 0 1',
+        highlights: ['c3', 'c4', 'c5', 'e3', 'e4', 'e5'],
+        arrows: [['d4', 'c5'], ['d4', 'e5'], ['d4', 'e3']],
+        caption: "Bürokrat her yöne 1 kare, yalnızca boş kareye gider. d5'teki piyonu yiyemez.",
+      },
+      {
+        fen: '4q2k/8/8/8/4U3/8/8/4K3 b - - 0 1',
+        highlights: ['e4'],
+        arrows: [['e8', 'e5']],
+        caption: "Siyah vezir Bürokrat'ı yiyemez ve arkasına geçemez: e1'deki şaha ulaşamaz.",
+      },
+      {
+        fen: 'k3r3/8/8/8/8/8/3U4/4K3 w - - 0 1',
+        highlights: ['e1'],
+        arrows: [['d2', 'e2']],
+        caption: "Kale e1'e şah çekiyor. Bürokrat e2'ye girip yolu keser, şahı kurtarır.",
+      },
+    ],
+  },
 });

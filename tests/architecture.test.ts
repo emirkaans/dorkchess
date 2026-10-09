@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { listVariants } from '../src/engine/variants/index.ts';
@@ -11,8 +11,9 @@ function sources(dir: string): string[] {
 }
 
 describe('mimari', () => {
-  it("engine React'e veya DOM'a bağımlı değil", () => {
-    for (const file of sources('src/engine')) {
+  it("engine, ai, clock, rules ve storage React'e veya DOM'a bağımlı değil", () => {
+    const dirs = ['src/engine', 'src/ai', 'src/clock', 'src/rules', 'src/storage'].filter((d) => existsSync(d));
+    for (const file of dirs.flatMap(sources)) {
       const code = readFileSync(file, 'utf8');
       expect(code, file).not.toMatch(/from ['"](react|react-dom)/);
       expect(code, file).not.toMatch(/\b(document|window|navigator|HTMLElement)\b/);

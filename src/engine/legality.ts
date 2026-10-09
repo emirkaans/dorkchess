@@ -11,6 +11,15 @@ export function royalSquares(v: VariantDefinition, pos: Position, color: Color):
   return out;
 }
 
+/** Is any royal piece of `color` attacked by `enemy`? (allocation-free version of royalSquares + isSquareAttacked) */
+function royalAttacked(v: VariantDefinition, pos: Position, color: Color, enemy: Color): boolean {
+  for (let sq = 0; sq < 64; sq++) {
+    const p = pos.board[sq];
+    if (p && p.color === color && pieceDef(v, p.type).royal && isSquareAttacked(v, pos, sq, enemy)) return true;
+  }
+  return false;
+}
+
 /**
  * Is `color`'s royal piece attacked in `pos`? Attacks are computed with the
  * position's own variant state, so e.g. an enemy Jester attacks in the form
@@ -18,7 +27,7 @@ export function royalSquares(v: VariantDefinition, pos: Position, color: Color):
  */
 export function isInCheck(v: VariantDefinition, pos: Position, color: Color = pos.turn): boolean {
   const enemy = opposite(color);
-  return royalSquares(v, pos, color).some((sq) => isSquareAttacked(v, pos, sq, enemy));
+  return royalAttacked(v, pos, color, enemy);
 }
 
 /**

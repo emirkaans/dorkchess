@@ -11,5 +11,7 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/engine"]
+  "include": ["src/engine", "src/ai", "src/clock", "src/rules", "src/storage"],
+  // The worker entry and its client need the browser Worker API; they are checked by tsconfig.app.json.
+  "exclude": ["src/ai/worker.ts", "src/ai/client.ts"]
 }

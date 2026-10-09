@@ -8,7 +8,7 @@ import type {
   SetupQuestion,
   VariantExtra,
 } from '../types.ts';
-import { BISHOP, KING_STEP, KNIGHT, QUEEN, ROOK, STANDARD_PIECES, defineVariant } from './standard.ts';
+import { BISHOP, KING_STEP, KNIGHT, QUEEN, ROOK, STANDARD_PIECES, STANDARD_VALUES, defineVariant } from './standard.ts';
 
 /**
  * Jester moves and captures like the piece type the OPPONENT moved last
@@ -136,6 +136,38 @@ export const jester = defineVariant({
   setup: { questions: [setupQuestion('w'), setupQuestion('b')], startPosition: jesterStartPosition },
   pieces: { ...STANDARD_PIECES, j: JESTER },
   promotionTypes: ['q', 'r', 'b', 'n'],
+  pieceValues: { ...STANDARD_VALUES, j: 300 },
+  rules: {
+    title: 'Jester',
+    summary: 'Jester, rakibin en son oynattığı taşın türü gibi hareket eder ve yer.',
+    bullets: [
+      'Oyun başında her oyuncu hangi taşının (vezir, kale, fil, at) Jester olacağını seçer.',
+      'Rakip son hamlede fil oynadıysa Jester fil gibi, piyon oynadıysa piyon gibi oynar.',
+      'Piyon formunda çift adım, en passant ve terfi yok; rok sonrası şah formu.',
+      'Henüz rakip hamlesi yoksa At formu.',
+      "Oynadığın taşın türü rakip Jester'in formu olur: şahını o forma açık bırakan hamle yasal değil.",
+    ],
+    examples: [
+      {
+        fen: '4k3/8/8/7p/8/5J2/8/4K3 w - - 0 1 -b',
+        highlights: ['f3'],
+        arrows: [['f3', 'c6'], ['f3', 'h5'], ['f3', 'h1']],
+        caption: "Siyah son hamlede fil oynadı: beyaz Jester fil gibi gider ve h5'teki piyonu yiyebilir.",
+      },
+      {
+        fen: '4k3/8/8/3p4/4J3/8/8/4K3 w - - 0 1 -p',
+        highlights: ['e4'],
+        arrows: [['e4', 'e5'], ['e4', 'd5']],
+        caption: 'Siyah piyon oynadı: Jester tek kare ileri gider ya da çapraz yer. Çift adım ve terfi yok.',
+      },
+      {
+        fen: 'k3j3/8/8/8/r7/8/8/3QK3 w - - 0 1 --',
+        highlights: ['e8', 'e1'],
+        arrows: [['d1', 'a4']],
+        caption: "Vezirle a4'teki kaleyi almak yasal değil: vezir oynanınca siyah Jester vezir olur ve e hattından şahı alır.",
+      },
+    ],
+  },
   initialExtra,
   afterMove: (pos, move) => {
     // A Jester counts as the piece it was imitating when it moved.

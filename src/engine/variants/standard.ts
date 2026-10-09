@@ -11,6 +11,11 @@ export const ROOK: MovePattern = { kind: 'slide', dirs: ORTHOGONAL };
 export const QUEEN: MovePattern = { kind: 'slide', dirs: ALL_DIRS };
 export const KING_STEP: MovePattern = { kind: 'step', dirs: ALL_DIRS };
 
+/** `patterns` for a piece that always moves the same way (returns one shared array, no allocation). */
+export function fixedPatterns(...patterns: MovePattern[]): () => readonly MovePattern[] {
+  return () => patterns;
+}
+
 // Text presentation selector keeps browsers from rendering ♟ as an emoji.
 const glyph = (g: string) => ({ kind: 'glyph', glyph: g + '︎' }) as const;
 
@@ -20,36 +25,39 @@ const glyph = (g: string) => ({ kind: 'glyph', glyph: g + '︎' }) as const;
 export const STANDARD_PIECES: Readonly<Record<PieceType, PieceDefinition>> = {
   p: {
     type: 'p', name: 'Piyon', fenChar: 'p', sanLetter: '',
-    patterns: () => [PAWN],
+    patterns: fixedPatterns(PAWN),
     canCapture: true, capturable: true, material: 'major', icon: glyph('♟'),
   },
   n: {
     type: 'n', name: 'At', fenChar: 'n', sanLetter: 'N',
-    patterns: () => [KNIGHT],
+    patterns: fixedPatterns(KNIGHT),
     canCapture: true, capturable: true, material: 'minor', icon: glyph('♞'),
   },
   b: {
     type: 'b', name: 'Fil', fenChar: 'b', sanLetter: 'B',
-    patterns: () => [BISHOP],
+    patterns: fixedPatterns(BISHOP),
     canCapture: true, capturable: true, material: 'minor', icon: glyph('♝'),
   },
   r: {
     type: 'r', name: 'Kale', fenChar: 'r', sanLetter: 'R',
-    patterns: () => [ROOK],
+    patterns: fixedPatterns(ROOK),
     canCapture: true, capturable: true, material: 'major', icon: glyph('♜'),
   },
   q: {
     type: 'q', name: 'Vezir', fenChar: 'q', sanLetter: 'Q',
-    patterns: () => [QUEEN],
+    patterns: fixedPatterns(QUEEN),
     canCapture: true, capturable: true, material: 'major', icon: glyph('♛'),
   },
   k: {
     type: 'k', name: 'Şah', fenChar: 'k', sanLetter: 'K',
-    patterns: () => [KING_STEP],
+    patterns: fixedPatterns(KING_STEP),
     royal: true, castles: true,
     canCapture: true, capturable: true, material: 'none', icon: glyph('♚'),
   },
 };
+
+/** Material values (centipawns) of the standard pieces; variants extend this with their own pieces. */
+export const STANDARD_VALUES: Readonly<Record<PieceType, number>> = { p: 100, n: 300, b: 320, r: 500, q: 900, k: 0 };
 
 export const STANDARD_START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -78,4 +86,15 @@ export const standard: VariantDefinition = defineVariant({
   startPosition: STANDARD_START,
   pieces: STANDARD_PIECES,
   promotionTypes: ['q', 'r', 'b', 'n'],
+  pieceValues: STANDARD_VALUES,
+  rules: {
+    title: 'Standart satranç',
+    summary: 'Klasik FIDE kuralları; amaç rakip şahı mat etmek.',
+    bullets: [
+      'Rok, en passant ve terfi (vezir, kale, fil, at) var.',
+      'Yasal hamlesi olmayan taraf şah çekiliyse mat, değilse pat olur.',
+      '50 hamle, üç kez tekrar ve yetersiz materyal beraberliktir.',
+    ],
+    examples: [],
+  },
 });

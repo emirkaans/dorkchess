@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b && tsc -p tsconfig.engine.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "node --experimental-strip-types --no-warnings scripts/bench.ts",
+    "selfplay": "node --experimental-strip-types --no-warnings scripts/selfplay.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
