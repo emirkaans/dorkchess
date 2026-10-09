@@ -509,7 +509,8 @@ Hâlâ backend YOK; her şey tarayıcıda çalışır.
     süre bitimi, teslim, beraberlik kabulü.
   - Yan etkiler (bot worker'ı, ses, kayıt, ayarlar) ayrı hook'larda: `useGame`,
     `useBot`, `useClock` gibi.
-  - Hedef: `App.tsx` 250 satırın altında, yalnızca düzen ve bileşen bağlama.
+  - Hedef: oyun mantığı `App.tsx`'te değil, reducer ve hook'larda; `App.tsx` yalnızca düzen ve
+    bileşen bağlama yapar (satır sayısı hedefi yok).
 - **İki motorun uyumu:** okunabilir motor ile hızlı tahta arasında kopma, yeni varyant
   eklerken en büyük risk. Mevcut `tests/fast-board.test.ts` güçlendirilir:
   - Her kayıtlı varyant için otomatik (yeni varyant ek kod gerektirmeden kapsanır).
@@ -569,7 +570,8 @@ Hâlâ backend YOK; her şey tarayıcıda çalışır.
 ## v3 kabul kriterleri
 - Her push'ta CI çalışıyor ve yeşil.
 - `npm run lint` ve `npm run format:check` temiz.
-- `App.tsx` 250 satırın altında; oyun durumu React'siz bir reducer'da ve test ediliyor.
+- Oyun mantığı `App.tsx`'te değil: oyun durumu React'siz bir reducer'da ve test ediliyor, yan
+  etkiler hook'larda; `App.tsx` yalnızca düzen ve bileşen bağlama yapıyor.
 - 360 px genişlikte uygulama yatay kaydırmasız, dokunmatikle oynanabiliyor.
 - Uygulama kurulabiliyor ve ilk ziyaretten sonra çevrimdışı bota karşı oynanabiliyor.
 - Tahta klavyeyle oynanabiliyor; ekran okuyucu hamleleri duyuruyor.
