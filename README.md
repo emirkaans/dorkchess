@@ -1,56 +1,89 @@
 # dorkchess
 
 Tarayıcıda çalışan satranç varyantları: **Standart**, **Bürokrat**, **Jester**, **Diplomat**.
-İki kişi aynı ekranda, bilgisayara karşı (5 seviye) ya da bot vs bot izleyerek oynanır; satranç saati ve
-her varyant için görsel kural kartları var. Kural motoru, tahta ve yapay zekâ sıfırdan yazıldı; harici
-satranç kütüphanesi ve backend yok.
+İki kişi aynı ekranda, bilgisayara karşı (5 seviye) ya da bot vs bot izleyerek oynanır. Satranç saati,
+her varyant için görsel kural kartları, oyun sonu analizi, link ile paylaşım, çevrimdışı çalışma (PWA),
+klavye/ekran okuyucu desteği ve Türkçe/İngilizce arayüz var. Kural motoru, tahta ve yapay zekâ sıfırdan
+yazıldı; harici satranç kütüphanesi ve backend yok.
 
 ## Çalıştırma
 
 ```bash
 npm install
-npm run dev        # geliştirme sunucusu (http://localhost:5173)
-npm test           # tüm motor testleri (Vitest)
-npm run typecheck  # uygulama + motorun DOM'suz tip kontrolü
-npm run build      # üretim derlemesi (dist/)
-npm run bench      # perft(4) süresi + seviye 5'in 3 sn'de ulaştığı derinlik ve düğüm/sn
-npm run selfplay -- --variant jester --games 100 --white 3 --black 3 --seed 1 [--out sonuc.json]
+npm run dev           # geliştirme sunucusu (http://localhost:5173)
+npm run build         # üretim derlemesi (dist/, service worker dahil)
+npm run preview       # derlemeyi yerelde sun (PWA/çevrimdışı denemek için)
 ```
 
-`bench` ve `selfplay` Node 22.6+ ile TypeScript'i doğrudan çalıştırır (`--experimental-strip-types`).
+Kontroller (CI'da da aynı sırayla çalışır, `.github/workflows/ci.yml`, Node 22):
+
+```bash
+npm run typecheck     # uygulama + motorun DOM'suz tip kontrolü
+npm run lint          # ESLint (typescript-eslint, react-hooks)
+npm run format:check  # Prettier; düzeltmek için: npm run format
+npm test              # Vitest: motor, YZ, oturum reducer'ı, bileşen testleri (happy-dom)
+npm run build
+```
+
+## Geliştirme araçları (`scripts/`)
+
+Hepsi Node 22.6+ ile TypeScript'i doğrudan çalıştırır (`--experimental-strip-types`).
+
+| Komut | Ne yapar |
+| --- | --- |
+| `npm run bench` | perft(4) süresi; seviye 5'in süre sınırında ulaştığı derinlik ve düğüm/sn |
+| `npm run selfplay -- --variant jester --games 100 --white 3 --black 3 --seed 1` | bot vs bot istatistikleri (aşağıda) |
+| `npm run match -- --a . --b ../dork-old --games 200 --time 200` | iki motor sürümü arasında paralel maç, Elo farkı ± hata payı |
+| `npm run parity -- --depth 4 --positions 20` | hızlı tahta ile referans motorun derin perft karşılaştırması |
+| `npm run gen-data -- --variant standard --games 3000` | ayar verisi: bot oyunlarından sakin konumlar |
+| `npm run sf-label -- --in data/standard.txt --out data/standard-sf.txt` | konumları Stockfish değerlendirmesiyle etiketler |
+| `npm run tune -- --data data/standard-sf.txt --write` | Texel ayarı; `src/ai/eval-params.ts`'i yeniden yazar |
+| `npm run sf-match -- --sf <stockfish> --elo 2500 --games 40` | kalibrasyon: seviye 5'e karşı sınırlı Stockfish |
+| `npm run icons` | `public/icons/` PWA ikonlarını üretir |
+
+**Stockfish yalnızca geliştirme aracıdır** (kalibrasyon ve etiketleme): yerel bir dosyadır, `data/` klasöründe
+durur (git'e girmez) ve uygulamanın parçası değildir. Oyundaki bot tamamen bu projenin kodudur.
 
 ## Yapı
 
 ```
-src/engine/            saf TypeScript kural motoru (React/DOM import etmez)
+src/engine/            saf TypeScript kural motoru (React/DOM import etmez) — referans uygulama
   types.ts             Color, Piece, Move, Position, GameState, MovePattern,
-                       PieceDefinition, VariantDefinition
+                       PieceDefinition, VariantDefinition, VariantTexts
   board.ts             0..63 kare indeksi (a1 = 0), yönler, kare yardımcıları
   movegen.ts           hareket kalıplarından ham hamle üretimi, rok, isSquareAttacked, applyMove
   legality.ts          şah güvenliği, yasal hamle filtresi, perft
   game.ts              makeMove / undoMove, oyun sonu, tekrar hash'i, yetersiz materyal
   notation.ts          FEN benzeri konum metni, kısa cebirsel notasyon (SAN)
-  variants/            standard.ts, burokrat.ts, jester.ts, diplomat.ts, icons.ts,
-                       index.ts (registry)
+  premove.ts           ön hamle hedefleri
+  fast/                botun hızlı tahtası (make/unmake, Zobrist) ve varyant kancaları
+  variants/            standard.ts, burokrat.ts, jester.ts, diplomat.ts, icons.ts, index.ts (registry)
 src/ai/                yapay zekâ (React/DOM import etmez; worker'da ve Node'da çalışır)
-  evaluate.ts          konum değerlendirme (materyal, konum tabloları, varyant kancası, hareketlilik)
-  search.ts            negamax + alfa-beta, iteratif derinleştirme, quiescence, transpozisyon tablosu
+  search.ts            PVS araması (aşağıda)
+  evaluate.ts          değerlendirme; eval-params.ts ayarlanmış parametreler, eval-features.ts ayar için özellikler
+  analysis.ts          oyun sonu analizi: Beyaz'ın bakışından skor, hata işaretleri
   levels.ts            seviye ayarları (tek yapılandırma nesnesi), bot süresi, beraberlik kararı
-  rng.ts               tohumlanabilir rastgele sayı üreteci
-  match.ts             worker'sız bot vs bot oyunu (selfplay ve testler)
-  protocol.ts          UI <-> worker mesaj tipleri
-  worker.ts, client.ts Web Worker girişi ve UI'nin kullandığı küçük API
+  rng.ts, match.ts     tohumlanabilir rastgelelik; worker'sız bot vs bot
+  protocol.ts, worker.ts, client.ts   Web Worker mesajları, giriş noktası ve UI'nin kullandığı API
 src/clock/clock.ts     saf saat mantığı (zaman dışarıdan verilir)
 src/rules/cards.ts     kural kartı veri tipleri (içerik varyant tanımlarında)
-src/storage/           local.ts (localStorage, try/catch), games.ts (oyun kaydı, PGN benzeri metin)
-src/ui/                React: App, Board, Diagram, ClockView, NewGameDialog, RuleCardModal,
-                       HistoryModal, sound.ts (Web Audio), prefs.ts (tema/ses ayarları), ...
-scripts/               bench.ts, selfplay.ts
-tests/                 motor, YZ (tests/ai), saat (tests/clock), kural kartları, mimari, bileşen testleri
+src/storage/           local.ts (localStorage, try/catch), games.ts (oyun kaydı, PGN benzeri metin),
+                       share.ts (paylaşım linkleri)
+src/i18n/              sözlükler (messages.ts), translate, varyant metinleri, kayıt metinleri (React'siz)
+src/pwa/               service worker kaynağı ve kaydı / güncelleme bildirimi
+src/ui/                React
+  game/                session.ts + reducer.ts: oyun oturumu, saf reducer (React'siz, Node'da test edilir);
+                       hooks.ts: bot, saat, ses/kayıt, ipucu/beraberlik efektleri
+  App.tsx, Board.tsx, GameViewer.tsx (analiz), Modal.tsx, useDialogFocus.ts, i18n.tsx, ...
+scripts/               geliştirme araçları (yukarıda)
+tests/                 motor, hızlı tahta eşliği, YZ, saat, reducer, paylaşım, PWA, i18n, mimari;
+                       tests/ui/ bileşen testleri (happy-dom + Testing Library)
 ```
 
 `GameState` değişmezdir (immutable): `makeMove` yeni bir durum döndürür, `previous` alanı geri almayı sağlar.
 Motor fonksiyonları varyant tanımını parametre olarak alır, bu yüzden sunucuda da aynen çalışır.
+`tests/architecture.test.ts` motorun, YZ'nin, depolamanın, i18n'in ve oyun reducer'ının React/DOM'a
+bağlanmadığını ve UI kodunda varyanta özel dal olmadığını denetler.
 
 ## Motor tasarımı
 
@@ -91,25 +124,27 @@ beyazın ve siyahın en son oynattığı taş türü (`-` = henüz yok). Örnek:
 
 ## Bilgisayar rakibi
 
-Bot yalnızca motorun genel API'sini kullanır: yasal hamle üretimi, hamle uygulama, oyun sonu kuralları ve
-konum hash'i. Bu yüzden Jester'in yasallık kuralı, Diplomat'ın barış bölgesi gibi kurallar aramada ayrıca
-kodlanmadan doğru uygulanır; yeni bir varyant eklendiğinde bot ek kod gerektirmeden oynar. Varyanta özel
-bilgi yalnızca değerlendirmeye girer (`pieceValues`, `evaluateExtra`).
+Bot, motorun varyant tanımından derlenen **hızlı tahtada** (`src/engine/fast/board.ts`) arar: kopyalamak
+yerine make/unmake, artımlı Zobrist hash'i, taş listeleri, önceden hesaplanmış adım tabloları. Taş verisiyle
+anlatılamayan kurallar (Jester formu, Diplomat aurası) varyantın `fast` kancalarından gelir; aramada varyanta
+özel kod yoktur. Değişmez motor referans olarak kalır: testler iki tahtayı her varyantta hamle hamle
+karşılaştırır (`tests/fast-board.test.ts`, derin kontrol için `npm run parity`). Bot yalnızca motorun yasal
+hamle listesindeki bir hamleyi oynar.
 
-- **Değerlendirme** (sıradaki tarafın bakış açısından, santipiyon): materyal + standart taşlar için konum
-  tabloları (oyun sonunda şah merkeze) + `evaluateExtra` + (seviye 5) hareketlilik (ham hamle sayısı farkı × 2).
-  Mat = 100000 − ply (en kısa matı tercih eder); her türlü beraberlik 0.
-- **Arama**: negamax + alfa-beta, iteratif derinleştirme ve süre sınırı (sınır dolunca son tamamlanan
-  derinliğin sonucu kullanılır; derinlik 1 her zaman tamamlanır, yani yasal bir hamle mutlaka döner).
-  Hamle sıralaması: önceki iterasyonun / tablonun en iyi hamlesi, MVV-LVA ile yeme hamleleri, terfiler.
-  Quiescence yalnızca yeme ve terfi hamlelerine bakar (şah altındayken tüm kaçışlara). Transpozisyon tablosu
-  konum hash'ini kullanır (Jester formu dahil), en fazla 2^18 kayıt. Tekrar eden konum (oyun geçmişinde veya
-  arama yolunda) beraberlik sayılır.
+- **Arama** (`src/ai/search.ts`): PVS + iteratif derinleştirme ve aspirasyon pencereleri; 2^20 kayıtlık
+  transpozisyon tablosu (aynı varyantta aramalar arasında korunur); null move, geç hamle indirimi (LMR),
+  razoring, futility, "iyileşiyor" bayrağı, tekil uzatma ve şah uzatması; hamle sıralamasında TT hamlesi,
+  SEE ile süzülen yemeler, killer, karşı hamle ve geçmiş tabloları; yalnızca yemelerden oluşan quiescence.
+  Süre: sınırın %60'ı dolunca yeni derinliğe başlanmaz; derinlik 1 her zaman tamamlanır.
+- **Değerlendirme** (`src/ai/evaluate.ts`, parametreler `eval-params.ts`): PeSTO tabanlı oyun ortası / oyun
+  sonu konum tabloları, fil çifti, piyon yapısı (çift, izole, geçer piyon), açık/yarı açık hatta kale, şah
+  kalkanı, hareketlilik ve şaha saldırı, piyonla tehdit; oyun evresine göre karıştırılır. Varyanta özel bilgi
+  yalnızca `pieceValues` ve `fast.evaluate` kancasından gelir. Parametreler Stockfish ile etiketlenmiş
+  konumlarda Texel yöntemiyle ayarlandı (`gen-data` → `sf-label` → `tune`). Mat = 100000 − ply; beraberlik 0.
 - **Rastgelelik** tohumlu üreteçten gelir: aynı tohum + konum + seviye 1–3 = aynı hamle. Kök hamlelerin
-  yalnızca seçilebilecek olanları (en iyi 3, en iyiye 50 puan yakın olanlar ya da eşitler) kesin puanlanır;
-  diğerleri alfa-beta ile budanır.
-- **Worker**: arama Web Worker'da çalışır, arayüz donmaz. Çalışan bir arama mesaj okuyamadığı için "stop"
-  worker'ı sonlandırarak yapılır; cevaplar istek `id`'si taşır, eskiler yok sayılır. Bot en az 400 ms bekler.
+  yalnızca seçilebilecek olanları kesin puanlanır.
+- **Worker**: arama Web Worker'da çalışır, arayüz donmaz. "stop" worker'ı sonlandırarak yapılır; cevaplar
+  istek `id`'si taşır, eskiler yok sayılır. Bot en az 400 ms bekler (çok hızlı cevap doğal görünmüyor).
 
 ### Seviyeler (`src/ai/levels.ts`)
 
@@ -118,14 +153,16 @@ bilgi yalnızca değerlendirmeye girer (`pieceValues`, `evaluateExtra`).
 | 1 | Çaylak | 1 ply | %50 rastgele yasal hamle, aksi halde en iyi | 0.1 sn |
 | 2 | Mahalle | 2 ply | en iyi 3 hamleden puana göre ağırlıklı | 0.3 sn |
 | 3 | Kulüp | 3 ply + quiescence | en iyiye 50 puan yakınlar arasından (bulunan mat asla bırakılmaz) | 0.7 sn |
-| 4 | Usta | iteratif + quiescence + TT | en iyi (eşitler arasında rastgele) | 1.5 sn |
-| 5 | Dork | 4 + hareketlilik | en iyi | 3 sn |
+| 4 | Usta | tam arama + TT | en iyi (eşitler arasında rastgele) | 0.5 sn |
+| 5 | Dork | tam arama + TT + hareketlilik/şah saldırısı | en iyi | 0.95 sn |
 
 Saatli oyunda bot süresi = min(seviye sınırı, kalan süre / 30 + artış). İpucu seviye 4 ile 1 sn arar.
 Beraberlik teklifini seviye 3+ kendi değerlendirmesi −150'den kötüyse kabul eder; 1–2 her zaman reddeder.
 
-Ölçümler (bu geliştirme makinesinde): perft(4) ≈ 0.3 sn; seviye 5 oyun ortasında 3 sn'de 4 ply
-(4. ply ≈ 1.1 sn'de biter), ≈ 90 bin düğüm/sn. Seviye 5, seviye 3'e karşı 20 oyunda %100 puan aldı.
+**Güç**: seviye 5, standart satrançta Stockfish `UCI_LimitStrength` / `UCI_Elo 2500`'e karşı 40 oyunda
+≈ 2535 Elo performans gösterdi (±100 civarı hata payı; `npm run sf-match`). Bu geliştirme makinesinde
+`npm run bench`: perft(4) ≈ 0.23 sn; seviye 5 oyun ortasında 0.95 sn sınırıyla derinlik 11'e ≈ 0.64 sn'de
+ulaşıyor, ≈ 550 bin düğüm/sn.
 
 ### Selfplay
 
@@ -157,6 +194,79 @@ yüzdeleri, ortalama oyun uzunluğu, bitiş nedenleri, özel taşın yenme oran�
 - **Ses**: hamle, yeme, şah, oyun sonu ve saat 10 saniyenin altına inince uyarı; sesler Web Audio API ile kodda
   üretilir (ses dosyası yok). Araç çubuğundaki düğmeyle sessize alınır.
 - **Temalar**: tahta için Klasik, Koyu ve Dork; arayüz için Sistem / Açık / Koyu. Seçimler hatırlanır.
+- **Oyun durumu**: oturum (oyuncular, hamle zaman çizelgesi, saat, ön hamle, kurulum soruları) saf bir
+  reducer'da tutulur (`src/ui/game/reducer.ts`); bot, saat, ses ve kayıt efektleri `src/ui/game/hooks.ts`'te.
+
+## Oynanış eklentileri
+
+- **Ön hamle (premove)**: bota karşı, sıra bottayken kendi taşını sürükleyerek ya da tıklayarak bir hamle
+  sıraya konur; bot oynayınca yasalsa hemen oynanır, değilse iptal edilir (sağ tık da iptal eder). Terfi ön
+  hamlesi vezire terfi eder.
+- **Oklar**: sağ tuşla bir kareden diğerine sürükleyince ok, aynı karede bırakınca halka çizilir; sol tık temizler.
+
+## Analiz
+
+Biten oyunda "Oyunu analiz et" (ve Geçmiş / paylaşılan oyun görüntüleyicisinde "Analiz et") her konumu
+worker'da 0.3 sn arar (`src/ai/analysis.ts`, `src/ui/GameViewer.tsx`):
+
+- tahtanın yanında değerlendirme çubuğu, altında tıklanabilir değerlendirme grafiği (Beyaz'ın bakışından);
+- gösterilen konum için motorun önerdiği hamle ok olarak;
+- hamle listesinde `??` (hata: hamle yapanın değerlendirmesi 2+ piyon düştü) ve `?` (yanlışlık: 1+ piyon).
+
+Analiz istenince durdurulup kaldığı yerden sürdürülebilir.
+
+## Paylaşım
+
+Linkler sunucu gerektirmez; her şey adresin `#` kısmındadır (`src/storage/share.ts`), base64url JSON:
+
+- `#g=` — bir oyun: varyant, başlangıç FEN'i (varsayılandan farklıysa) ve SAN hamleleri. Açılınca oyun
+  görüntüleyicide (analiz dahil) gösterilir.
+- `#p=` — bir konum: varyant ve FEN. Açılınca o konumdan iki kişilik oyun başlar.
+
+Linkteki her hamle motorla yeniden oynanarak doğrulanır; bozuk link anlaşılır bir mesajla bildirilir.
+Linkler oyun kontrollerindeki "Oyun linki" / "Konum linki" ve Geçmiş'teki "Linki kopyala" ile alınır.
+
+## Çevrimdışı (PWA)
+
+`npm run build`, Vite eklentisiyle (`vite.config.ts`) derlemenin tüm dosyalarını listeleyen bir `sw.js`
+üretir (`src/pwa/service-worker.ts`). İlk ziyaretten sonra uygulama, bot dahil, tamamen çevrimdışı çalışır ve
+ana ekrana eklenebilir (`public/manifest.webmanifest`, ikonlar `npm run icons` ile üretilir). Önbellek sürüm
+adlıdır; yeni sürüm yüklendiğinde üstte "Yeni sürüm hazır — Yenile" çıkar, geçişe kullanıcı karar verir.
+Geliştirme sunucusunda (`npm run dev`) service worker kaydedilmez.
+
+## Erişilebilirlik ve mobil
+
+- **Klavye**: tahtada tek bir kare odaklanır (roving tabindex); ok tuşları gezinir (tahta çevrikse yönler de
+  döner), Enter/Boşluk taşı seçer ve oynar, Esc seçimi bırakır.
+- **Ekran okuyucu**: her karenin etiketi kare adı, taş ve renkle gösterilen durumları içerir ("e4, beyaz
+  piyon, son hamle"); oynanan hamle ve oyun sonucu canlı bölgede duyurulur.
+- **Pencereler**: açılınca içine odaklanır, Esc kapatır, kapanınca odak açan düğmeye döner (`useDialogFocus`).
+- **Telefon**: 640 px altında tek sütun; tahta ekran genişliğine (16 px kenar boşluğuyla) ve yüksekliğine
+  sığar; dokunarak sürükleme çalışır, yatay kaydırma olmaz.
+
+## Dil (Türkçe / İngilizce)
+
+Arayüz dili araç çubuğundaki "Dil" seçimiyle değişir ve hatırlanır; kayıtlı seçim yoksa tarayıcı dili Türkçe
+ise Türkçe, değilse İngilizce açılır. `<html lang>` seçime uyar.
+
+- Arayüz metinleri `src/i18n/messages.ts`'tedir: `tr` başvuru sözlüğüdür, diğer diller aynı anahtarları
+  taşır (`{name}` biçiminde yer tutucularla). Bileşenler `useI18n()` ile `t('anahtar', { ... })` kullanır.
+- Varyant metinleri tanımın içindedir: tanımdaki alanlar Türkçedir, `translations.en` İngilizcesini verir
+  (ad, açıklama, kural kartı ve örnek açıklamaları, taş adları, vurgu etiketi, kurulum soruları, rozetler).
+  UI bunları `variantTexts(v, locale)` ile okur; eksik alan Türkçeye düşer.
+- Link ve içe aktarma hataları `LocalizedError` (anahtar + parametre) olarak atılır, seçili dilde gösterilir.
+- Geçmiş kayıtları kod saklar (`bot`, `human`, `bot:4`, `checkmate`) ve gösterirken çevirir; önceki
+  sürümlerin Türkçe kayıtları olduğu gibi gösterilir.
+
+**Yeni dil eklemek** (ör. Almanca):
+
+1. `src/i18n/messages.ts`'e `export const de: Record<MessageKey, string> = { ... }` ekleyin (tüm anahtarlar).
+2. `src/i18n/index.ts`'te `LOCALES`'e `de: 'Deutsch'`, `DICTIONARIES`'e `de` ekleyin; gerekiyorsa
+  `detectLocale`'i genişletin.
+3. Her varyantın `translations`'ına `de: { ... }` ekleyin (standart taş adları için `STANDARD_PIECE_NAMES_EN`
+  gibi ortak bir nesne tanımlayın).
+4. `npm test`: `tests/i18n.test.ts` anahtarların ve yer tutucuların eşleştiğini denetler; varyant çevirisi
+  eksiksizlik testini yeni dile de uygulayın.
 
 ## Yeni varyant / taş ekleme (örnek: Bürokrat)
 
@@ -207,7 +317,13 @@ UI'a dokunmak gerekmez; ikon, rozet ve açıklama varyant tanımından gelir.
 
 3. `src/engine/variants/index.ts` içinde kaydedin: `registerVariant(burokrat);`
 
-4. `tests/` altına davranış testlerini yazın.
+4. İngilizce metinleri `translations.en` alanına ekleyin (`name`, `description`, `rules` + örnek
+   `captions`, `pieceNames`; varsa `highlightLabel`, `setup`, `badges`). `tests/i18n.test.ts` eksik
+   çeviriyi yakalar.
+
+5. `tests/` altına davranış testlerini yazın. Hızlı tahta varyantı tanımdan kendisi derler; taş verisiyle
+   anlatılamayan bir kural varsa `fast` kancalarını yazın ve `tests/fast-board.test.ts`'teki hedefli
+   konumlara örnek ekleyin (referans motorla hamle hamle karşılaştırılır).
 
 Mevcut kalıplarla anlatılamayan bir taş için `patterns` yerine konuma bağlı kalıp döndürün (bkz. `jester.ts`)
 ya da varyantın `generateMoves(pos, from, base)` override'ını kullanın. Varyanta özel bir durum gerekiyorsa
@@ -237,9 +353,6 @@ ya da varyantın `generateMoves(pos, from, base)` override'ını kullanın. Vary
 
 - **Bot ve Jester başlangıç seçimi**: botun rengine ait kurulum sorularını bot rastgele cevaplar; insan kendi
   sorusunu cevaplar.
-- **Hareketlilik** (seviye 5) yasal değil ham hamle sayısıyla hesaplanır ve sakinlik aramasının başındaki
-  konumda bir kez ölçülür; skor alfa-beta sınırlarından 150 puandan fazla uzaksa hiç hesaplanmaz. Bu, seviye
-  5'in 3 sn'de 4 ply'a ulaşmasını sağlar.
 - **Determinizm**: seviye 1–3 sabit derinliğe kadar arar; süre sınırı yalnızca çok karmaşık konumlarda devreye
   girer. Aynı tohum + konum + seviye aynı hamleyi verir (testli).
 - **Süre bitimi**: "rakibin mat gücü" yalnızca kazanacak tarafın kendi taşlarına (ve şahlara) varyantın
@@ -247,3 +360,16 @@ ya da varyantın `generateMoves(pos, from, base)` override'ını kullanın. Vary
 - **Geri alma**: bota karşı "Geri al" son kendi hamleni ve botun cevabını birlikte geri alır; iki kişilik ve
   bot vs bot modunda Geri/İleri hamle geçmişinde gezinir (saatli oyunda geçmişten hamle oynanamaz).
 - **Selfplay sınırı**: "200 hamle" tam hamle (her iki renk) olarak sayılır.
+
+### v3 kararları
+
+- **Seviye süreleri**: seviye 4 0.5 sn, seviye 5 0.95 sn (önceden 1.5 / 3 sn); güç hızlı tahta ve daha iyi
+  aramayla arttı. Hareketlilik ve şaha saldırı terimleri yalnızca seviye 5'te ve skor alfa-beta sınırlarına
+  yakınken hesaplanır.
+- **Stockfish** yalnızca kalibrasyon ve değerlendirme ayarı için kullanıldı; uygulamaya girmez, çalışma
+  zamanında hiçbir dış motor ya da sunucu yoktur.
+- **Ön hamle terfisi** her zaman vezire yapılır (seçim penceresi bot hamlesini bekletmesin diye).
+- **Analiz eşikleri**: hata 200, yanlışlık 100 santipiyon düşüş (hamle yapanın bakışından); her konum 0.3 sn.
+- **Paylaşım linki** yalnızca hamleleri taşır (saat, oyuncular, sonuç yok); açan kişi oyunu baştan doğrular.
+- **Dil**: kayıtlar ve linkler dilden bağımsızdır (kodlar ve SAN); dışa aktarılan PGN metni o anki dilde
+  yazılır. Taş harfleri (SAN, FEN) dilden bağımsızdır.
