@@ -27,8 +27,15 @@ describe('premove hedefleri', () => {
   });
 
   it('varyant taşları kendi kalıplarıyla: Bürokrat 1 kare her yöne', () => {
-    expect(targets('burokrat', '4k3/8/8/8/3U4/8/8/4K3 b - - 0 1', 'd4')).toEqual(
-      ['c3', 'c4', 'c5', 'd3', 'd5', 'e3', 'e4', 'e5'],
-    );
+    expect(targets('burokrat', '4k3/8/8/8/3U4/8/8/4K3 b - - 0 1', 'd4')).toEqual([
+      'c3',
+      'c4',
+      'c5',
+      'd3',
+      'd5',
+      'e3',
+      'e4',
+      'e5',
+    ]);
   });
 });

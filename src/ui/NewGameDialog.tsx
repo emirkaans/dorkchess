@@ -59,7 +59,12 @@ export function NewGameDialog({ initial, onStart, onCancel }: Props) {
           <legend>Varyant</legend>
           {listVariants().map((v) => (
             <label key={v.id} className={s.variantId === v.id ? 'chip on' : 'chip'}>
-              <input type="radio" name="variant" checked={s.variantId === v.id} onChange={() => set({ variantId: v.id })} />
+              <input
+                type="radio"
+                name="variant"
+                checked={s.variantId === v.id}
+                onChange={() => set({ variantId: v.id })}
+              />
               {v.name}
             </label>
           ))}
@@ -70,7 +75,10 @@ export function NewGameDialog({ initial, onStart, onCancel }: Props) {
             <LevelSelect label="Seviye" value={s.botLevel} onChange={(n) => set({ botLevel: n })} />
             <label className="field">
               <span>Rengin</span>
-              <select value={s.humanColor} onChange={(e) => set({ humanColor: e.target.value as GameSettings['humanColor'] })}>
+              <select
+                value={s.humanColor}
+                onChange={(e) => set({ humanColor: e.target.value as GameSettings['humanColor'] })}
+              >
                 <option value="w">Beyaz</option>
                 <option value="b">Siyah</option>
                 <option value="random">Rastgele</option>
@@ -100,7 +108,12 @@ export function NewGameDialog({ initial, onStart, onCancel }: Props) {
           <legend>Süre (dakika + hamle başı artış saniye)</legend>
           {TIME_CONTROLS.map((t) => (
             <label key={t.id} className={s.timeControl === t.id ? 'chip on' : 'chip'}>
-              <input type="radio" name="time" checked={s.timeControl === t.id} onChange={() => set({ timeControl: t.id })} />
+              <input
+                type="radio"
+                name="time"
+                checked={s.timeControl === t.id}
+                onChange={() => set({ timeControl: t.id })}
+              />
               {t.label}
             </label>
           ))}

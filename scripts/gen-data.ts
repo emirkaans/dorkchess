@@ -52,8 +52,7 @@ function playGame(o: Options, game: number): string[] {
   // 8 random plies for variety, then the bot plays both sides.
   for (let ply = 0; !state.result && state.position.fullmove <= 200; ply++) {
     const pos = state.position;
-    const move =
-      ply < 8 ? rng.pick(legalMoves(v, pos)) : chooseMove(v, state, 5, { rng, timeLimitMs: o.time }).move;
+    const move = ply < 8 ? rng.pick(legalMoves(v, pos)) : chooseMove(v, state, 5, { rng, timeLimitMs: o.time }).move;
     // Keep positions that are quiet: not in check and the chosen move is not a capture or promotion.
     if (ply >= 8 && !isInCheck(v, pos) && move.captured === undefined && !move.promotion) fens.push(toFen(v, pos));
     state = makeMove(v, state, move);

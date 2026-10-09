@@ -28,14 +28,29 @@ function parseArgs(argv: string[]): Args {
     const val = argv[++i];
     if (val === undefined) throw new Error(`Değer eksik: ${key}`);
     switch (key) {
-      case '--variant': args.variant = val; break;
-      case '--games': args.games = Number(val); break;
-      case '--white': args.white = Number(val); break;
-      case '--black': args.black = Number(val); break;
-      case '--seed': args.seed = Number(val); break;
-      case '--max-moves': args.maxMoves = Number(val); break;
-      case '--out': args.out = val; break;
-      default: throw new Error(`Bilinmeyen seçenek: ${key}`);
+      case '--variant':
+        args.variant = val;
+        break;
+      case '--games':
+        args.games = Number(val);
+        break;
+      case '--white':
+        args.white = Number(val);
+        break;
+      case '--black':
+        args.black = Number(val);
+        break;
+      case '--seed':
+        args.seed = Number(val);
+        break;
+      case '--max-moves':
+        args.maxMoves = Number(val);
+        break;
+      case '--out':
+        args.out = val;
+        break;
+      default:
+        throw new Error(`Bilinmeyen seçenek: ${key}`);
     }
   }
   return args;
@@ -103,7 +118,9 @@ function runVariant(v: VariantDefinition, args: Args): VariantSummary {
     whiteScorePct: pct(whiteWins + draws / 2),
     avgFullMoves: Math.round((fullMoves / args.games) * 10) / 10,
     reasons,
-    specialCaptureRatePct: specialsAtStart ? Math.round((captureMoves.length / (specialsAtStart * args.games)) * 1000) / 10 : null,
+    specialCaptureRatePct: specialsAtStart
+      ? Math.round((captureMoves.length / (specialsAtStart * args.games)) * 1000) / 10
+      : null,
     avgSpecialCaptureMove: captureMoves.length
       ? Math.round((captureMoves.reduce((a, b) => a + b, 0) / captureMoves.length) * 10) / 10
       : null,
@@ -122,7 +139,9 @@ function printTable(rows: VariantSummary[]): void {
           'siyah %': r.blackWinPct,
           'beraberlik %': r.drawPct,
           'ort. hamle': r.avgFullMoves,
-          bitişler: Object.entries(r.reasons).map(([k, n]) => `${k} ${n}`).join(', '),
+          bitişler: Object.entries(r.reasons)
+            .map(([k, n]) => `${k} ${n}`)
+            .join(', '),
           'özel taş yenme %': r.specialCaptureRatePct ?? '-',
           'ort. yenme hamlesi': r.avgSpecialCaptureMove ?? '-',
           'süre (sn)': Math.round(r.ms / 100) / 10,
@@ -134,7 +153,9 @@ function printTable(rows: VariantSummary[]): void {
 
 const args = parseArgs(process.argv.slice(2));
 const variants = args.variant === 'all' ? listVariants() : [getVariant(args.variant)];
-console.log(`Bot vs bot: beyaz seviye ${args.white}, siyah seviye ${args.black}, ${args.games} oyun/varyant, tohum ${args.seed}`);
+console.log(
+  `Bot vs bot: beyaz seviye ${args.white}, siyah seviye ${args.black}, ${args.games} oyun/varyant, tohum ${args.seed}`,
+);
 const rows: VariantSummary[] = [];
 for (const v of variants) {
   process.stdout.write(`${v.id} `);

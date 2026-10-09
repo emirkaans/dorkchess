@@ -50,7 +50,9 @@ function pushPawnMoves(
   const lastRank = piece.color === 'w' ? 7 : 0;
   if (pattern.promotion && rankOf(to) === lastRank) {
     for (const promotion of v.promotionTypes) {
-      moves.push(captured ? { from, to, piece: piece.type, captured, promotion } : { from, to, piece: piece.type, promotion });
+      moves.push(
+        captured ? { from, to, piece: piece.type, captured, promotion } : { from, to, piece: piece.type, promotion },
+      );
     }
   } else {
     moves.push(captured ? { from, to, piece: piece.type, captured } : { from, to, piece: piece.type });
@@ -73,7 +75,8 @@ function patternMoves(
         while (to !== -1) {
           const target = board[to];
           if (target) {
-            if (canTake(v, pos, from, piece, to, target)) moves.push({ from, to, piece: piece.type, captured: target.type });
+            if (canTake(v, pos, from, piece, to, target))
+              moves.push({ from, to, piece: piece.type, captured: target.type });
             break;
           }
           moves.push({ from, to, piece: piece.type });
@@ -87,7 +90,8 @@ function patternMoves(
         if (to === -1) continue;
         const target = board[to];
         if (!target) moves.push({ from, to, piece: piece.type });
-        else if (canTake(v, pos, from, piece, to, target)) moves.push({ from, to, piece: piece.type, captured: target.type });
+        else if (canTake(v, pos, from, piece, to, target))
+          moves.push({ from, to, piece: piece.type, captured: target.type });
       }
       return;
     case 'pawn': {
@@ -201,7 +205,14 @@ function patternAttacks(pos: Position, from: Square, color: Color, pattern: Move
 
 /** The eight unit directions; every piece reaching `target` along one of them is the first piece on that ray. */
 const UNIT_DIRS: readonly Dir[] = [
-  [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ];
 
 const isUnit = ([x, y]: Dir) => Math.abs(x) <= 1 && Math.abs(y) <= 1;

@@ -91,8 +91,15 @@ describe.each(VARIANTS)('%s — yapay zekâ', (id) => {
     // Beyaz vezir d4'e c5 piyonu saldırıyor.
     const fen = withSpecial(id, '4k3/8/8/2p5/3Q4/8/8/4K3 w - - 0 1');
     for (const seed of [1, 2, 3]) {
-      const g = makeMove(v, createGame(v, fen), chooseMove(v, createGame(v, fen), level, { seed, timeLimitMs: FAST[level] }).move);
-      expect(legalMoves(v, g.position).some((m) => m.captured === 'q'), `tohum ${seed}`).toBe(false);
+      const g = makeMove(
+        v,
+        createGame(v, fen),
+        chooseMove(v, createGame(v, fen), level, { seed, timeLimitMs: FAST[level] }).move,
+      );
+      expect(
+        legalMoves(v, g.position).some((m) => m.captured === 'q'),
+        `tohum ${seed}`,
+      ).toBe(false);
     }
   });
 
@@ -121,7 +128,7 @@ describe('Jester — bot ve yasallık', () => {
   // Qxa4 kaleyi alırdı ama siyah Jester'i vezir yapar ve e hattı açık kalır: yasal değil.
   const fen = 'k3j3/8/8/8/r7/8/8/3QK3 w - - 0 1 --';
 
-  it.each([1, 2, 3, 4, 5])('seviye %i yasal liste dışına çıkmaz, Jester\'e şah imkânı vermez', (level) => {
+  it.each([1, 2, 3, 4, 5])("seviye %i yasal liste dışına çıkmaz, Jester'e şah imkânı vermez", (level) => {
     for (const seed of [1, 2, 3, 4]) {
       const { move } = chooseMove(v, createGame(v, fen), level, { seed, timeLimitMs: FAST[level] });
       expect(isLegalChoice('jester', fen, move)).toBe(true);

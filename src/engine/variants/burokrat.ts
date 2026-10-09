@@ -85,7 +85,11 @@ export const burokrat = defineVariant({
       {
         fen: '4k3/8/8/3p4/3U4/3P4/8/4K3 w - - 0 1',
         highlights: ['c3', 'c4', 'c5', 'e3', 'e4', 'e5'],
-        arrows: [['d4', 'c5'], ['d4', 'e5'], ['d4', 'e3']],
+        arrows: [
+          ['d4', 'c5'],
+          ['d4', 'e5'],
+          ['d4', 'e3'],
+        ],
         caption: "Bürokrat her yöne 1 kare, yalnızca boş kareye gider. d5'teki piyonu yiyemez.",
       },
       {

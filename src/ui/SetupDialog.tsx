@@ -16,7 +16,12 @@ export function SetupDialog({ variant, question, step, total, onPick }: Props) {
       <div className="modal setup" role="dialog" aria-label={question.title}>
         <p>
           {question.title}
-          {total > 1 && <span className="muted"> ({step + 1}/{total})</span>}
+          {total > 1 && (
+            <span className="muted">
+              {' '}
+              ({step + 1}/{total})
+            </span>
+          )}
         </p>
         <div className="setup-options">
           {question.options.map((o) => (

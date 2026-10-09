@@ -11,8 +11,7 @@ interface Props {
   onClose: () => void;
 }
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+const formatDate = (iso: string) => new Date(iso).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
 
 const variantName = (id: string) => {
   try {
@@ -177,7 +176,10 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
         <span className="muted replay-pos">
           {cursor}/{states.length - 1}
         </span>
-        <button onClick={() => setCursor((c) => Math.min(states.length - 1, c + 1))} disabled={cursor === states.length - 1}>
+        <button
+          onClick={() => setCursor((c) => Math.min(states.length - 1, c + 1))}
+          disabled={cursor === states.length - 1}
+        >
           ▶
         </button>
         <button onClick={() => setCursor(states.length - 1)} disabled={cursor === states.length - 1}>

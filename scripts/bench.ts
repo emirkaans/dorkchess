@@ -11,7 +11,9 @@ const v = getVariant('standard');
 let t = performance.now();
 const leaves = perft(v, parseFen(v, v.startPosition), 4);
 const perftMs = performance.now() - t;
-console.log(`perft(4) başlangıç: ${leaves} yaprak, ${perftMs.toFixed(0)} ms (${Math.round(leaves / (perftMs / 1000)).toLocaleString('tr-TR')} yaprak/sn)`);
+console.log(
+  `perft(4) başlangıç: ${leaves} yaprak, ${perftMs.toFixed(0)} ms (${Math.round(leaves / (perftMs / 1000)).toLocaleString('tr-TR')} yaprak/sn)`,
+);
 
 const cfg = levelConfig(5);
 t = performance.now();

@@ -16,7 +16,8 @@ describe('kural kartları', () => {
   });
 
   it('her özel varyantta en az 3 örnek', () => {
-    for (const id of ['burokrat', 'jester', 'diplomat']) expect(getVariant(id).rules.examples.length, id).toBeGreaterThanOrEqual(3);
+    for (const id of ['burokrat', 'jester', 'diplomat'])
+      expect(getVariant(id).rules.examples.length, id).toBeGreaterThanOrEqual(3);
   });
 
   it.each(listVariants().map((v) => [v.id, v] as const))(

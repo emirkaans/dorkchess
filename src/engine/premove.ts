@@ -56,4 +56,3 @@ export function premoveTargets(v: VariantDefinition, pos: Position, from: Square
     return !(q && q.color === piece.color && pieceDef(v, q.type).royal);
   });
 }
-

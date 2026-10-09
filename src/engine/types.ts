@@ -102,8 +102,7 @@ export type MovePattern =
 
 /** Purely visual data; rendered by the UI without any variant-specific code. */
 export type PieceIcon =
-  | { readonly kind: 'glyph'; readonly glyph: string }
-  | { readonly kind: 'svg'; readonly svg: (color: Color) => string };
+  { readonly kind: 'glyph'; readonly glyph: string } | { readonly kind: 'svg'; readonly svg: (color: Color) => string };
 
 export interface PieceBadge {
   readonly label: string;
@@ -182,7 +181,13 @@ export interface VariantDefinition {
    * captured piece stands (differs from the destination for en passant).
    * `victim` is the piece that would be captured there.
    */
-  readonly captureAllowed?: (pos: Position, from: Square, victimSquare: Square, attacker: Piece, victim: Piece) => boolean;
+  readonly captureAllowed?: (
+    pos: Position,
+    from: Square,
+    victimSquare: Square,
+    attacker: Piece,
+    victim: Piece,
+  ) => boolean;
   /**
    * Optional squares the UI may highlight (e.g. zones of effect), with a toggle
    * label. `ranks` (0-based) are board rows the UI marks faintly as the area

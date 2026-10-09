@@ -22,7 +22,8 @@ export const moveTo = (m: number) => (m >> 6) & 63;
 export const movePromo = (m: number) => ((m >> 12) & 15) - 1;
 export const moveFlag = (m: number) => m >> 16;
 /** Encodes a move (see the layout above); `promo` is a type index or -1. */
-export const encodeMove = (from: number, to: number, promo: number, flag: number) => from | (to << 6) | ((promo + 1) << 12) | (flag << 16);
+export const encodeMove = (from: number, to: number, promo: number, flag: number) =>
+  from | (to << 6) | ((promo + 1) << 12) | (flag << 16);
 
 /** Piece code: +(type+1) for white, -(type+1) for black, 0 = empty. */
 export const codeSide = (c: number): Side => (c > 0 ? 0 : 1);
@@ -224,7 +225,15 @@ export class FastBoard {
     if (letters.length > 15) throw new Error('FastBoard: too many piece types');
     const dynamic = new Set(this.hooks.dynamicTypes ?? []);
     // Static patterns: asked once with a dummy position (pattern functions of static types ignore it).
-    const dummy = { board: [], turn: 'w', castling: { wK: false, wQ: false, bK: false, bQ: false }, ep: null, halfmove: 0, fullmove: 1, extra: v.initialExtra() } as unknown as Position;
+    const dummy = {
+      board: [],
+      turn: 'w',
+      castling: { wK: false, wQ: false, bK: false, bQ: false },
+      ep: null,
+      halfmove: 0,
+      fullmove: 1,
+      extra: v.initialExtra(),
+    } as unknown as Position;
     this.types = letters.map((letter, index) => {
       const def = v.pieces[letter];
       const isDyn = dynamic.has(letter);
@@ -238,9 +247,7 @@ export class FastBoard {
         material: def.material,
         isPawn: letter === 'p',
         dynamic: isDyn,
-        patterns: isDyn
-          ? [[], []]
-          : [def.patterns(dummy, 'w').map(compile), def.patterns(dummy, 'b').map(compile)],
+        patterns: isDyn ? [[], []] : [def.patterns(dummy, 'w').map(compile), def.patterns(dummy, 'b').map(compile)],
       } satisfies FastType;
     });
     this.typeIndex = new Map(letters.map((l, i) => [l, i]));
@@ -437,7 +444,8 @@ export class FastBoard {
       this.addTerms(from, code, -1);
       this.addTerms(to, code, 1);
     }
-    if (codeType(code) === this.pawnType) this.pawnKey ^= this.zPieceLo[slot * 64 + from] ^ this.zPieceLo[slot * 64 + to];
+    if (codeType(code) === this.pawnType)
+      this.pawnKey ^= this.zPieceLo[slot * 64 + from] ^ this.zPieceLo[slot * 64 + to];
     const i = this.listIdx[from];
     this.listSq[slot][i] = to;
     this.listIdx[to] = i;
@@ -469,7 +477,6 @@ export class FastBoard {
     if (!this.canCaptureType[codeType(attacker)] || !this.capturableType[codeType(victim)]) return false;
     return !this.hooks.captureAllowed || this.hooks.captureAllowed(this, from, victimSq, victim);
   }
-
 
   // -------------------------------------------------------------------------
   // Attacks
@@ -632,7 +639,6 @@ export class FastBoard {
     return n;
   }
 
-
   /**
    * Like reachCount, plus how many of those squares are marked in `zone`:
    * returns count | zoneHits << 8 (mobility and king attack in one pass).
@@ -775,7 +781,6 @@ export class FastBoard {
     }
     return n;
   }
-
 
   private castles(out: Int32Array, n: number, from: number, side: Side): number {
     const rank = side === 0 ? 0 : 7;

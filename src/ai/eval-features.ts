@@ -37,7 +37,7 @@ export function toVector(p: EvalParams): Float64Array {
   const v = new Float64Array(PARAM_COUNT);
   PST_LETTERS.forEach((l, li) => {
     for (let i = 0; i < 64; i++) {
-      v[PST + (li * 2) * 64 + i] = p.pstMg[l][i];
+      v[PST + li * 2 * 64 + i] = p.pstMg[l][i];
       v[PST + (li * 2 + 1) * 64 + i] = p.pstEg[l][i];
     }
   });
@@ -75,8 +75,12 @@ export function fromVector(v: Float64Array, base: EvalParams): EvalParams {
     kingShieldMissing: r(v[KING_SHIELD]),
     kingAttack: Object.fromEntries(MOB_LETTERS.map((l, i) => [l, r(v[KING_ATTACK + i])])),
     threatByPawn: pair(THREAT_PAWN),
-    pstMg: Object.fromEntries(PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + li * 2 * 64 + i]))])),
-    pstEg: Object.fromEntries(PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + (li * 2 + 1) * 64 + i]))])),
+    pstMg: Object.fromEntries(
+      PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + li * 2 * 64 + i]))]),
+    ),
+    pstEg: Object.fromEntries(
+      PST_LETTERS.map((l, li) => [l, Array.from({ length: 64 }, (_, i) => r(v[PST + (li * 2 + 1) * 64 + i]))]),
+    ),
   };
 }
 
@@ -93,7 +97,11 @@ const MAX_PHASE = 24;
  * White-view evaluation as constant + Σ coef[k] * param[index[k]] (mobility
  * always included, no lazy cut-off, no rounding).
  */
-export function features(b: FastBoard, p: EvalParams, phaseWeight: (letter: string, value: number) => number): Features {
+export function features(
+  b: FastBoard,
+  p: EvalParams,
+  phaseWeight: (letter: string, value: number) => number,
+): Features {
   const f: Features = { index: [], coef: [], constant: 0 };
   const add = (i: number, c: number) => {
     if (c === 0) return;
@@ -208,7 +216,9 @@ export function features(b: FastBoard, p: EvalParams, phaseWeight: (letter: stri
         let missing = 0;
         for (let ff = Math.max(0, fl - 1); ff <= Math.min(7, fl + 1); ff++) {
           const shielded =
-            side === 0 ? min[0][ff] > r && min[0][ff] <= r + 2 : max[1][ff] >= 0 && max[1][ff] < r && max[1][ff] >= r - 2;
+            side === 0
+              ? min[0][ff] > r && min[0][ff] <= r + 2
+              : max[1][ff] >= 0 && max[1][ff] < r && max[1][ff] >= r - 2;
           if (!shielded) missing++;
         }
         add(KING_SHIELD, (side === 0 ? 1 : -1) * missing * fm);

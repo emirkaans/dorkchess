@@ -8,7 +8,9 @@ import { diplomat as v, getVariant, listVariants } from '../src/engine/variants/
 import type { GameState } from '../src/engine/types.ts';
 
 const targets = (fen: string, from: string) =>
-  legalMovesFrom(v, parseFen(v, fen), sq(from)).map((m) => squareName(m.to)).sort();
+  legalMovesFrom(v, parseFen(v, fen), sq(from))
+    .map((m) => squareName(m.to))
+    .sort();
 
 const capturesIn = (pos: GameState['position']) =>
   legalMoves(v, pos)
@@ -88,7 +90,13 @@ describe('Diplomat — aura yalnızca 4. ve 5. yatayda', () => {
 
   it('Diplomat yalnızca aurası yokken pasif sayılır (arayüz soluk çizer)', () => {
     const inactive = v.pieces.d.inactive!;
-    for (const [name, expected] of [['d3', true], ['d4', false], ['d5', false], ['d6', true], ['g1', true]] as const) {
+    for (const [name, expected] of [
+      ['d3', true],
+      ['d4', false],
+      ['d5', false],
+      ['d6', true],
+      ['g1', true],
+    ] as const) {
       expect(inactive(parseFen(v, v.startPosition), sq(name)), name).toBe(expected);
     }
   });
@@ -128,7 +136,11 @@ describe('Diplomat — aura kuralları', () => {
   it('Diplomat yenildiği anda aura kalkar; sonraki hamlede auradaki taş yenebilir', () => {
     let g = createGame(v, '7k/8/8/8/3dn3/8/8/K2RR3 w - - 0 1');
     expect(capturesIn(g.position)).toEqual(['d1xd4']);
-    g = makeMove(v, g, legalMoves(v, g.position).find((m) => m.to === sq('d4'))!);
+    g = makeMove(
+      v,
+      g,
+      legalMoves(v, g.position).find((m) => m.to === sq('d4'))!,
+    );
     expect(auraSquares(g.position)).toEqual([]);
     g = playSan(v, g, 'Kg8');
     expect(capturesIn(g.position)).toEqual(['d4xe4', 'e1xe4']);

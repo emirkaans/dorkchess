@@ -105,7 +105,9 @@ for (let k = 0.001; k <= 0.03; k += 0.0005) {
 }
 const K = sfWeight > 0 ? fixedK : bestK;
 if (sfWeight > 0) bestE = error(sc, K, false);
-console.log(`K = ${K.toFixed(4)} (≈ ${(K * 400 / Math.LN10).toFixed(2)} Texel ölçeğinde), başlangıç hatası eğitim ${bestE.toFixed(5)} / doğrulama ${error(sc, K, true).toFixed(5)}`);
+console.log(
+  `K = ${K.toFixed(4)} (≈ ${((K * 400) / Math.LN10).toFixed(2)} Texel ölçeğinde), başlangıç hatası eğitim ${bestE.toFixed(5)} / doğrulama ${error(sc, K, true).toFixed(5)}`,
+);
 
 // --- Adam ---
 const m = new Float64Array(PARAM_COUNT);
@@ -166,7 +168,19 @@ function render(p: EvalParams): string {
   const arr = (a: readonly number[]) => `[${a.join(', ')}]`;
   const table = (t: Record<string, number[]>) =>
     Object.entries(t)
-      .map(([k, a]) => `    ${k}: [\n${Array.from({ length: 8 }, (_, r) => '      ' + a.slice(r * 8, r * 8 + 8).map((x) => String(x).padStart(4)).join(',') + ',').join('\n')}\n    ],`)
+      .map(
+        ([k, a]) =>
+          `    ${k}: [\n${Array.from(
+            { length: 8 },
+            (_, r) =>
+              '      ' +
+              a
+                .slice(r * 8, r * 8 + 8)
+                .map((x) => String(x).padStart(4))
+                .join(',') +
+              ',',
+          ).join('\n')}\n    ],`,
+      )
       .join('\n');
   return `${head}// prettier-ignore
 export const EVAL_PARAMS: EvalParams = {
@@ -178,10 +192,16 @@ export const EVAL_PARAMS: EvalParams = {
   passedEg: ${arr(p.passedEg)},
   rookOpenFile: ${arr(p.rookOpenFile)},
   rookSemiOpenFile: ${arr(p.rookSemiOpenFile)},
-  mobility: { ${Object.entries(p.mobility).map(([k, a]) => `${k}: ${arr(a)}`).join(', ')} },
-  mobilityBase: { ${Object.entries(p.mobilityBase).map(([k, a]) => `${k}: ${a}`).join(', ')} },
+  mobility: { ${Object.entries(p.mobility)
+    .map(([k, a]) => `${k}: ${arr(a)}`)
+    .join(', ')} },
+  mobilityBase: { ${Object.entries(p.mobilityBase)
+    .map(([k, a]) => `${k}: ${a}`)
+    .join(', ')} },
   kingShieldMissing: ${p.kingShieldMissing},
-  kingAttack: { ${Object.entries(p.kingAttack).map(([k, a]) => `${k}: ${a}`).join(', ')} },
+  kingAttack: { ${Object.entries(p.kingAttack)
+    .map(([k, a]) => `${k}: ${a}`)
+    .join(', ')} },
   kingAttackScale: ${arr(p.kingAttackScale)},
   threatByPawn: ${arr(p.threatByPawn)},
   pstMg: {

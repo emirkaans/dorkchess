@@ -37,7 +37,7 @@ describe('SEE (takas analizi)', () => {
 });
 
 describe('SEE kontrol: aura yokken aynı taş geri alır', () => {
-  it('Diplomat 3. yatayda (pasif): kale d5\'i geri alır, vezir kaybı', () => {
+  it("Diplomat 3. yatayda (pasif): kale d5'i geri alır, vezir kaybı", () => {
     expect(see('diplomat', '4k3/8/8/2rp4/8/1D6/8/3QK3 w - - 0 1', 'd1', 'd5')).toBe(100 - 900);
   });
 });

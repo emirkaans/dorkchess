@@ -7,7 +7,9 @@ import { jester as v } from '../src/engine/variants/index.ts';
 import { JESTER, jesterForm } from '../src/engine/variants/jester.ts';
 
 const targets = (fen: string, from: string) =>
-  legalMovesFrom(v, parseFen(v, fen), sq(from)).map((m) => squareName(m.to)).sort();
+  legalMovesFrom(v, parseFen(v, fen), sq(from))
+    .map((m) => squareName(m.to))
+    .sort();
 
 describe('Jester: formlar', () => {
   it('başlangıç: g1/g8 Jester, FEN gidiş-dönüş', () => {
@@ -29,9 +31,11 @@ describe('Jester: formlar', () => {
     // Oyun içinde: siyah fil oynar, beyaz Jester fil formuna geçer
     const g = playSan(v, createGame(v), 'e3', 'e6', 'Nc3', 'Nc6', 'Jf3', 'Bc5');
     expect(jesterForm(g.position, 'w')).toBe('b');
-    expect(legalMovesFrom(v, g.position, sq('f3')).map((m) => squareName(m.to)).sort()).toEqual(
-      ['c6', 'd5', 'e2', 'e4', 'g4', 'h5'],
-    );
+    expect(
+      legalMovesFrom(v, g.position, sq('f3'))
+        .map((m) => squareName(m.to))
+        .sort(),
+    ).toEqual(['c6', 'd5', 'e2', 'e4', 'g4', 'h5']);
   });
 
   it('rakip kale oynayınca kale gibi hareket edip yer', () => {
@@ -60,9 +64,11 @@ describe('Jester: formlar', () => {
     g = playSan(v, g, 'O-O');
     expect((g.position.extra as { lastMoved: { b: string } }).lastMoved.b).toBe('k');
     expect(jesterForm(g.position, 'w')).toBe('k');
-    expect(legalMovesFrom(v, g.position, sq('g1')).map((m) => squareName(m.to)).sort()).toEqual(
-      ['f1', 'f2', 'g2', 'h1', 'h2'],
-    );
+    expect(
+      legalMovesFrom(v, g.position, sq('g1'))
+        .map((m) => squareName(m.to))
+        .sort(),
+    ).toEqual(['f1', 'f2', 'g2', 'h1', 'h2']);
     expect(legalMovesFrom(v, g.position, sq('g1')).find((m) => m.to === sq('h2'))?.captured).toBe('p');
   });
 

@@ -6,12 +6,16 @@ import { parseFen, toFen } from '../src/engine/notation.ts';
 import { standard as v } from '../src/engine/variants/standard.ts';
 
 const targets = (fen: string, from: string) =>
-  legalMovesFrom(v, parseFen(v, fen), sq(from)).map((m) => squareName(m.to)).sort();
+  legalMovesFrom(v, parseFen(v, fen), sq(from))
+    .map((m) => squareName(m.to))
+    .sort();
 
 describe('rok', () => {
   it('her iki yöne rok yapılabilir', () => {
     const g = createGame(v, 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1');
-    const castles = legalMoves(v, g.position).filter((m) => m.castle).map((m) => m.castle);
+    const castles = legalMoves(v, g.position)
+      .filter((m) => m.castle)
+      .map((m) => m.castle);
     expect(castles.sort()).toEqual(['K', 'Q']);
     const after = playSan(v, g, 'O-O');
     expect(toFen(v, after.position).split(' ')[0]).toBe('r3k2r/8/8/8/8/8/8/R4RK1');
@@ -57,7 +61,9 @@ describe('en passant', () => {
 describe('terfi', () => {
   it('dört seçenek üretilir ve uygulanır', () => {
     const g = createGame(v, '8/P7/8/8/8/8/8/k6K w - - 0 1');
-    const promos = legalMovesFrom(v, g.position, sq('a7')).map((m) => m.promotion).sort();
+    const promos = legalMovesFrom(v, g.position, sq('a7'))
+      .map((m) => m.promotion)
+      .sort();
     expect(promos).toEqual(['b', 'n', 'q', 'r']);
     const after = playSan(v, g, 'a8=N');
     expect(after.position.board[sq('a8')]).toEqual({ type: 'n', color: 'w' });

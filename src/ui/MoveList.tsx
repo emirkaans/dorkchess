@@ -40,7 +40,9 @@ export function MoveList({ game, cursor, onSelect }: Props) {
                 {c.san}
               </button>
             ) : (
-              <span key={j} className="mv">…</span>
+              <span key={j} className="mv">
+                …
+              </span>
             ),
           )}
         </li>

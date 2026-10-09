@@ -12,7 +12,16 @@ import {
   timeoutWinner,
 } from '../clock/clock.ts';
 import type { ClockState } from '../clock/clock.ts';
-import { createGame, getVariant, isInCheck, legalMoves, makeMove, opposite, setupStartPosition, toFen } from '../engine/index.ts';
+import {
+  createGame,
+  getVariant,
+  isInCheck,
+  legalMoves,
+  makeMove,
+  opposite,
+  setupStartPosition,
+  toFen,
+} from '../engine/index.ts';
 import type {
   Color,
   GameEndReason,
@@ -160,7 +169,11 @@ function newSession(settings: GameSettings, key: number): Session {
 }
 
 /** Ends the session outside the rules (resignation, agreement, time) and stops the clock. */
-const endSession = (s: Session, outcome: Outcome): Session => ({ ...s, outcome, clock: stopClock(s.clock, Date.now()) });
+const endSession = (s: Session, outcome: Outcome): Session => ({
+  ...s,
+  outcome,
+  clock: stopClock(s.clock, Date.now()),
+});
 
 const botName = (p: Player) => (p.kind === 'bot' ? `${levelConfig(p.level).name} (${p.level})` : 'İnsan');
 
@@ -217,7 +230,13 @@ export function App() {
   const humanColor: Color | null = vsBot ? (players.w.kind === 'human' ? 'w' : 'b') : null;
   const watching = settings.mode === 'botvbot';
   const botTurn =
-    toMove.kind === 'bot' && !outcome && !setup && atEnd && !showNewGame && !showRules && !(watching && run === 'pause');
+    toMove.kind === 'bot' &&
+    !outcome &&
+    !setup &&
+    atEnd &&
+    !showNewGame &&
+    !showRules &&
+    !(watching && run === 'pause');
 
   const startGame = (s: GameSettings) => {
     setPremove(null);
@@ -497,7 +516,10 @@ export function App() {
         <button onClick={() => setShowHistory(true)}>Geçmiş</button>
         <label className="pref">
           Tema{' '}
-          <select value={prefs.boardTheme} onChange={(e) => setPrefs((p) => ({ ...p, boardTheme: e.target.value as BoardTheme }))}>
+          <select
+            value={prefs.boardTheme}
+            onChange={(e) => setPrefs((p) => ({ ...p, boardTheme: e.target.value as BoardTheme }))}
+          >
             {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((t) => (
               <option key={t} value={t}>
                 {BOARD_THEMES[t]}

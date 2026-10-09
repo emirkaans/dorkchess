@@ -57,7 +57,10 @@ describe.each(listVariants().map((v) => [v.id, v] as const))('hızlı tahta = mo
     for (const pos of positions) {
       b.load(pos);
       const ref = legalMoves(v, pos).map(refKey).sort();
-      const fast = b.legalMoves().map((m) => fastKey(b, m)).sort();
+      const fast = b
+        .legalMoves()
+        .map((m) => fastKey(b, m))
+        .sort();
       expect(fast, JSON.stringify(pos.extra)).toEqual(ref);
       expect(b.inCheck()).toBe(isInCheck(v, pos));
     }

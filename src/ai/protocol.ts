@@ -31,5 +31,11 @@ export type WorkerResponse =
       readonly depth: number;
       readonly nodes: number;
     }
-  | { readonly t: 'info'; readonly id: number; readonly depth: number; readonly score: number; readonly pv: readonly Move[] }
+  | {
+      readonly t: 'info';
+      readonly id: number;
+      readonly depth: number;
+      readonly score: number;
+      readonly pv: readonly Move[];
+    }
   | { readonly t: 'error'; readonly id: number; readonly message: string };

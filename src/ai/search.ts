@@ -105,7 +105,9 @@ const fromTT = (s: number, ply: number) => (s > MATE_BOUND ? s - ply : s < -MATE
 
 /** Late move reductions by depth and move number. */
 const LMR = Array.from({ length: 64 }, (_, d) =>
-  Array.from({ length: MAX_MOVES }, (_, m) => (d < 1 || m < 1 ? 0 : Math.floor(0.75 + (Math.log(d) * Math.log(m)) / 2.25))),
+  Array.from({ length: MAX_MOVES }, (_, m) =>
+    d < 1 || m < 1 ? 0 : Math.floor(0.75 + (Math.log(d) * Math.log(m)) / 2.25),
+  ),
 );
 
 // ---------------------------------------------------------------------------

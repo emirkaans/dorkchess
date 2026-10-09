@@ -73,20 +73,47 @@ function parseArgs(argv: string[]): Options {
     const [k, val] = [argv[i], argv[i + 1]];
     if (val === undefined) throw new Error(`Değer eksik: ${k}`);
     switch (k) {
-      case '--a': o.a = val; break;
-      case '--b': o.b = val; break;
-      case '--level-a': o.levelA = Number(val); break;
-      case '--level-b': o.levelB = Number(val); break;
-      case '--level': o.levelA = o.levelB = Number(val); break;
-      case '--time-a': o.timeA = Number(val); break;
-      case '--time-b': o.timeB = Number(val); break;
-      case '--time': o.timeA = o.timeB = Number(val); break;
-      case '--games': o.games = Number(val); break;
-      case '--variant': o.variant = val; break;
-      case '--seed': o.seed = Number(val); break;
-      case '--threads': o.threads = Number(val); break;
-      case '--max-moves': o.maxMoves = Number(val); break;
-      default: throw new Error(`Bilinmeyen seçenek: ${k}`);
+      case '--a':
+        o.a = val;
+        break;
+      case '--b':
+        o.b = val;
+        break;
+      case '--level-a':
+        o.levelA = Number(val);
+        break;
+      case '--level-b':
+        o.levelB = Number(val);
+        break;
+      case '--level':
+        o.levelA = o.levelB = Number(val);
+        break;
+      case '--time-a':
+        o.timeA = Number(val);
+        break;
+      case '--time-b':
+        o.timeB = Number(val);
+        break;
+      case '--time':
+        o.timeA = o.timeB = Number(val);
+        break;
+      case '--games':
+        o.games = Number(val);
+        break;
+      case '--variant':
+        o.variant = val;
+        break;
+      case '--seed':
+        o.seed = Number(val);
+        break;
+      case '--threads':
+        o.threads = Number(val);
+        break;
+      case '--max-moves':
+        o.maxMoves = Number(val);
+        break;
+      default:
+        throw new Error(`Bilinmeyen seçenek: ${k}`);
     }
   }
   return o;
@@ -193,9 +220,11 @@ async function main(o: Options): Promise<void> {
       `Elo farkı ${elo(score) >= 0 ? '+' : ''}${elo(score).toFixed(0)} ± ${margin.toFixed(0)}`,
   );
   console.log(
-    `Bitişler: ${Object.entries(reasons).map(([k, v]) => `${k} ${v}`).join(', ')}; ort. ${(
-      results.reduce((a, r) => a + r.plies, 0) / n
-    ).toFixed(0)} ply; ${((Date.now() - t0) / 1000).toFixed(0)} sn`,
+    `Bitişler: ${Object.entries(reasons)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(', ')}; ort. ${(results.reduce((a, r) => a + r.plies, 0) / n).toFixed(
+      0,
+    )} ply; ${((Date.now() - t0) / 1000).toFixed(0)} sn`,
   );
 }
 

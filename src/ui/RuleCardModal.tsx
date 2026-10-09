@@ -33,7 +33,12 @@ export function RuleCardModal({ variant, onClose }: Props) {
 
   return (
     <div className="modal-backdrop screen" onClick={onClose}>
-      <div className="modal rule-card" role="dialog" aria-label={`${rules.title} kuralları`} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal rule-card"
+        role="dialog"
+        aria-label={`${rules.title} kuralları`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>{rules.title}</h2>
         <p className="summary">{rules.summary}</p>
         <ul className="rules">

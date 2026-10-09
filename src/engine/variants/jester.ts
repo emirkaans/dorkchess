@@ -105,9 +105,7 @@ export const JESTER: PieceDefinition = {
     const formDef = STANDARD_PIECES[form];
     const t = lastMoved(pos)[opposite(color)];
     const title =
-      t === null
-        ? `Rakip henüz hamle yapmadı: varsayılan form (${formDef.name})`
-        : `Rakibin son taşı: ${formDef.name}`;
+      t === null ? `Rakip henüz hamle yapmadı: varsayılan form (${formDef.name})` : `Rakibin son taşı: ${formDef.name}`;
     return { label: formDef.icon.kind === 'glyph' ? formDef.icon.glyph : form.toUpperCase(), title };
   },
 };
@@ -133,7 +131,10 @@ function setupQuestion(color: Color): SetupQuestion {
       const type = BACK_RANK[file];
       const name = STANDARD_PIECES[type].name;
       const leftSide = color === 'w' ? file < 4 : file > 4;
-      const label = type === 'q' ? `${name} (${f}${rank})` : `${leftSide ? 'Sol' : 'Sağ'} ${name.toLocaleLowerCase('tr')} (${f}${rank})`;
+      const label =
+        type === 'q'
+          ? `${name} (${f}${rank})`
+          : `${leftSide ? 'Sol' : 'Sağ'} ${name.toLocaleLowerCase('tr')} (${f}${rank})`;
       return { id: f, label, icon: { type, color } };
     }),
   };
@@ -184,20 +185,28 @@ export const jester = defineVariant({
       {
         fen: '4k3/8/8/7p/8/5J2/8/4K3 w - - 0 1 -b',
         highlights: ['f3'],
-        arrows: [['f3', 'c6'], ['f3', 'h5'], ['f3', 'h1']],
+        arrows: [
+          ['f3', 'c6'],
+          ['f3', 'h5'],
+          ['f3', 'h1'],
+        ],
         caption: "Siyah son hamlede fil oynadı: beyaz Jester fil gibi gider ve h5'teki piyonu yiyebilir.",
       },
       {
         fen: '4k3/8/8/3p4/4J3/8/8/4K3 w - - 0 1 -p',
         highlights: ['e4'],
-        arrows: [['e4', 'e5'], ['e4', 'd5']],
+        arrows: [
+          ['e4', 'e5'],
+          ['e4', 'd5'],
+        ],
         caption: 'Siyah piyon oynadı: Jester tek kare ileri gider ya da çapraz yer. Çift adım ve terfi yok.',
       },
       {
         fen: 'k3j3/8/8/8/r7/8/8/3QK3 w - - 0 1 --',
         highlights: ['e8', 'e1'],
         arrows: [['d1', 'a4']],
-        caption: "Vezirle a4'teki kaleyi almak yasal değil: vezir oynanınca siyah Jester vezir olur ve e hattından şahı alır.",
+        caption:
+          "Vezirle a4'teki kaleyi almak yasal değil: vezir oynanınca siyah Jester vezir olur ve e hattından şahı alır.",
       },
     ],
   },

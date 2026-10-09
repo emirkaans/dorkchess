@@ -6,7 +6,8 @@ import { getVariant } from '../src/engine/variants/index.ts';
 import { Board } from '../src/ui/Board.tsx';
 import { RuleCardModal } from '../src/ui/RuleCardModal.tsx';
 
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;').replace(/"/g, '&quot;');
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;').replace(/"/g, '&quot;');
 
 /** Class list of each square in the server-rendered board, keyed by square index. */
 function squareClasses(html: string): Map<number, string> {

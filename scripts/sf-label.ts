@@ -78,7 +78,8 @@ async function worker(): Promise<void> {
     const cp = Number(m[2]) * (stm === 'w' ? 1 : -1);
     buffer.push(`${fen}|${result}|${cp}`);
     if (buffer.length >= 2000) appendFileSync(output, buffer.splice(0).join('\n') + '\n');
-    if (done % 5000 === 0) console.log(`${done}/${sample.length} (${skipped} mat atlandı), ${((Date.now() - t0) / 1000).toFixed(0)} sn`);
+    if (done % 5000 === 0)
+      console.log(`${done}/${sample.length} (${skipped} mat atlandı), ${((Date.now() - t0) / 1000).toFixed(0)} sn`);
   }
   sf.stdin.write('quit\n');
 }

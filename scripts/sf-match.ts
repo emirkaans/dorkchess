@@ -11,7 +11,15 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
-import { createGame, findMove, getVariant, legalMoves, makeMove, squareName, parseSquare } from '../src/engine/index.ts';
+import {
+  createGame,
+  findMove,
+  getVariant,
+  legalMoves,
+  makeMove,
+  squareName,
+  parseSquare,
+} from '../src/engine/index.ts';
 import type { GameState } from '../src/engine/index.ts';
 import { chooseMove } from '../src/ai/search.ts';
 import { createRng } from '../src/ai/rng.ts';
@@ -164,10 +172,15 @@ async function workerMain(o: Options): Promise<void> {
 const elo = (s: number) => -400 * Math.log10(1 / Math.min(Math.max(s, 1e-6), 1 - 1e-6) - 1);
 
 async function main(o: Options): Promise<void> {
-  const jobs: Job[] = Array.from({ length: o.games }, (_, g) => ({ opening: Math.floor(g / 2), ourWhite: g % 2 === 0 }));
+  const jobs: Job[] = Array.from({ length: o.games }, (_, g) => ({
+    opening: Math.floor(g / 2),
+    ourWhite: g % 2 === 0,
+  }));
   const results: Result[] = [];
   const t0 = Date.now();
-  console.log(`Kalibrasyon: seviye ${o.level} (${o.time} ms) – Stockfish UCI_Elo ${o.elo} (${o.time} ms), ${o.games} oyun, ${o.threads} iş parçacığı`);
+  console.log(
+    `Kalibrasyon: seviye ${o.level} (${o.time} ms) – Stockfish UCI_Elo ${o.elo} (${o.time} ms), ${o.games} oyun, ${o.threads} iş parçacığı`,
+  );
   await new Promise<void>((done, fail) => {
     let next = 0;
     let running = 0;
@@ -204,7 +217,9 @@ async function main(o: Options): Promise<void> {
       `tahmini güç ≈ ${Math.round(o.elo + elo(score))} (95%: ${Math.round(o.elo + lo)}–${Math.round(o.elo + hi)})`,
   );
   console.log(
-    `Bitişler: ${Object.entries(reasons).map(([k, c]) => `${k} ${c}`).join(', ')}; ` +
+    `Bitişler: ${Object.entries(reasons)
+      .map(([k, c]) => `${k} ${c}`)
+      .join(', ')}; ` +
       `ort. derinliğimiz ${(results.reduce((a, r) => a + r.ourDepth, 0) / n).toFixed(1)}; ${((Date.now() - t0) / 60000).toFixed(1)} dk`,
   );
 }

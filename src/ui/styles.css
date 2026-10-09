@@ -11,7 +11,12 @@
   --selected: rgba(80, 140, 220, 0.55);
   --hint: rgba(20, 20, 20, 0.28);
   --board: min(92vw, 560px, calc(100vh - 170px));
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: var(--fg);
   color-scheme: light;
 }
@@ -199,7 +204,9 @@ button:disabled {
   box-shadow: inset 0 -2px 0 rgba(40, 110, 200, 0.35);
 }
 .square.band-top.band-bottom {
-  box-shadow: inset 0 2px 0 rgba(40, 110, 200, 0.35), inset 0 -2px 0 rgba(40, 110, 200, 0.35);
+  box-shadow:
+    inset 0 2px 0 rgba(40, 110, 200, 0.35),
+    inset 0 -2px 0 rgba(40, 110, 200, 0.35);
 }
 .piece.inactive {
   opacity: 0.5;
@@ -561,25 +568,53 @@ button.primary {
 .arrow-line.preview {
   opacity: 0.55;
 }
-.arrow-line.hint { stroke: rgb(30, 140, 60); }
-.arrow-head.hint { fill: rgb(30, 140, 60); }
-.arrow-line.green { stroke: rgb(21, 120, 27); }
-.arrow-head.green { fill: rgb(21, 120, 27); }
-.arrow-line.red { stroke: rgb(136, 32, 32); }
-.arrow-head.red { fill: rgb(136, 32, 32); }
-.arrow-line.blue { stroke: rgb(0, 48, 136); }
-.arrow-head.blue { fill: rgb(0, 48, 136); }
-.arrow-line.yellow { stroke: rgb(230, 143, 0); }
-.arrow-head.yellow { fill: rgb(230, 143, 0); }
+.arrow-line.hint {
+  stroke: rgb(30, 140, 60);
+}
+.arrow-head.hint {
+  fill: rgb(30, 140, 60);
+}
+.arrow-line.green {
+  stroke: rgb(21, 120, 27);
+}
+.arrow-head.green {
+  fill: rgb(21, 120, 27);
+}
+.arrow-line.red {
+  stroke: rgb(136, 32, 32);
+}
+.arrow-head.red {
+  fill: rgb(136, 32, 32);
+}
+.arrow-line.blue {
+  stroke: rgb(0, 48, 136);
+}
+.arrow-head.blue {
+  fill: rgb(0, 48, 136);
+}
+.arrow-line.yellow {
+  stroke: rgb(230, 143, 0);
+}
+.arrow-head.yellow {
+  fill: rgb(230, 143, 0);
+}
 .shape-circle {
   fill: none;
   stroke-width: 0.07;
   opacity: 0.85;
 }
-.shape-circle.green { stroke: rgb(21, 120, 27); }
-.shape-circle.red { stroke: rgb(136, 32, 32); }
-.shape-circle.blue { stroke: rgb(0, 48, 136); }
-.shape-circle.yellow { stroke: rgb(230, 143, 0); }
+.shape-circle.green {
+  stroke: rgb(21, 120, 27);
+}
+.shape-circle.red {
+  stroke: rgb(136, 32, 32);
+}
+.shape-circle.blue {
+  stroke: rgb(0, 48, 136);
+}
+.shape-circle.yellow {
+  stroke: rgb(230, 143, 0);
+}
 
 /* ---------- clock ---------- */
 

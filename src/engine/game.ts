@@ -25,7 +25,12 @@ export function isInsufficientMaterial(v: VariantDefinition, pos: Position): boo
   return relevant.length === 1 && pieceDef(v, relevant[0]!.type).material === 'minor';
 }
 
-function defaultResult(v: VariantDefinition, pos: Position, history: readonly string[], legal: Move[]): GameResult | null {
+function defaultResult(
+  v: VariantDefinition,
+  pos: Position,
+  history: readonly string[],
+  legal: Move[],
+): GameResult | null {
   if (legal.length === 0) {
     return isInCheck(v, pos)
       ? { reason: 'checkmate', winner: pos.turn === 'w' ? 'b' : 'w' }

@@ -250,7 +250,10 @@ export function evaluateBoard(b: FastBoard, opts: EvalOptions = {}, alpha = -Inf
         let missing = 0;
         for (let ff = Math.max(0, f - 1); ff <= Math.min(7, f + 1); ff++) {
           const idx = e * 16 + side * 8 + ff;
-          const shielded = side === 0 ? pcMin[idx] > r && pcMin[idx] <= r + 2 : pcMax[idx] >= 0 && pcMax[idx] < r && pcMax[idx] >= r - 2;
+          const shielded =
+            side === 0
+              ? pcMin[idx] > r && pcMin[idx] <= r + 2
+              : pcMax[idx] >= 0 && pcMax[idx] < r && pcMax[idx] >= r - 2;
           if (!shielded) missing++;
         }
         mg += (side === 0 ? 1 : -1) * W.kingShieldMissing * missing;

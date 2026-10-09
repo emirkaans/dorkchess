@@ -168,7 +168,10 @@ export function Board({
       }
       const old = as.find((a) => a.from === d.from && a.to === d.to);
       const rest = as.filter((a) => !(a.from === d.from && a.to === d.to));
-      return { circles: cs, arrows: old?.color === d.color ? rest : [...rest, { from: d.from, to: d.to, color: d.color }] };
+      return {
+        circles: cs,
+        arrows: old?.color === d.color ? rest : [...rest, { from: d.from, to: d.to, color: d.color }],
+      };
     });
   };
 
@@ -332,12 +335,22 @@ function ShapeLayer({
     const row = flipped ? rankOf(sq) : 7 - rankOf(sq);
     return [col + 0.5, row + 0.5] as const;
   };
-  const isPreview = (a: Arrow) => preview !== null && a.from === preview.from && a.to === preview.to && a === arrows.at(-1);
+  const isPreview = (a: Arrow) =>
+    preview !== null && a.from === preview.from && a.to === preview.to && a === arrows.at(-1);
   return (
     <svg className="arrows" viewBox="0 0 8 8" aria-hidden="true">
       <defs>
         {COLORS.map((c) => (
-          <marker key={c} id={`arrowhead-${c}`} viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
+          <marker
+            key={c}
+            id={`arrowhead-${c}`}
+            viewBox="0 0 4 4"
+            refX="2"
+            refY="2"
+            markerWidth="3"
+            markerHeight="3"
+            orient="auto"
+          >
             <path d="M0 0 L4 2 L0 4 Z" className={`arrow-head ${c}`} />
           </marker>
         ))}

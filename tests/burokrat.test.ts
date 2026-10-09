@@ -6,7 +6,9 @@ import { parseFen, toFen } from '../src/engine/notation.ts';
 import { burokrat as v, getVariant, listVariants } from '../src/engine/variants/index.ts';
 
 const targets = (fen: string, from: string) =>
-  legalMovesFrom(v, parseFen(v, fen), sq(from)).map((m) => squareName(m.to)).sort();
+  legalMovesFrom(v, parseFen(v, fen), sq(from))
+    .map((m) => squareName(m.to))
+    .sort();
 
 describe('registry', () => {
   it('varyantlar kayıtlı', () => {
@@ -46,9 +48,7 @@ describe('Bürokrat', () => {
   it("Bürokrat şah çekmez; rakip şah Bürokrat'ın yanına gidebilir", () => {
     const pos = parseFen(v, '8/8/4k3/8/4U3/8/8/4K3 b - - 0 1');
     expect(isInCheck(v, pos)).toBe(false);
-    expect(targets('8/8/4k3/8/4U3/8/8/4K3 b - - 0 1', 'e6')).toEqual(
-      expect.arrayContaining(['d5', 'e5', 'f5']),
-    );
+    expect(targets('8/8/4k3/8/4U3/8/8/4K3 b - - 0 1', 'e6')).toEqual(expect.arrayContaining(['d5', 'e5', 'f5']));
     expect(isInCheck(v, parseFen(v, '8/8/8/3k4/4U3/8/8/4K3 b - - 0 1'))).toBe(false);
   });
 
