@@ -15,7 +15,7 @@ interface Props {
   atEnd: boolean;
   highlightLabel: string | null;
   showHighlight: boolean;
-  copied: boolean;
+  copied: 'fen' | 'game' | 'position' | null;
   onUndo: () => void;
   onBack: () => void;
   onForward: () => void;
@@ -26,6 +26,9 @@ interface Props {
   onFlip: () => void;
   onToggleHighlight: () => void;
   onCopy: () => void;
+  /** Copies a link to the whole game (when it has moves) or to the shown position. */
+  onCopyLink: (kind: 'game' | 'position') => void;
+  hasMoves: boolean;
 }
 
 /** Buttons under the board; which ones appear depends on the game mode. */
@@ -77,7 +80,13 @@ export function GameControls(p: Props) {
           {p.highlightLabel}: {p.showHighlight ? 'açık' : 'kapalı'}
         </button>
       )}
-      <button onClick={p.onCopy}>{p.copied ? 'Kopyalandı ✓' : 'Konumu kopyala'}</button>
+      <button onClick={p.onCopy}>{p.copied === 'fen' ? 'Kopyalandı ✓' : 'Konumu kopyala'}</button>
+      {p.hasMoves && (
+        <button onClick={() => p.onCopyLink('game')}>{p.copied === 'game' ? 'Link kopyalandı ✓' : 'Oyun linki'}</button>
+      )}
+      <button onClick={() => p.onCopyLink('position')}>
+        {p.copied === 'position' ? 'Link kopyalandı ✓' : 'Konum linki'}
+      </button>
     </div>
   );
 }

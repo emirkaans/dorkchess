@@ -76,8 +76,17 @@ function playersFor(s: GameSettings, humanColor: Color): Record<Color, Player> {
   }
 }
 
-/** A new game; `random` (default Math.random) decides a random colour, bots' setup answers and the seed. */
-export function newSession(settings: GameSettings, key: number, random: () => number = Math.random): GameSession {
+/**
+ * A new game; `random` (default Math.random) decides a random colour, bots'
+ * setup answers and the seed. With `startFen` the game starts from that
+ * position (e.g. a shared link) and no setup questions are asked.
+ */
+export function newSession(
+  settings: GameSettings,
+  key: number,
+  random: () => number = Math.random,
+  startFen?: string,
+): GameSession {
   const v = getVariant(settings.variantId);
   const humanColor: Color = settings.humanColor === 'random' ? (random() < 0.5 ? 'w' : 'b') : settings.humanColor;
   const players = playersFor(settings, humanColor);
@@ -85,7 +94,7 @@ export function newSession(settings: GameSettings, key: number, random: () => nu
   const answers: Record<string, string> = {};
   const ask: SetupQuestion[] = [];
   const anyHuman = players.w.kind === 'human' || players.b.kind === 'human';
-  for (const q of v.setup?.questions ?? []) {
+  for (const q of startFen ? [] : (v.setup?.questions ?? [])) {
     const botAnswers = q.color ? players[q.color].kind === 'bot' : !anyHuman;
     if (botAnswers) answers[q.id] = q.options[Math.floor(random() * q.options.length)].id;
     else ask.push(q);
@@ -94,7 +103,7 @@ export function newSession(settings: GameSettings, key: number, random: () => nu
     key,
     settings,
     players,
-    timeline: timelineFor(v, answers),
+    timeline: startFen ? { states: [createGame(v, startFen)], cursor: 0 } : timelineFor(v, answers),
     outcome: null,
     setup: ask.length ? { questions: ask, answers, step: 0 } : null,
     seed: Math.floor(random() * 2 ** 31),

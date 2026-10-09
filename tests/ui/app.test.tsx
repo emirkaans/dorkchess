@@ -31,6 +31,7 @@ const { App } = await import('../../src/ui/App.tsx');
 const { findMove } = await import('../../src/engine/game.ts');
 const { getVariant } = await import('../../src/engine/variants/index.ts');
 const { parseSquare } = await import('../../src/engine/board.ts');
+const { encodeGame, encodePosition } = await import('../../src/storage/share.ts');
 
 const BOARD = 400;
 
@@ -207,5 +208,32 @@ describe('uygulama: saat', () => {
     expect(clocks()[0]).toBe('0:30'); // üstte siyah
     await act(async () => vi.advanceTimersByTime(31_000));
     expect(status()).toBe('Süre bitti. Beyaz kazandı.');
+  });
+});
+
+describe('uygulama: paylaşım linki', () => {
+  afterEach(() => history.replaceState(null, '', '/'));
+
+  it('oyun linki izleyicide açılır ve adres temizlenir', () => {
+    const v = getVariant('standard');
+    location.hash = encodeGame({ variantId: 'standard', startFen: v.startPosition, moves: ['e4', 'e5', 'Nf3'] });
+    render(<App />);
+    const dialog = screen.getByRole('dialog', { name: 'Paylaşılan oyun' });
+    expect([...dialog.querySelectorAll('.moves .mv')].map((b) => b.textContent)).toEqual(['e4', 'e5', 'Nf3']);
+    expect(location.hash).toBe('');
+  });
+
+  it('konum linki o konumdan iki kişilik oyun başlatır', () => {
+    location.hash = encodePosition('diplomat', '4k3/8/8/8/3D4/8/8/R3K3 b Q - 0 1');
+    render(<App />);
+    expect(screen.queryByRole('button', { name: 'Oyuna başla' })).toBeNull();
+    expect(document.querySelector('.game-label')?.textContent).toContain('Diplomat');
+    expect(status()).toBe('Sıra: Siyah');
+  });
+
+  it('bozuk link anlaşılır bir mesajla bildirilir', () => {
+    location.hash = '#g=@@@';
+    render(<App />);
+    expect(document.querySelector('.notice')?.textContent).toContain('Link açılamadı');
   });
 });

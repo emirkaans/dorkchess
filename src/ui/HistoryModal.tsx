@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { getVariant } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
 import { exportPgn, importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
+import { encodeGame } from '../storage/share.ts';
 import type { SavedGame } from '../storage/games.ts';
 import { GameViewer } from './GameViewer.tsx';
 
@@ -109,18 +110,19 @@ export function HistoryModal({ onClose }: Props) {
 function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
   const variant = getVariant(game.variantId);
   const states = useMemo<GameState[]>(() => replay(game), [game]);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'pgn' | 'link' | null>(null);
   const pgn = useMemo(() => exportPgn(game), [game]);
 
-  const copy = async () => {
+  const copyText = async (text: string, what: 'pgn' | 'link') => {
     try {
-      await navigator.clipboard.writeText(pgn);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      setTimeout(() => setCopied(null), 1500);
     } catch {
-      window.prompt('Oyun metni:', pgn);
+      window.prompt('Kopyala:', text);
     }
   };
+  const link = () => location.origin + location.pathname + encodeGame(game);
 
   const download = () => {
     const url = URL.createObjectURL(new Blob([pgn], { type: 'text/plain;charset=utf-8' }));
@@ -137,7 +139,10 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
         {variantName(game.variantId)} · {game.white} – {game.black} · {game.result}
       </h2>
       <GameViewer variant={variant} states={states}>
-        <button onClick={copy}>{copied ? 'Kopyalandı ✓' : 'Metni kopyala'}</button>
+        <button onClick={() => copyText(pgn, 'pgn')}>{copied === 'pgn' ? 'Kopyalandı ✓' : 'Metni kopyala'}</button>
+        <button onClick={() => copyText(link(), 'link')}>
+          {copied === 'link' ? 'Link kopyalandı ✓' : 'Linki kopyala'}
+        </button>
         <button onClick={download}>İndir (.pgn)</button>
         <button onClick={onBack}>← Listeye dön</button>
       </GameViewer>

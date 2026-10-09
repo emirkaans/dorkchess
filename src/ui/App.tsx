@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isInCheck, opposite, toFen } from '../engine/index.ts';
+import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import { Board } from './Board.tsx';
 import { ClockView } from './ClockView.tsx';
@@ -15,12 +15,18 @@ import { Toolbar } from './Toolbar.tsx';
 import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
 import { COLOR_NAME, botName, newSession, outcomeText } from './game/session.ts';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
+import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
+import type { GameState } from '../engine/index.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
 import type { Prefs } from './prefs.ts';
 import { isRuleCardHidden, loadSettings, saveSettings } from './settings.ts';
 import type { GameSettings } from './settings.ts';
 import { playSound } from './sound.ts';
 import type { SoundKind } from './sound.ts';
+
+/** Variant of a list of game states (all states of one game share it). */
+const variantOf = (states: readonly GameState[]) => getVariant(states[0].variantId);
+const getVariantName = (states: readonly GameState[]) => variantOf(states).name;
 
 export function App() {
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
@@ -30,7 +36,9 @@ export function App() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'fen' | 'game' | 'position' | null>(null);
+  /** A game opened from a shared link (shown in the viewer). */
+  const [sharedGame, setSharedGame] = useState<readonly GameState[] | null>(null);
   const [showHighlight, setShowHighlight] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
@@ -93,15 +101,59 @@ export function App() {
   };
 
   const fen = toFen(variant, game.position);
-  const copyFen = async () => {
+  const copyText = async (text: string, what: 'fen' | 'game' | 'position') => {
     try {
-      await navigator.clipboard.writeText(fen);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      setTimeout(() => setCopied(null), 1500);
     } catch {
-      window.prompt('Konum metni:', fen);
+      window.prompt('Kopyala:', text);
     }
   };
+  const copyFen = () => copyText(fen, 'fen');
+  const copyLink = (kind: 'game' | 'position') => {
+    const hash =
+      kind === 'game'
+        ? encodeGame({
+            variantId: variant.id,
+            startFen: toFen(variant, timeline.states[0].position),
+            moves: view.endState.moves.map((m) => m.san),
+          })
+        : encodePosition(variant.id, fen);
+    void copyText(location.origin + location.pathname + hash, kind);
+  };
+
+  // Opening a shared link: a game goes to the viewer, a position starts a two-player game from it.
+  const openLinkRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    openLinkRef.current = () => {
+      let link;
+      try {
+        link = decodeLink(location.hash);
+      } catch (e) {
+        setNotice(`Link açılamadı: ${e instanceof Error ? e.message : e}`);
+        history.replaceState(null, '', location.pathname + location.search);
+        return;
+      }
+      if (!link) return;
+      history.replaceState(null, '', location.pathname + location.search);
+      if (link.kind === 'game') {
+        setSharedGame(link.states);
+        return;
+      }
+      const s: GameSettings = { ...loadSettings(), mode: 'hotseat', variantId: link.variantId, timeControl: 'none' };
+      clients.bot.stop();
+      dispatch({ type: 'start', session: newSession(s, session.key + 1, Math.random, link.fen) });
+      setShowNewGame(false);
+      setFlipped(false);
+    };
+  });
+  useEffect(() => {
+    const open = () => openLinkRef.current();
+    open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+  }, []);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -208,6 +260,8 @@ export function App() {
             onFlip={() => setFlipped((f) => !f)}
             onToggleHighlight={() => setShowHighlight((h) => !h)}
             onCopy={copyFen}
+            onCopyLink={copyLink}
+            hasMoves={view.endState.moves.length > 0}
           />
         </section>
 
@@ -236,6 +290,21 @@ export function App() {
       </main>
 
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      {sharedGame && (
+        <div className="modal-backdrop screen" onClick={() => setSharedGame(null)}>
+          <div
+            className="modal history"
+            role="dialog"
+            aria-label="Paylaşılan oyun"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>Paylaşılan oyun · {getVariantName(sharedGame)}</h2>
+            <GameViewer variant={variantOf(sharedGame)} states={sharedGame}>
+              <button onClick={() => setSharedGame(null)}>Kapat</button>
+            </GameViewer>
+          </div>
+        </div>
+      )}
       {showAnalysis && (
         <div className="modal-backdrop screen" onClick={() => setShowAnalysis(false)}>
           <div className="modal history" role="dialog" aria-label="Oyun analizi" onClick={(e) => e.stopPropagation()}>
