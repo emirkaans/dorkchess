@@ -11,7 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "node --experimental-strip-types --no-warnings scripts/bench.ts",
-    "selfplay": "node --experimental-strip-types --no-warnings scripts/selfplay.ts"
+    "selfplay": "node --experimental-strip-types --no-warnings scripts/selfplay.ts",
+    "match": "node --experimental-strip-types --no-warnings scripts/match.ts",
+    "gen-data": "node --experimental-strip-types --no-warnings scripts/gen-data.ts",
+    "tune": "node --experimental-strip-types --no-warnings --max-old-space-size=8192 scripts/tune.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

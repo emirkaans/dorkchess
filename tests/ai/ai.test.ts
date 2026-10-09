@@ -36,15 +36,15 @@ describe('seviyeler', () => {
       [1, 'Çaylak', 100],
       [2, 'Mahalle', 300],
       [3, 'Kulüp', 700],
-      [4, 'Usta', 1500],
-      [5, 'Dork', 3000],
+      [4, 'Usta', 500],
+      [5, 'Dork', 1000],
     ]);
     expect(() => levelConfig(6)).toThrow();
   });
 
   it('saatli oyunda bot süresi = min(seviye sınırı, kalan/30 + artış)', () => {
-    expect(botTimeMs(5)).toBe(3000);
-    expect(botTimeMs(5, { remainingMs: 60_000, incrementMs: 0 })).toBe(2000);
+    expect(botTimeMs(5)).toBe(1000);
+    expect(botTimeMs(5, { remainingMs: 15_000, incrementMs: 0 })).toBe(500);
     expect(botTimeMs(3, { remainingMs: 600_000, incrementMs: 2000 })).toBe(700);
   });
 
@@ -152,12 +152,12 @@ describe('Diplomat — bot ve aura', () => {
 });
 
 describe('süre sınırı', () => {
-  it('seviye 4 araması 1.5 sn sınırını %20den fazla aşmaz', () => {
+  it('seviye 4 araması süre sınırını %20den fazla aşmaz', () => {
     const v = getVariant('standard');
     const g = createGame(v, 'r1bq1rk1/pp2bppp/2n1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R2QKB1R w KQ - 0 8');
     const t = performance.now();
     chooseMove(v, g, 4, { seed: 1 });
-    expect(performance.now() - t).toBeLessThan(1500 * 1.2);
+    expect(performance.now() - t).toBeLessThan(500 * 1.2);
   });
 
   it('durdurma isteği aramayı keser ama yine yasal bir hamle döner', () => {

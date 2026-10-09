@@ -56,6 +56,21 @@ export const burokrat = defineVariant({
   promotionTypes: ['q', 'r', 'b', 'n'],
   pieceValues: { ...STANDARD_VALUES, u: 100 },
   evaluateExtra: shieldBonus,
+  fast: {
+    evaluate: (b, side) => {
+      const k = b.typeIndex.get('k')!;
+      const u = b.typeIndex.get('u')!;
+      if (b.count(k, side) !== 1) return 0;
+      const king = b.squares(k, side)[0];
+      const list = b.squares(u, side);
+      let bonus = 0;
+      for (let i = b.count(u, side) - 1; i >= 0; i--) {
+        const s = list[i];
+        if (Math.abs((s & 7) - (king & 7)) <= 1 && Math.abs((s >> 3) - (king >> 3)) <= 1) bonus += 15;
+      }
+      return bonus;
+    },
+  },
   rules: {
     title: 'Bürokrat',
     summary: "g1/g8'deki atların yerine Bürokrat başlar: kimseyi yemez, kimse onu yiyemez, ama yol keser.",

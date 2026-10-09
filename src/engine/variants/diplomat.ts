@@ -1,5 +1,7 @@
 import { ALL_DIRS, offset, rankOf } from '../board.ts';
 import type { Color, MovePattern, PieceDefinition, Position, Square } from '../types.ts';
+import { codeType } from '../fast/board.ts';
+import type { FastBoard } from '../fast/board.ts';
 import { SLAB_BASE, glyphStyleSvg } from './icons.ts';
 import { STANDARD_PIECES, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
 
@@ -51,6 +53,28 @@ function zoneBonus(pos: Position, color: Color): number {
     }
   }
   return bonus;
+}
+
+/** Neighbours of each square that are on rank 4 or 5 (for the fast board). */
+const AURA_NEIGHBOURS: readonly (readonly Square[])[] = Array.from({ length: 64 }, (_, sq) =>
+  ALL_DIRS.map((d) => offset(sq, d)).filter((n) => n !== -1 && onAuraRank(n)),
+);
+
+function fastInAura(b: FastBoard, sq: Square): boolean {
+  if (!onAuraRank(sq)) return false;
+  const d = b.typeIndex.get('d')!;
+  // Quick exit: no Diplomat on rank 4 or 5 means no zone anywhere.
+  let active = false;
+  for (const side of [0, 1] as const) {
+    const list = b.squares(d, side);
+    for (let i = b.count(d, side) - 1; i >= 0; i--) if (onAuraRank(list[i])) active = true;
+  }
+  if (!active) return false;
+  for (const n of AURA_NEIGHBOURS[sq]) {
+    const c = b.sq[n];
+    if (c !== 0 && codeType(c) === d) return true;
+  }
+  return false;
 }
 
 export const DIPLOMAT: PieceDefinition = {
@@ -125,6 +149,26 @@ export const diplomat = defineVariant({
     if (inAura(pos, from)) return false;
     // Rule 1: nothing standing in a zone is captured, except the king.
     return !inAura(pos, victimSquare) || STANDARD_PIECES[victim.type]?.royal === true;
+  },
+  fast: {
+    // +30 per own active Diplomat, +10 per own piece in its zone (same as zoneBonus).
+    evaluate: (b, side) => {
+      const d = b.typeIndex.get('d')!;
+      const list = b.squares(d, side);
+      let bonus = 0;
+      for (let i = b.count(d, side) - 1; i >= 0; i--) {
+        const s = list[i];
+        if (!onAuraRank(s)) continue;
+        bonus += 30;
+        for (const n of AURA_NEIGHBOURS[s]) {
+          const c = b.sq[n];
+          if (c !== 0 && (c > 0 ? 0 : 1) === side) bonus += 10;
+        }
+      }
+      return bonus;
+    },
+    captureAllowed: (b, from, victimSquare, victim) =>
+      !fastInAura(b, from) && (!fastInAura(b, victimSquare) || b.types[codeType(victim)].royal),
   },
   highlight: {
     label: 'Barış bölgesi',

@@ -3,6 +3,7 @@
 import type { GameState } from '../engine/index.ts';
 import { MIN_THINK_MS } from './levels.ts';
 import type { WorkerRequest, WorkerResponse } from './protocol.ts';
+import { recentPositions } from './search.ts';
 import type { BotMove } from './search.ts';
 
 export interface ThinkOptions {
@@ -56,7 +57,7 @@ export class BotClient {
         t: 'think',
         id,
         variantId: opts.variantId,
-        state: { position: opts.state.position, history: opts.state.history },
+        state: { position: opts.state.position, history: opts.state.history, recent: recentPositions(opts.state) },
         level: opts.level,
         timeLimitMs: opts.timeLimitMs,
         seed: opts.seed,

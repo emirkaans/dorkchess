@@ -8,6 +8,8 @@ import type {
   SetupQuestion,
   VariantExtra,
 } from '../types.ts';
+import type { FastBoard } from '../fast/board.ts';
+import type { FastHooks, Side } from '../fast/hooks.ts';
 import { BISHOP, KING_STEP, KNIGHT, QUEEN, ROOK, STANDARD_PIECES, STANDARD_VALUES, defineVariant } from './standard.ts';
 
 /**
@@ -40,6 +42,37 @@ export function jesterForm(pos: Position, color: Color): PieceType {
   const t = lastMoved(pos)[opposite(color)];
   return t !== null && t in FORM_PATTERNS ? t : DEFAULT_FORM;
 }
+
+// Fast board: extra[side] = 1 + type index of the piece `side` moved last (0 = none yet).
+const fastForm = (b: FastBoard, side: Side): PieceType => {
+  const idx = b.extra[side === 0 ? 1 : 0] - 1;
+  const t = idx >= 0 ? b.types[idx].letter : null;
+  return t !== null && t in FORM_PATTERNS ? t : DEFAULT_FORM;
+};
+
+const FAST_HOOKS: FastHooks = {
+  extraSlots: 2,
+  readExtra: (b, pos) => {
+    const lm = lastMoved(pos);
+    b.extra[0] = lm.w ? b.typeIndex.get(lm.w)! + 1 : 0;
+    b.extra[1] = lm.b ? b.typeIndex.get(lm.b)! + 1 : 0;
+  },
+  dynamicTypes: ['j'],
+  patterns: (b, _type, side) => FORM_PATTERNS[fastForm(b, side)],
+  afterMove: (b, movedType, side) => {
+    const moved = movedType === 'j' ? fastForm(b, side) : movedType;
+    b.extra[side] = b.typeIndex.get(moved)! + 1;
+  },
+  // Only forms of Jesters actually on the board matter (as in hashExtra).
+  hashExtra: (b) => {
+    const j = b.typeIndex.get('j')!;
+    let h = 0;
+    for (const side of [0, 1] as const) {
+      if (b.count(j, side) > 0) h |= (b.typeIndex.get(fastForm(b, side))! + 1) << (side * 4);
+    }
+    return h;
+  },
+};
 
 const fill = (c: Color) => (c === 'w' ? '#fafafa' : '#2b2b2b');
 const ink = (c: Color) => (c === 'w' ? '#2b2b2b' : '#fafafa');
@@ -169,6 +202,7 @@ export const jester = defineVariant({
     ],
   },
   initialExtra,
+  fast: FAST_HOOKS,
   afterMove: (pos, move) => {
     // A Jester counts as the piece it was imitating when it moved.
     const moved = move.piece === 'j' ? jesterForm(pos, pos.turn) : move.piece;

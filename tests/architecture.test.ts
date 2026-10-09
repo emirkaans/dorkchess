@@ -16,7 +16,8 @@ describe('mimari', () => {
     for (const file of dirs.flatMap(sources)) {
       const code = readFileSync(file, 'utf8');
       expect(code, file).not.toMatch(/from ['"](react|react-dom)/);
-      expect(code, file).not.toMatch(/\b(document|window|navigator|HTMLElement)\b/);
+      // DOM globals used in code (words like "aspiration window" in comments are fine).
+      expect(code, file).not.toMatch(/\b(document|window|navigator)\s*[.[]|\bHTMLElement\b/);
     }
   });
 

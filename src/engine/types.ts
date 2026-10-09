@@ -1,4 +1,5 @@
 import type { RuleCard } from '../rules/cards.ts';
+import type { FastHooks } from './fast/hooks.ts';
 
 // Core engine types. This module (and the whole engine folder) must stay free of
 // React / DOM imports so it can run unchanged on a server.
@@ -204,6 +205,8 @@ export interface VariantDefinition {
   readonly evaluateExtra?: (pos: Position, color: Color) => number;
   /** Rule card shown before a game (see src/rules/cards.ts). */
   readonly rules: RuleCard;
+  /** Hooks for the fast search board (src/engine/fast) for rules piece data can't express. */
+  readonly fast?: FastHooks;
   /** Initial variant extra state. */
   readonly initialExtra: () => VariantExtra;
   /** Compute the extra state after `move` is played from `pos`. */

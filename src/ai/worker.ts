@@ -17,14 +17,17 @@ ctx.onmessage = ({ data: msg }) => {
   const { id } = msg;
   try {
     const v = getVariant(msg.variantId);
-    const state: GameState = {
+    // Rebuild the chain of previous positions the search reads for repetitions.
+    const node = (position: GameState['position'], previous: GameState | null): GameState => ({
       variantId: msg.variantId,
-      position: msg.state.position,
-      history: msg.state.history,
+      position,
+      history: [],
       moves: [],
-      previous: null,
+      previous,
       result: null,
-    };
+    });
+    const previous = msg.state.recent.reduce<GameState | null>((prev, pos) => node(pos, prev), null);
+    const state: GameState = { ...node(msg.state.position, previous), history: msg.state.history };
     const r = chooseMove(v, state, msg.level, {
       seed: msg.seed,
       timeLimitMs: msg.timeLimitMs,

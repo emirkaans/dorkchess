@@ -2,10 +2,12 @@
 
 import type { Move, Position } from '../engine/index.ts';
 
-/** What the search needs from a game: the position and the repetition history. */
+/** What the search needs from a game: the position, its history keys and the positions since the last irreversible move. */
 export interface SerializedState {
   readonly position: Position;
   readonly history: readonly string[];
+  /** Oldest first (see recentPositions in search.ts); used for repetition detection. */
+  readonly recent: readonly Position[];
 }
 
 export type WorkerRequest =
