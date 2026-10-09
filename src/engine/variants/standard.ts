@@ -96,6 +96,16 @@ export const STANDARD_PIECES: Readonly<Record<PieceType, PieceDefinition>> = {
 /** Material values (centipawns) of the standard pieces; variants extend this with their own pieces. */
 export const STANDARD_VALUES: Readonly<Record<PieceType, number>> = { p: 100, n: 300, b: 320, r: 500, q: 900, k: 0 };
 
+/** English names of the standard pieces, shared by every variant's translation. */
+export const STANDARD_PIECE_NAMES_EN: Readonly<Record<PieceType, string>> = {
+  p: 'Pawn',
+  n: 'Knight',
+  b: 'Bishop',
+  r: 'Rook',
+  q: 'Queen',
+  k: 'King',
+};
+
 export const STANDARD_START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 type VariantInput = Omit<VariantDefinition, 'isCapturable' | 'canCapture' | 'initialExtra' | 'pieceTypes'> &
@@ -133,5 +143,26 @@ export const standard: VariantDefinition = defineVariant({
       '50 hamle, üç kez tekrar ve yetersiz materyal beraberliktir.',
     ],
     examples: [],
+  },
+  translations: {
+    en: {
+      name: 'Standard',
+      description: [
+        'Classical FIDE chess.',
+        'Castling, en passant and promotion (Q/R/B/N).',
+        'Checkmate, stalemate, the fifty-move rule, threefold repetition and insufficient material apply.',
+      ],
+      rules: {
+        title: 'Standard chess',
+        summary: "Classical FIDE rules; the goal is to checkmate the opponent's king.",
+        bullets: [
+          'Castling, en passant and promotion (queen, rook, bishop, knight).',
+          'A side with no legal move is checkmated if in check, otherwise it is stalemate.',
+          'Fifty moves, threefold repetition and insufficient material are draws.',
+        ],
+        captions: [],
+      },
+      pieceNames: STANDARD_PIECE_NAMES_EN,
+    },
   },
 });

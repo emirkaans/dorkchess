@@ -1,7 +1,7 @@
 import { ALL_DIRS, offset } from '../board.ts';
 import type { Color, MovePattern, PieceDefinition, Position } from '../types.ts';
 import { SLAB_BASE, glyphStyleSvg } from './icons.ts';
-import { STANDARD_PIECES, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
+import { STANDARD_PIECES, STANDARD_PIECE_NAMES_EN, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
 
 /** One step in any direction; capture-free because the piece has canCapture: false. */
 const BUROKRAT_STEP: MovePattern = { kind: 'step', dirs: ALL_DIRS };
@@ -105,5 +105,35 @@ export const burokrat = defineVariant({
         caption: "Kale e1'e şah çekiyor. Bürokrat e2'ye girip yolu keser, şahı kurtarır.",
       },
     ],
+  },
+  translations: {
+    en: {
+      name: 'Bureaucrat',
+      description: [
+        'A Bureaucrat (U) starts in place of the knights on g1/g8.',
+        'The Bureaucrat moves 1 square in any direction, only to an empty square.',
+        'It captures nothing and nothing can capture it; it gives no check and attacks no square.',
+        'It blocks sliding pieces; it can save the king by stepping in between.',
+        'A pawn cannot promote to a Bureaucrat.',
+      ],
+      rules: {
+        title: 'Bureaucrat',
+        summary:
+          'A Bureaucrat starts in place of the knights on g1/g8: it captures no one and no one can capture it, but it blocks the way.',
+        bullets: [
+          'Moves 1 square in any direction, only to an empty square.',
+          'Cannot capture anything; nothing (not even a king) can capture it.',
+          'Gives no check and attacks no square.',
+          'Blocks rooks, bishops and queens; it can step in between to save the king.',
+          'A pawn cannot promote to a Bureaucrat.',
+        ],
+        captions: [
+          'The Bureaucrat moves 1 square in any direction, only to an empty square. It cannot take the pawn on d5.',
+          'The black queen cannot take the Bureaucrat or pass behind it: it cannot reach the king on e1.',
+          'The rook checks the king on e1. The Bureaucrat steps to e2, blocks the line and saves the king.',
+        ],
+      },
+      pieceNames: { ...STANDARD_PIECE_NAMES_EN, u: 'Bureaucrat' },
+    },
   },
 });

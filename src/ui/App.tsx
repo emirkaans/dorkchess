@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import { Board } from './Board.tsx';
@@ -14,7 +15,9 @@ import { RuleCardModal } from './RuleCardModal.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
-import { COLOR_NAME, botName, newSession, outcomeText } from './game/session.ts';
+import { botName, newSession, outcomeText } from './game/session.ts';
+import { errorText } from '../i18n/index.ts';
+import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
 import type { GameState } from '../engine/index.ts';
@@ -27,9 +30,23 @@ import type { SoundKind } from './sound.ts';
 
 /** Variant of a list of game states (all states of one game share it). */
 const variantOf = (states: readonly GameState[]) => getVariant(states[0].variantId);
-const getVariantName = (states: readonly GameState[]) => variantOf(states).name;
 
+/** Holds the preferences (theme, sound, language) and provides the language to the whole app. */
 export function App() {
+  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
+  useEffect(() => {
+    applyPrefs(prefs);
+    savePrefs(prefs);
+  }, [prefs]);
+  return (
+    <I18nProvider locale={prefs.locale}>
+      <GameScreen prefs={prefs} setPrefs={setPrefs} />
+    </I18nProvider>
+  );
+}
+
+function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetStateAction<Prefs>> }) {
+  const { t, vt } = useI18n();
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
   const [showNewGame, setShowNewGame] = useState(true);
   const [showRules, setShowRules] = useState(false);
@@ -42,14 +59,9 @@ export function App() {
   const [sharedGame, setSharedGame] = useState<readonly GameState[] | null>(null);
   const [showHighlight, setShowHighlight] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
-  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
   // A new app version is installed and waiting (service worker): offer a reload.
   const [updateReady, setUpdateReady] = useState(false);
   useEffect(() => onUpdateReady(() => setUpdateReady(true)), []);
-  useEffect(() => {
-    applyPrefs(prefs);
-    savePrefs(prefs);
-  }, [prefs]);
   const soundOn = useRef(prefs.sound);
   useEffect(() => {
     soundOn.current = prefs.sound;
@@ -108,7 +120,7 @@ export function App() {
       setCopied(what);
       setTimeout(() => setCopied(null), 1500);
     } catch {
-      window.prompt('Kopyala:', text);
+      window.prompt(t('copyPrompt'), text);
     }
   };
   const copyFen = () => copyText(fen, 'fen');
@@ -132,7 +144,7 @@ export function App() {
       try {
         link = decodeLink(location.hash);
       } catch (e) {
-        setNotice(`Link açılamadı: ${e instanceof Error ? e.message : e}`);
+        setNotice(t('notice.linkError', { reason: errorText(e, t) }));
         history.replaceState(null, '', location.pathname + location.search);
         return;
       }
@@ -167,31 +179,33 @@ export function App() {
   const lastPlayed = view.endState.moves.at(-1);
   const mover = view.endState.position.turn === 'w' ? 'b' : 'w';
   const announcement = [
-    lastPlayed ? `${COLOR_NAME[mover]}: ${lastPlayed.san}` : '',
-    view.finalOutcome ? outcomeText(view.finalOutcome) : '',
+    lastPlayed ? t('announceMove', { color: t(`color.${mover}`), san: lastPlayed.san }) : '',
+    view.finalOutcome ? outcomeText(view.finalOutcome, t) : '',
   ]
     .filter(Boolean)
     .join('. ');
 
   let status: string;
-  if (outcome) status = outcomeText(outcome);
-  else if (setup) status = 'Oyun öncesi seçim bekleniyor…';
-  else if (thinking) status = `${COLOR_NAME[turn]} bot (${botName(toMove)}) düşünüyor…`;
-  else if (watching && session.run === 'pause') status = `Duraklatıldı — sıra: ${COLOR_NAME[turn]}`;
-  else status = `Sıra: ${COLOR_NAME[turn]}${isInCheck(variant, game.position) ? ' — Şah!' : ''}`;
+  const turnName = t(`color.${turn}`);
+  if (outcome) status = outcomeText(outcome, t);
+  else if (setup) status = t('status.setup');
+  else if (thinking) status = t('status.thinking', { color: turnName, name: botName(toMove, t) });
+  else if (watching && session.run === 'pause') status = t('status.paused', { color: turnName });
+  else status = t('status.turn', { color: turnName }) + (isInCheck(variant, game.position) ? t('status.check') : '');
+  const texts = vt(variant);
 
   return (
     <div className="app">
       {updateReady && (
         <div className="update-bar" role="status">
-          Yeni sürüm hazır.{' '}
+          {t('update.ready')}{' '}
           <button className="primary" onClick={applyUpdate}>
-            Yenile
+            {t('update.reload')}
           </button>
         </div>
       )}
       <Toolbar
-        label={`${variant.name} · ${settings.mode === 'hotseat' ? 'İki kişi' : `${botName(players.w)} – ${botName(players.b)}`}`}
+        label={`${texts.name} · ${settings.mode === 'hotseat' ? t('mode.hotseatShort') : `${botName(players.w, t)} – ${botName(players.b, t)}`}`}
         prefs={prefs}
         onPrefs={setPrefs}
         onRules={() => setShowRules(true)}
@@ -246,7 +260,7 @@ export function App() {
           {notice && <div className="notice">{notice}</div>}
           {view.finalOutcome && view.endState.moves.length > 0 && (
             <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
-              Oyunu analiz et
+              {t('analysis.button')}
             </button>
           )}
           <GameControls
@@ -262,7 +276,7 @@ export function App() {
             hintBusy={assistant.hintBusy}
             run={session.run}
             atEnd={atEnd}
-            highlightLabel={variant.highlight?.label ?? null}
+            highlightLabel={texts.highlightLabel}
             showHighlight={showHighlight}
             copied={copied}
             onUndo={undoPair}
@@ -282,15 +296,15 @@ export function App() {
 
         <aside className="side">
           <div className="panel">
-            <h2>{variant.name}</h2>
+            <h2>{texts.name}</h2>
             <ul className="rules">
-              {variant.description.map((line) => (
+              {texts.description.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
           </div>
           <div className="panel">
-            <h2>Hamleler</h2>
+            <h2>{t('panel.moves')}</h2>
             <MoveList
               game={view.endState}
               cursor={timeline.cursor}
@@ -298,7 +312,7 @@ export function App() {
             />
           </div>
           <div className="panel">
-            <h2>Konum</h2>
+            <h2>{t('panel.position')}</h2>
             <code className="fen">{fen}</code>
           </div>
         </aside>
@@ -306,18 +320,20 @@ export function App() {
 
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
       {sharedGame && (
-        <Modal label="Paylaşılan oyun" className="history" onClose={() => setSharedGame(null)}>
-          <h2>Paylaşılan oyun · {getVariantName(sharedGame)}</h2>
+        <Modal label={t('analysis.shared')} className="history" onClose={() => setSharedGame(null)}>
+          <h2>
+            {t('analysis.shared')} · {vt(variantOf(sharedGame)).name}
+          </h2>
           <GameViewer variant={variantOf(sharedGame)} states={sharedGame}>
-            <button onClick={() => setSharedGame(null)}>Kapat</button>
+            <button onClick={() => setSharedGame(null)}>{t('close')}</button>
           </GameViewer>
         </Modal>
       )}
       {showAnalysis && (
-        <Modal label="Oyun analizi" className="history" onClose={() => setShowAnalysis(false)}>
-          <h2>Analiz</h2>
+        <Modal label={t('analysis.dialog')} className="history" onClose={() => setShowAnalysis(false)}>
+          <h2>{t('analysis.title')}</h2>
           <GameViewer variant={variant} states={timeline.states} autoAnalyse>
-            <button onClick={() => setShowAnalysis(false)}>Kapat</button>
+            <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
           </GameViewer>
         </Modal>
       )}

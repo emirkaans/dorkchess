@@ -1,5 +1,6 @@
 import type { MoveMark } from '../ai/analysis.ts';
 import type { GameState } from '../engine/index.ts';
+import { useI18n } from './i18n.tsx';
 
 interface Props {
   /** Latest state of the timeline (holds every played move). */
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function MoveList({ game, cursor, onSelect, marks = [] }: Props) {
+  const { t } = useI18n();
   // Number moves from the first state's move number and side.
   let first: GameState = game;
   while (first.previous) first = first.previous;
@@ -26,7 +28,7 @@ export function MoveList({ game, cursor, onSelect, marks = [] }: Props) {
     rows[rows.length - 1].cells.push({ san: m.san, index: i });
   });
 
-  if (!rows.length) return <p className="muted">Henüz hamle yok.</p>;
+  if (!rows.length) return <p className="muted">{t('moves.none')}</p>;
 
   return (
     <ol className="moves">

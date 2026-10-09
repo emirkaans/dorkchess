@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import type { VariantDefinition } from '../engine/index.ts';
 import { Diagram } from './Diagram.tsx';
+import { useI18n } from './i18n.tsx';
 import { isRuleCardHidden, setRuleCardHidden } from './settings.ts';
 import { useDialogFocus } from './useDialogFocus.ts';
 
@@ -15,7 +16,8 @@ const AUTOPLAY_MS = 2000;
 export function RuleCardModal({ variant, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef, onClose);
-  const { rules } = variant;
+  const { t, vt } = useI18n();
+  const { rules } = vt(variant);
   const examples = rules.examples;
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(examples.length > 1);
@@ -42,7 +44,7 @@ export function RuleCardModal({ variant, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        aria-label={`${rules.title} kuralları`}
+        aria-label={t('rules.title', { title: rules.title })}
         onClick={(e) => e.stopPropagation()}
       >
         <h2>{rules.title}</h2>
@@ -57,19 +59,17 @@ export function RuleCardModal({ variant, onClose }: Props) {
           <figure className="example">
             <Diagram variant={variant} example={example} size={260} />
             <figcaption>
-              <span className="muted">
-                Örnek {index + 1}/{examples.length}
-              </span>{' '}
+              <span className="muted">{t('rules.example', { i: index + 1, n: examples.length })}</span>{' '}
               {example.caption}
             </figcaption>
             <div className="example-controls">
-              <button type="button" onClick={() => go(-1)} aria-label="Önceki örnek">
+              <button type="button" onClick={() => go(-1)} aria-label={t('rules.previous')}>
                 ◀
               </button>
               <button type="button" onClick={() => setPlaying((p) => !p)}>
-                {playing ? '❚❚ Durdur' : '▶ Oynat'}
+                {playing ? t('rules.stop') : t('rules.play')}
               </button>
-              <button type="button" onClick={() => go(1)} aria-label="Sonraki örnek">
+              <button type="button" onClick={() => go(1)} aria-label={t('rules.next')}>
                 ▶
               </button>
             </div>
@@ -85,11 +85,11 @@ export function RuleCardModal({ variant, onClose }: Props) {
               setRuleCardHidden(variant.id, e.target.checked);
             }}
           />
-          Bu varyant için bir daha gösterme
+          {t('rules.dontShow')}
         </label>
         <div className="modal-actions">
           <button type="button" className="primary" onClick={onClose} data-autofocus>
-            Tamam
+            {t('rules.ok')}
           </button>
         </div>
       </div>

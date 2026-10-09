@@ -10,12 +10,12 @@ import { LOW_TIME_MS, remainingMs } from '../../clock/clock.ts';
 import { isInCheck, opposite, toFen } from '../../engine/index.ts';
 import type { GameState, Square } from '../../engine/index.ts';
 import { newGameId, storeGame } from '../../storage/games.ts';
-import { MODE_NAMES } from '../settings.ts';
 import type { SoundKind } from '../sound.ts';
 import { gameReducer } from './reducer.ts';
 import type { GameAction } from './reducer.ts';
-import { TERMINATION, botName, resultCode, viewOf } from './session.ts';
-import type { GameSession, Player, SessionView } from './session.ts';
+import { useI18n } from '../i18n.tsx';
+import { playerCode, resultCode, viewOf } from './session.ts';
+import type { GameSession, SessionView } from './session.ts';
 
 /** Keeps a ref pointing at the latest value (for effects that must not re-run on every change). */
 function useLatest<T>(value: T) {
@@ -58,7 +58,8 @@ export function useBotPlayer(
   onError: (message: string) => void,
 ): boolean {
   const [thinking, setThinking] = useState(false);
-  const latest = useLatest({ session, view, onError });
+  const { t } = useI18n();
+  const latest = useLatest({ session, view, onError, t });
   const botTurn =
     view.toMove.kind === 'bot' &&
     !view.outcome &&
@@ -92,7 +93,10 @@ export function useBotPlayer(
       })
       .then((r) => dispatch({ type: 'move', move: r.move, key, now: Date.now() }))
       .catch((e) => {
-        if (!(e instanceof BotCancelled)) latest.current.onError(`Bot hatası: ${e instanceof Error ? e.message : e}`);
+        if (!(e instanceof BotCancelled)) {
+          const { onError: report, t: tr } = latest.current;
+          report(tr('notice.botError', { message: e instanceof Error ? e.message : String(e) }));
+        }
       })
       .finally(() => {
         if (active) setThinking(false);
@@ -161,16 +165,15 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
     const { session: s, view: v, sound: play } = latest.current;
     play('end');
     if (v.endState.moves.length === 0) return;
-    const desc = (p: Player) => (p.kind === 'bot' ? botName(p) : 'İnsan');
     storeGame({
       id: newGameId(),
       date: new Date().toISOString(),
       variantId: v.variant.id,
-      mode: MODE_NAMES[s.settings.mode],
-      white: desc(s.players.w),
-      black: desc(s.players.b),
+      mode: s.settings.mode,
+      white: playerCode(s.players.w),
+      black: playerCode(s.players.b),
       result: resultCode(finalOutcome),
-      termination: TERMINATION[finalOutcome.reason],
+      termination: finalOutcome.reason,
       startFen: toFen(v.variant, s.timeline.states[0].position),
       moves: v.endState.moves.map((m) => m.san),
     });
@@ -187,6 +190,7 @@ export function useAssistant(
 ) {
   const [hint, setHint] = useState<{ game: GameState; arrow: readonly [Square, Square] } | null>(null);
   const [hintBusy, setHintBusy] = useState(false);
+  const { t } = useI18n();
 
   const askHint = () => {
     const game = view.game;
@@ -210,10 +214,10 @@ export function useAssistant(
     if (!botColor || botPlayer?.kind !== 'bot') return;
     const key = session.key;
     if (botPlayer.level < 3) {
-      setNotice('Bot beraberliği reddetti.');
+      setNotice(t('notice.drawDeclined'));
       return;
     }
-    setNotice('Bot teklifi değerlendiriyor…');
+    setNotice(t('notice.drawThinking'));
     const turn = view.turn;
     clients.helper
       .think({ variantId: view.variant.id, state: view.game, level: botPlayer.level, timeLimitMs: 500 })
@@ -224,7 +228,7 @@ export function useAssistant(
           dispatch({ type: 'end', outcome: { reason: 'agreement', winner: null }, key, now: Date.now() });
           setNotice(null);
         } else {
-          setNotice('Bot beraberliği reddetti.');
+          setNotice(t('notice.drawDeclined'));
         }
       })
       .catch(() => setNotice(null));

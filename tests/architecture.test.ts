@@ -11,8 +11,10 @@ function sources(dir: string): string[] {
 }
 
 describe('mimari', () => {
-  it("engine, ai, clock, rules ve storage React'e veya DOM'a bağımlı değil", () => {
-    const dirs = ['src/engine', 'src/ai', 'src/clock', 'src/rules', 'src/storage'].filter((d) => existsSync(d));
+  it("engine, ai, clock, rules, storage ve i18n React'e veya DOM'a bağımlı değil", () => {
+    const dirs = ['src/engine', 'src/ai', 'src/clock', 'src/rules', 'src/storage', 'src/i18n'].filter((d) =>
+      existsSync(d),
+    );
     for (const file of dirs.flatMap(sources)) {
       const code = readFileSync(file, 'utf8');
       expect(code, file).not.toMatch(/from ['"](react|react-dom)/);

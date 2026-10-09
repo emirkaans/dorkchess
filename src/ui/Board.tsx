@@ -13,6 +13,7 @@ import {
 } from '../engine/index.ts';
 import type { Color, Move, Position, Square, VariantDefinition } from '../engine/index.ts';
 import { PieceView } from './PieceView.tsx';
+import { useI18n } from './i18n.tsx';
 
 /** Colours of drawn shapes, as on lichess: plain right-drag green; Shift red, Alt blue, Ctrl yellow. */
 export type ShapeColor = 'green' | 'red' | 'blue' | 'yellow' | 'hint';
@@ -71,8 +72,6 @@ interface Drawing {
   color: ShapeColor;
 }
 
-const COLOR_WORD = { w: 'beyaz', b: 'siyah' } as const;
-
 const colorFor = (e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }): ShapeColor =>
   e.ctrlKey || e.metaKey ? 'yellow' : e.shiftKey ? 'red' : e.altKey ? 'blue' : 'green';
 
@@ -91,6 +90,8 @@ export function Board({
   onPremove,
   onCancelPremove,
 }: Props) {
+  const { t, vt, locale } = useI18n();
+  const texts = vt(variant);
   const boardRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Square | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -308,12 +309,17 @@ export function Board({
       // Screen-reader label: square, piece (or empty) and states shown only by colour.
       const label = [
         squareName(sq),
-        piece ? `${COLOR_WORD[piece.color]} ${variant.pieces[piece.type].name.toLocaleLowerCase('tr')}` : 'boş',
-        selected === sq ? 'seçili' : '',
-        target || premoveDest ? 'gidilebilir' : '',
-        lastMove && (lastMove.from === sq || lastMove.to === sq) ? 'son hamle' : '',
-        checkSquares.includes(sq) ? 'şah altında' : '',
-        highlight.includes(sq) && variant.highlight ? variant.highlight.label.toLocaleLowerCase('tr') : '',
+        piece
+          ? t('square.piece', {
+              color: t(`colorLower.${piece.color}`),
+              piece: texts.pieceName(piece.type).toLocaleLowerCase(locale),
+            })
+          : t('square.empty'),
+        selected === sq ? t('square.selected') : '',
+        target || premoveDest ? t('square.reachable') : '',
+        lastMove && (lastMove.from === sq || lastMove.to === sq) ? t('square.lastMove') : '',
+        checkSquares.includes(sq) ? t('square.inCheck') : '',
+        highlight.includes(sq) && texts.highlightLabel ? texts.highlightLabel.toLocaleLowerCase(locale) : '',
       ]
         .filter(Boolean)
         .join(', ');
@@ -353,7 +359,7 @@ export function Board({
       ref={boardRef}
       className={`board${disabled && !premoving ? ' disabled' : ''}`}
       role="group"
-      aria-label={`Satranç tahtası, ${flipped ? 'siyah' : 'beyaz'} altta. Ok tuşlarıyla gezin, Enter ile seç ve oyna.`}
+      aria-label={t('board.label', { side: t(flipped ? 'colorLower.b' : 'colorLower.w') })}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

@@ -3,6 +3,7 @@
 
 import { createGame, getVariant, listVariants, playSan, toFen } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
+import { LocalizedError } from '../i18n/index.ts';
 import { loadJSON, saveJSON } from './local.ts';
 
 export const MAX_GAMES = 200;
@@ -15,13 +16,16 @@ export interface SavedGame {
   /** ISO timestamp of the end of the game. */
   readonly date: string;
   readonly variantId: string;
-  /** Turkish mode label, e.g. "Bilgisayara karşı". */
+  /**
+   * Mode code ('hotseat' | 'bot' | 'botvbot' | 'imported'); older records hold a
+   * Turkish label, and imported ones whatever the file said. The UI translates codes.
+   */
   readonly mode: string;
-  /** Player descriptions, e.g. "İnsan", "Usta (4)". */
+  /** Player: 'human' or 'bot:<level>' (older records: Turkish text such as "Usta (4)"). */
   readonly white: string;
   readonly black: string;
   readonly result: ResultCode;
-  /** Turkish end reason, e.g. "Mat". */
+  /** End reason code, e.g. 'checkmate' (older records: Turkish text such as "Mat"). */
   readonly termination: string;
   readonly startFen: string;
   readonly moves: readonly string[];
@@ -99,13 +103,14 @@ export interface ImportedGame {
 
 /**
  * Parses the PGN-like text and replays it with the engine (every move must be
- * legal). Throws an Error with a Turkish message on bad input.
+ * legal). Throws a LocalizedError on bad input.
  */
 export function importPgn(text: string): ImportedGame {
   const tags: Record<string, string> = {};
   for (const m of text.matchAll(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm)) tags[m[1]] = m[2];
   const variantId = tags.Variant ?? 'standard';
-  if (!listVariants().some((v) => v.id === variantId)) throw new Error(`Bilinmeyen varyant: ${variantId}`);
+  if (!listVariants().some((v) => v.id === variantId))
+    throw new LocalizedError('error.unknownVariant', { id: variantId });
   const v = getVariant(variantId);
 
   const body = text
@@ -120,14 +125,14 @@ export function importPgn(text: string): ImportedGame {
   try {
     state = createGame(v, tags.FEN ?? v.startPosition);
   } catch {
-    throw new Error('Başlangıç konumu (FEN) okunamadı.');
+    throw new LocalizedError('error.importStart');
   }
   const states = [state];
   for (const san of sans) {
     try {
       state = playSan(v, state, san);
     } catch {
-      throw new Error(`Geçersiz hamle: ${san} (${states.length}. konumda)`);
+      throw new LocalizedError('error.importMove', { san, n: states.length });
     }
     states.push(state);
   }
@@ -140,7 +145,7 @@ export function importPgn(text: string): ImportedGame {
       id: newGameId(),
       date: tags.Date ? new Date(tags.Date.replace(/\./g, '-')).toISOString() : new Date().toISOString(),
       variantId,
-      mode: tags.Mode ?? 'İçe aktarıldı',
+      mode: tags.Mode ?? 'imported',
       white: tags.White ?? '?',
       black: tags.Black ?? '?',
       result,

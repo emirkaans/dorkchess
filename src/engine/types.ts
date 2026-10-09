@@ -158,6 +158,36 @@ export interface VariantSetup {
   readonly startPosition: (answers: Readonly<Record<string, string>>) => string;
 }
 
+/** A rule card's texts in another language (captions in example order). */
+export interface RuleCardTexts {
+  readonly title: string;
+  readonly summary: string;
+  readonly bullets: readonly string[];
+  readonly captions: readonly string[];
+}
+
+/** A setup question's texts in another language: title and option labels (option id -> label). */
+export interface SetupQuestionTexts {
+  readonly title: string;
+  readonly options: Readonly<Record<string, string>>;
+}
+
+/**
+ * A variant's texts in another language. The definition itself holds the
+ * Turkish texts; anything missing here falls back to them.
+ */
+export interface VariantTexts {
+  readonly name?: string;
+  readonly description?: readonly string[];
+  readonly rules?: RuleCardTexts;
+  readonly pieceNames?: Readonly<Record<PieceType, string>>;
+  readonly highlightLabel?: string;
+  /** Per setup question id. */
+  readonly setup?: Readonly<Record<string, SetupQuestionTexts>>;
+  /** Replacement badge functions per piece type. */
+  readonly badges?: Readonly<Record<PieceType, (pos: Position, color: Color) => PieceBadge | null>>;
+}
+
 export interface VariantDefinition {
   readonly id: string;
   readonly name: string;
@@ -210,6 +240,8 @@ export interface VariantDefinition {
   readonly evaluateExtra?: (pos: Position, color: Color) => number;
   /** Rule card shown before a game (see src/rules/cards.ts). */
   readonly rules: RuleCard;
+  /** Texts in other languages, by locale code (e.g. 'en'). */
+  readonly translations?: Readonly<Record<string, VariantTexts>>;
   /** Hooks for the fast search board (src/engine/fast) for rules piece data can't express. */
   readonly fast?: FastHooks;
   /** Initial variant extra state. */

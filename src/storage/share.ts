@@ -5,6 +5,7 @@
 
 import { createGame, getVariant, listVariants, parseFen, playSan } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
+import { LocalizedError } from '../i18n/index.ts';
 
 export interface SharedGame {
   readonly variantId: string;
@@ -52,7 +53,7 @@ export function encodePosition(variantId: string, fen: string): string {
 
 /**
  * Reads a link's hash. Returns null when the hash holds no shared content;
- * throws an Error with a Turkish message when it does but is broken or illegal.
+ * throws a LocalizedError when it does but is broken or illegal.
  */
 export function decodeLink(hash: string): SharedLink | null {
   const m = /^#?([gp])=(.+)$/.exec(hash);
@@ -61,10 +62,11 @@ export function decodeLink(hash: string): SharedLink | null {
   try {
     data = JSON.parse(fromBase64Url(m[2]));
   } catch {
-    throw new Error('Link bozuk (okunamadı).');
+    throw new LocalizedError('error.broken');
   }
   const variantId = typeof data.v === 'string' ? data.v : '';
-  if (!listVariants().some((x) => x.id === variantId)) throw new Error(`Bilinmeyen varyant: ${variantId || '?'}`);
+  if (!listVariants().some((x) => x.id === variantId))
+    throw new LocalizedError('error.unknownVariant', { id: variantId || '?' });
   const v = getVariant(variantId);
 
   if (m[1] === 'p') {
@@ -72,7 +74,7 @@ export function decodeLink(hash: string): SharedLink | null {
     try {
       parseFen(v, fen);
     } catch {
-      throw new Error('Linkteki konum geçersiz.');
+      throw new LocalizedError('error.linkPosition');
     }
     return { kind: 'position', variantId, fen };
   }
@@ -83,14 +85,14 @@ export function decodeLink(hash: string): SharedLink | null {
   try {
     state = createGame(v, startFen);
   } catch {
-    throw new Error('Linkteki başlangıç konumu geçersiz.');
+    throw new LocalizedError('error.linkStart');
   }
   const states = [state];
   for (const san of moves) {
     try {
       state = playSan(v, state, san);
     } catch {
-      throw new Error(`Linkte geçersiz hamle: ${san}`);
+      throw new LocalizedError('error.linkMove', { san });
     }
     states.push(state);
   }

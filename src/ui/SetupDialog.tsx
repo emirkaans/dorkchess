@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { SetupQuestion, VariantDefinition } from '../engine/index.ts';
+import { useI18n } from './i18n.tsx';
 import { PieceView } from './PieceView.tsx';
 import { useDialogFocus } from './useDialogFocus.ts';
 
@@ -12,7 +13,8 @@ interface Props {
 }
 
 /** Pre-game choice dialog; driven entirely by the variant's setup questions. */
-export function SetupDialog({ variant, question, step, total, onPick }: Props) {
+export function SetupDialog({ variant, question: original, step, total, onPick }: Props) {
+  const question = useI18n().vt(variant).question(original);
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef);
   return (

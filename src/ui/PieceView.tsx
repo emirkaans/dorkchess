@@ -1,4 +1,5 @@
 import type { Piece, Position, Square, VariantDefinition } from '../engine/index.ts';
+import { useI18n } from './i18n.tsx';
 
 interface Props {
   variant: VariantDefinition;
@@ -11,11 +12,14 @@ interface Props {
 
 /** Renders any piece purely from its definition — no variant-specific code. */
 export function PieceView({ variant, piece, position, square }: Props) {
+  const { t, vt } = useI18n();
+  const texts = vt(variant);
   const def = variant.pieces[piece.type];
-  const badge = position && def.badge ? def.badge(position, piece.color) : null;
+  const name = texts.pieceName(piece.type);
+  const badge = position ? texts.badge(piece.type, position, piece.color) : null;
   const inactive = position && square !== undefined && def.inactive ? def.inactive(position, square) : false;
   const colorClass = piece.color === 'w' ? 'white' : 'black';
-  const title = badge ? `${def.name} — ${badge.title}` : inactive ? `${def.name} (pasif)` : def.name;
+  const title = badge ? `${name} — ${badge.title}` : inactive ? t('piece.inactive', { name }) : name;
   return (
     <span className={`piece ${colorClass}${inactive ? ' inactive' : ''}`} title={title}>
       {def.icon.kind === 'glyph' ? (

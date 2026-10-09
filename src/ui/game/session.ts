@@ -2,15 +2,13 @@
 // clock, premove and how the game ended. Pure TypeScript (no React), so the
 // reducer and everything derived from it can be unit-tested.
 
-import { levelConfig } from '../../ai/levels.ts';
 import { createClock, isTimed, stopClock, timeControl } from '../../clock/clock.ts';
 import type { ClockState } from '../../clock/clock.ts';
 import { createGame, getVariant, opposite, setupStartPosition } from '../../engine/index.ts';
 import type { Color, GameEndReason, GameState, SetupQuestion, Square, VariantDefinition } from '../../engine/index.ts';
+import type { MessageKey, Translate } from '../../i18n/index.ts';
 import type { ResultCode } from '../../storage/games.ts';
 import type { GameSettings } from '../settings.ts';
-
-export const COLOR_NAME = { w: 'Beyaz', b: 'Siyah' } as const;
 
 export type Player = { readonly kind: 'human' } | { readonly kind: 'bot'; readonly level: number };
 
@@ -160,40 +158,22 @@ export function viewOf(s: GameSession): SessionView {
   };
 }
 
-export const botName = (p: Player) => (p.kind === 'bot' ? `${levelConfig(p.level).name} (${p.level})` : 'İnsan');
+/** Stored form of a player in game records: 'human' or 'bot:<level>'. */
+export const playerCode = (p: Player) => (p.kind === 'bot' ? `bot:${p.level}` : 'human');
 
-export function outcomeText(o: Outcome): string {
-  const winner = o.winner ? `${COLOR_NAME[o.winner]} kazandı.` : '';
+export const botName = (p: Player, t: Translate) =>
+  p.kind === 'bot' ? t('botLabel', { name: t(`level.${p.level}` as MessageKey), level: p.level }) : t('human');
+
+export function outcomeText(o: Outcome, t: Translate): string {
+  const winner = o.winner ? t('outcome.winner', { color: t(`color.${o.winner}`) }) : '';
   switch (o.reason) {
-    case 'checkmate':
-      return `Mat! ${winner}`;
-    case 'stalemate':
-      return 'Pat — berabere.';
-    case 'fifty-move':
-      return '50 hamle kuralı — berabere.';
-    case 'threefold':
-      return 'Üç kez tekrar — berabere.';
-    case 'insufficient':
-      return 'Yetersiz materyal — berabere.';
     case 'resign':
-      return `${COLOR_NAME[opposite(o.winner!)]} teslim oldu. ${winner}`;
-    case 'agreement':
-      return 'Beraberlik kabul edildi.';
+      return t('outcome.resign', { loser: t(`color.${opposite(o.winner!)}`), winner });
     case 'timeout':
-      return o.winner ? `Süre bitti. ${winner}` : 'Süre bitti, ama rakibin mat gücü yok — berabere.';
+      return o.winner ? t('outcome.timeout', { winner }) : t('outcome.timeoutDraw');
+    default:
+      return t(`outcome.${o.reason}`, { winner });
   }
 }
-
-/** Short Turkish end reason for the game record. */
-export const TERMINATION: Record<EndReason, string> = {
-  checkmate: 'Mat',
-  stalemate: 'Pat',
-  'fifty-move': '50 hamle',
-  threefold: 'Üç kez tekrar',
-  insufficient: 'Yetersiz materyal',
-  resign: 'Teslim',
-  agreement: 'Anlaşmalı beraberlik',
-  timeout: 'Süre',
-};
 
 export const resultCode = (o: Outcome): ResultCode => (o.winner === 'w' ? '1-0' : o.winner === 'b' ? '0-1' : '1/2-1/2');

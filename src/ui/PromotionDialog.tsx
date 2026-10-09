@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { Color, PieceType, VariantDefinition } from '../engine/index.ts';
+import { useI18n } from './i18n.tsx';
 import { PieceView } from './PieceView.tsx';
 import { useDialogFocus } from './useDialogFocus.ts';
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function PromotionDialog({ variant, color, options, onPick, onCancel }: Props) {
+  const { t, vt } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef, onCancel);
   return (
@@ -23,13 +25,13 @@ export function PromotionDialog({ variant, color, options, onPick, onCancel }: P
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        aria-label="Terfi seçimi"
+        aria-label={t('promotion.label')}
       >
-        <p>Terfi:</p>
+        <p>{t('promotion.title')}</p>
         <div className="promo-options">
-          {options.map((t) => (
-            <button key={t} className="promo" onClick={() => onPick(t)} title={variant.pieces[t].name}>
-              <PieceView variant={variant} piece={{ type: t, color }} />
+          {options.map((type) => (
+            <button key={type} className="promo" onClick={() => onPick(type)} title={vt(variant).pieceName(type)}>
+              <PieceView variant={variant} piece={{ type, color }} />
             </button>
           ))}
         </div>

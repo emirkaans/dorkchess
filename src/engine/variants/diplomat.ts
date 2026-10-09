@@ -3,7 +3,7 @@ import type { Color, MovePattern, PieceDefinition, Position, Square } from '../t
 import { codeType } from '../fast/board.ts';
 import type { FastBoard } from '../fast/board.ts';
 import { SLAB_BASE, glyphStyleSvg } from './icons.ts';
-import { STANDARD_PIECES, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
+import { STANDARD_PIECES, STANDARD_PIECE_NAMES_EN, STANDARD_VALUES, defineVariant, fixedPatterns } from './standard.ts';
 
 /** Ranks (0-based: 3 = rank 4, 4 = rank 5) where a Diplomat's peace zone is active and can reach. */
 export const AURA_RANKS: readonly number[] = [3, 4];
@@ -143,6 +143,40 @@ export const diplomat = defineVariant({
         caption: "Bölge şahı korumaz: e4'teki şah bölgede olsa da e8'deki kale şah çekiyor.",
       },
     ],
+  },
+  translations: {
+    en: {
+      name: 'Diplomat',
+      description: [
+        'A Diplomat (D) starts in place of the knights on g1/g8.',
+        'The Diplomat moves 1 square in any direction, only to an empty square; it never captures or gives check.',
+        'Its peace zone (aura) is active only while the Diplomat stands on rank 4 or 5: the adjacent squares, but only those on ranks 4 and 5.',
+        'A piece in the aura cannot be captured, except the king (a king in the aura can still be checked and mated).',
+        'A piece in the aura (king included) cannot capture; en passant follows this rule too.',
+        'The Diplomat can be captured, but only by a piece coming from outside the aura; its aura then disappears.',
+        'A pawn cannot promote to a Diplomat.',
+      ],
+      rules: {
+        title: 'Diplomat',
+        summary:
+          'A Diplomat starts in place of the knights on g1/g8. On rank 4 or 5 it sets up a peace zone around itself.',
+        bullets: [
+          'Moves 1 square in any direction, only to an empty square; never captures, never gives check.',
+          'Peace zone: the adjacent squares, but only those on ranks 4 and 5.',
+          'A piece in the zone cannot be captured (except the king) and cannot capture either.',
+          'The Diplomat can be captured, but only by a piece coming from outside the zone.',
+          'En passant follows the zone rule too.',
+        ],
+        captions: [
+          'Diplomat on d4: its peace zone is c4, e4, c5, d5, e5. It does not reach rank 3.',
+          'The rook on d5 is in the zone: it cannot take the knight on h5. Pieces in the zone cannot be taken either.',
+          'Diplomat on rank 3: no zone. The knight on e3 can be taken like any other piece.',
+          'The zone does not protect the king: the king on e4 is in the zone, yet the rook on e8 gives check.',
+        ],
+      },
+      pieceNames: { ...STANDARD_PIECE_NAMES_EN, d: 'Diplomat' },
+      highlightLabel: 'Peace zone',
+    },
   },
   captureAllowed: (pos, from, victimSquare, _attacker, victim) => {
     // Rule 2: nothing standing in a zone captures (king included).

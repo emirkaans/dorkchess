@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { LOW_TIME_MS, formatClock, remainingMs } from '../clock/clock.ts';
 import type { ClockState } from '../clock/clock.ts';
 import type { Color } from '../engine/index.ts';
-
-const COLOR_NAME = { w: 'Beyaz', b: 'Siyah' } as const;
+import { useI18n } from './i18n.tsx';
 
 interface Props {
   clock: ClockState;
@@ -14,6 +13,7 @@ interface Props {
 /** One side's clock: red with tenths in the last 10 seconds, highlighted while running. */
 export function ClockView({ clock, color, players }: Props) {
   // Only this component re-renders while the clock runs.
+  const { t } = useI18n();
   const [, setTick] = useState(0);
   const running = clock.running === color;
   useEffect(() => {
@@ -25,10 +25,10 @@ export function ClockView({ clock, color, players }: Props) {
   const p = players[color];
   const classes = ['clock', clock.running === color ? 'running' : '', ms < LOW_TIME_MS ? 'low' : ''].join(' ');
   return (
-    <div className={classes} aria-label={`${COLOR_NAME[color]} saati`}>
+    <div className={classes} aria-label={t('clock.label', { color: t(`color.${color}`) })}>
       <span className="clock-name">
-        {COLOR_NAME[color]}
-        {p.kind === 'bot' ? ` · bot ${p.level}` : ''}
+        {t(`color.${color}`)}
+        {p.kind === 'bot' ? ` · ${t('clock.bot', { level: p.level ?? '' })}` : ''}
       </span>
       <span className="clock-time">{formatClock(ms)}</span>
     </div>

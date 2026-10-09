@@ -38,6 +38,8 @@ const BOARD = 400;
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('dorkchess:hideRules:standard', 'true');
+  // Tests read Turkish texts unless they switch the language themselves.
+  localStorage.setItem('dorkchess:prefs', JSON.stringify({ locale: 'tr' }));
   bot.pending.length = 0;
   // happy-dom has no layout: give the board a size so pointer positions map to squares.
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
@@ -275,5 +277,39 @@ describe('uygulama: erişilebilirlik', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: /kuralları/ })).toBeNull();
     expect(document.activeElement).toBe(rulesButton);
+  });
+});
+
+describe('uygulama: dil', () => {
+  it('İngilizceye geçince arayüz, varyant metinleri ve ekran okuyucu etiketleri İngilizce olur', () => {
+    startGame({ mode: 'hotseat' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dil' }), { target: { value: 'en' } });
+    expect(screen.getByRole('button', { name: 'New game' })).toBeTruthy();
+    expect(status()).toBe('White to move');
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.querySelector('.side h2')?.textContent).toBe('Standard');
+    const e2 = document.querySelector(`[data-square="${parseSquare('e2')}"]`)!;
+    expect(e2.getAttribute('aria-label')).toBe('e2, white pawn');
+    move('e2', 'e4');
+    expect(document.querySelector('[aria-live]')?.textContent).toBe('White: e4');
+    // The choice is remembered.
+    expect(JSON.parse(localStorage.getItem('dorkchess:prefs')!).locale).toBe('en');
+  });
+
+  it('kayıtlı dil yoksa tarayıcı dili seçilir (Türkçe değilse İngilizce)', () => {
+    localStorage.removeItem('dorkchess:prefs');
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US']);
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Start game' })).toBeTruthy();
+  });
+
+  it('Jester kurulum sorusu İngilizce sorulur', () => {
+    localStorage.setItem('dorkchess:prefs', JSON.stringify({ locale: 'en' }));
+    localStorage.setItem('dorkchess:hideRules:jester', 'true');
+    localStorage.setItem('dorkchess:settings', JSON.stringify({ mode: 'hotseat', variantId: 'jester' }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(screen.getByRole('dialog', { name: 'White: which piece becomes the Jester?' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Right knight \(g1\)/ })).toBeTruthy();
   });
 });

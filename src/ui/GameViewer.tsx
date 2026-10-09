@@ -7,6 +7,7 @@ import { HINT } from '../ai/levels.ts';
 import type { GameState, Move, VariantDefinition } from '../engine/index.ts';
 import { Board } from './Board.tsx';
 import { MoveList } from './MoveList.tsx';
+import { useI18n } from './i18n.tsx';
 
 /** Search time per position during analysis. */
 export const ANALYSIS_MS = 300;
@@ -84,6 +85,7 @@ interface Props {
 
 /** Read-only game viewer: board, move list, slider; optional analysis (eval bar, graph, best move, marks). */
 export function GameViewer({ variant, states, children, autoAnalyse = false }: Props) {
+  const { t } = useI18n();
   const [cursor, setCursor] = useState(states.length - 1);
   const { analysis, start, stop } = useAnalysis(variant, states);
   const state = states[cursor];
@@ -133,32 +135,34 @@ export function GameViewer({ variant, states, children, autoAnalyse = false }: P
         max={last}
         value={cursor}
         onChange={(e) => setCursor(Number(e.target.value))}
-        aria-label="Hamle"
+        aria-label={t('nav.slider')}
       />
       <div className="controls">
-        <button onClick={() => setCursor(0)} disabled={cursor === 0} aria-label="Başa">
+        <button onClick={() => setCursor(0)} disabled={cursor === 0} aria-label={t('nav.first')}>
           ⏮
         </button>
-        <button onClick={() => setCursor((c) => Math.max(0, c - 1))} disabled={cursor === 0} aria-label="Geri">
+        <button onClick={() => setCursor((c) => Math.max(0, c - 1))} disabled={cursor === 0} aria-label={t('nav.back')}>
           ◀
         </button>
         <span className="muted replay-pos">
           {cursor}/{last}
         </span>
-        <button onClick={() => setCursor((c) => Math.min(last, c + 1))} disabled={cursor === last} aria-label="İleri">
+        <button
+          onClick={() => setCursor((c) => Math.min(last, c + 1))}
+          disabled={cursor === last}
+          aria-label={t('nav.forward')}
+        >
           ▶
         </button>
-        <button onClick={() => setCursor(last)} disabled={cursor === last} aria-label="Sona">
+        <button onClick={() => setCursor(last)} disabled={cursor === last} aria-label={t('nav.last')}>
           ⏭
         </button>
         {analysis.running ? (
-          <button onClick={stop}>
-            Analiz: {analysed}/{states.length} — durdur
-          </button>
+          <button onClick={stop}>{t('analysis.progress', { done: analysed, total: states.length })}</button>
         ) : (
           analysed < states.length && (
             <button className="primary" onClick={() => void start()}>
-              {analysed ? 'Analize devam et' : 'Analiz et'}
+              {analysed ? t('analysis.continue') : t('analysis.start')}
             </button>
           )
         )}
@@ -166,8 +170,8 @@ export function GameViewer({ variant, states, children, autoAnalyse = false }: P
       </div>
       {analysed > 0 && (
         <p className="muted analysis-note">
-          {score !== null ? `Değerlendirme: ${formatScore(score)}` : 'Bu konum henüz analiz edilmedi.'}
-          {best ? ' · Ok: motorun önerdiği hamle.' : ''} ?? = hata (2+ piyon), ? = yanlışlık (1+ piyon).
+          {score !== null ? t('analysis.score', { score: formatScore(score) }) : t('analysis.notYet')}
+          {best ? t('analysis.arrow') : ''} {t('analysis.marks')}
         </p>
       )}
     </div>
@@ -176,9 +180,10 @@ export function GameViewer({ variant, states, children, autoAnalyse = false }: P
 
 /** Vertical bar: White's share from the bottom, the score as text. */
 function EvalBar({ score }: { score: WhiteScore | null }) {
+  const { t } = useI18n();
   const share = score === null ? 0.5 : whiteShare(score);
   return (
-    <div className="eval-bar" title={score === null ? '' : formatScore(score)} aria-label="Değerlendirme çubuğu">
+    <div className="eval-bar" title={score === null ? '' : formatScore(score)} aria-label={t('analysis.bar')}>
       <div className="eval-white" style={{ height: `${share * 100}%` }} />
       <span className={share >= 0.5 ? 'eval-text bottom' : 'eval-text top'}>
         {score === null ? '…' : formatScore(score)}
@@ -197,6 +202,7 @@ function EvalGraph({
   cursor: number;
   onSelect: (i: number) => void;
 }) {
+  const { t } = useI18n();
   const n = Math.max(1, evals.length - 1);
   const y = (s: number) => 100 - graphValue(s) / 8; // ±800 -> 0..200
   const points = evals.flatMap((s, i) => (s === null ? [] : [`${(i / n) * 400},${y(s)}`]));
@@ -206,7 +212,7 @@ function EvalGraph({
       viewBox="0 0 400 200"
       preserveAspectRatio="none"
       role="img"
-      aria-label="Değerlendirme grafiği"
+      aria-label={t('analysis.graph')}
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         if (r.width > 0) onSelect(Math.round(((e.clientX - r.left) / r.width) * n));

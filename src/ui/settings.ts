@@ -28,11 +28,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   timeControl: 'none',
 };
 
-export const MODE_NAMES: Record<Mode, string> = {
-  hotseat: 'İki kişi (aynı ekran)',
-  bot: 'Bilgisayara karşı',
-  botvbot: 'Bot vs Bot (izle)',
-};
+export const MODES: readonly Mode[] = ['hotseat', 'bot', 'botvbot'];
 
 export const BOT_DELAYS = [200, 1000, 2000] as const;
 

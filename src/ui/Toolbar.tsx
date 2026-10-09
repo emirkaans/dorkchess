@@ -1,3 +1,6 @@
+import { LOCALES, isLocale } from '../i18n/index.ts';
+import type { MessageKey } from '../i18n/index.ts';
+import { useI18n } from './i18n.tsx';
 import { BOARD_THEMES, UI_MODES } from './prefs.ts';
 import type { BoardTheme, Prefs, UiMode } from './prefs.ts';
 
@@ -10,33 +13,50 @@ interface Props {
   onNewGame: () => void;
 }
 
-/** Top bar: game label, rules, history, theme / interface / sound preferences, new game. */
+/** Top bar: game label, rules, history, theme / interface / language / sound preferences, new game. */
 export function Toolbar({ label, prefs, onPrefs, onRules, onHistory, onNewGame }: Props) {
+  const { t } = useI18n();
   return (
     <header className="toolbar">
       <h1>dorkchess</h1>
       <span className="muted game-label">{label}</span>
-      <button onClick={onRules}>Kurallar</button>
-      <button onClick={onHistory}>Geçmiş</button>
+      <button onClick={onRules}>{t('toolbar.rules')}</button>
+      <button onClick={onHistory}>{t('toolbar.history')}</button>
       <label className="pref">
-        Tema{' '}
+        {t('toolbar.theme')}{' '}
         <select
           value={prefs.boardTheme}
           onChange={(e) => onPrefs((p) => ({ ...p, boardTheme: e.target.value as BoardTheme }))}
         >
-          {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((t) => (
-            <option key={t} value={t}>
-              {BOARD_THEMES[t]}
+          {BOARD_THEMES.map((theme) => (
+            <option key={theme} value={theme}>
+              {t(`theme.${theme}` as MessageKey)}
             </option>
           ))}
         </select>
       </label>
       <label className="pref">
-        Arayüz{' '}
+        {t('toolbar.interface')}{' '}
         <select value={prefs.ui} onChange={(e) => onPrefs((p) => ({ ...p, ui: e.target.value as UiMode }))}>
-          {(Object.keys(UI_MODES) as UiMode[]).map((m) => (
+          {UI_MODES.map((m) => (
             <option key={m} value={m}>
-              {UI_MODES[m]}
+              {t(`ui.${m}` as MessageKey)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="pref">
+        {t('toolbar.language')}{' '}
+        <select
+          value={prefs.locale}
+          onChange={(e) => {
+            const locale = e.target.value;
+            if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
+          }}
+        >
+          {Object.entries(LOCALES).map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
             </option>
           ))}
         </select>
@@ -44,11 +64,11 @@ export function Toolbar({ label, prefs, onPrefs, onRules, onHistory, onNewGame }
       <button
         onClick={() => onPrefs((p) => ({ ...p, sound: !p.sound }))}
         aria-pressed={prefs.sound}
-        title={prefs.sound ? 'Sesi kapat' : 'Sesi aç'}
+        title={prefs.sound ? t('toolbar.mute') : t('toolbar.unmute')}
       >
-        {prefs.sound ? '🔊 Ses' : '🔇 Sessiz'}
+        {prefs.sound ? t('toolbar.soundOn') : t('toolbar.soundOff')}
       </button>
-      <button onClick={onNewGame}>Yeni oyun</button>
+      <button onClick={onNewGame}>{t('toolbar.newGame')}</button>
     </header>
   );
 }

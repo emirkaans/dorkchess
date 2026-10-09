@@ -2,15 +2,27 @@ import { FILES, opposite } from '../board.ts';
 import type {
   Color,
   MovePattern,
+  PieceBadge,
   PieceDefinition,
   PieceType,
   Position,
   SetupQuestion,
+  SetupQuestionTexts,
   VariantExtra,
 } from '../types.ts';
 import type { FastBoard } from '../fast/board.ts';
 import type { FastHooks, Side } from '../fast/hooks.ts';
-import { BISHOP, KING_STEP, KNIGHT, QUEEN, ROOK, STANDARD_PIECES, STANDARD_VALUES, defineVariant } from './standard.ts';
+import {
+  BISHOP,
+  KING_STEP,
+  KNIGHT,
+  QUEEN,
+  ROOK,
+  STANDARD_PIECES,
+  STANDARD_PIECE_NAMES_EN,
+  STANDARD_VALUES,
+  defineVariant,
+} from './standard.ts';
 
 /**
  * Jester moves and captures like the piece type the OPPONENT moved last
@@ -100,15 +112,29 @@ export const JESTER: PieceDefinition = {
   capturable: true,
   material: 'major',
   icon: { kind: 'svg', svg: jesterSvg },
-  badge: (pos, color) => {
-    const form = jesterForm(pos, color);
-    const formDef = STANDARD_PIECES[form];
-    const t = lastMoved(pos)[opposite(color)];
-    const title =
-      t === null ? `Rakip henüz hamle yapmadı: varsayılan form (${formDef.name})` : `Rakibin son taşı: ${formDef.name}`;
-    return { label: formDef.icon.kind === 'glyph' ? formDef.icon.glyph : form.toUpperCase(), title };
-  },
+  badge: (pos, color) =>
+    jesterBadge(
+      pos,
+      color,
+      (name) => `Rakip henüz hamle yapmadı: varsayılan form (${name})`,
+      (name) => `Rakibin son taşı: ${name}`,
+      (t) => STANDARD_PIECES[t].name,
+    ),
 };
+
+/** Badge showing the Jester's current form; the texts come from the caller's language. */
+function jesterBadge(
+  pos: Position,
+  color: Color,
+  noMoveYet: (name: string) => string,
+  lastPiece: (name: string) => string,
+  pieceName: (type: PieceType) => string,
+): PieceBadge {
+  const form = jesterForm(pos, color);
+  const formDef = STANDARD_PIECES[form];
+  const title = lastMoved(pos)[opposite(color)] === null ? noMoveYet(pieceName(form)) : lastPiece(pieceName(form));
+  return { label: formDef.icon.kind === 'glyph' ? formDef.icon.glyph : form.toUpperCase(), title };
+}
 
 // ---------------------------------------------------------------------------
 // Setup: each player picks which back-rank piece (queen, rook, bishop or knight;
@@ -119,24 +145,45 @@ const BACK_RANK = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
 /** Option id = file letter of the replaced piece's start square. */
 const SLOT_FILES = ['d', 'a', 'h', 'c', 'f', 'b', 'g'];
 
+/** The piece an option replaces and whether it stands on that player's left. */
+function slot(color: Color, f: string) {
+  const file = FILES.indexOf(f);
+  return {
+    type: BACK_RANK[file],
+    leftSide: color === 'w' ? file < 4 : file > 4,
+    square: f + (color === 'w' ? '1' : '8'),
+  };
+}
+
 function setupQuestion(color: Color): SetupQuestion {
-  const rank = color === 'w' ? '1' : '8';
   return {
     id: color,
     color,
     title: `${color === 'w' ? 'Beyaz' : 'Siyah'}: hangi taşınız Jester olsun?`,
     defaultOption: 'g',
     options: SLOT_FILES.map((f) => {
-      const file = FILES.indexOf(f);
-      const type = BACK_RANK[file];
+      const { type, leftSide, square } = slot(color, f);
       const name = STANDARD_PIECES[type].name;
-      const leftSide = color === 'w' ? file < 4 : file > 4;
       const label =
         type === 'q'
-          ? `${name} (${f}${rank})`
-          : `${leftSide ? 'Sol' : 'Sağ'} ${name.toLocaleLowerCase('tr')} (${f}${rank})`;
+          ? `${name} (${square})`
+          : `${leftSide ? 'Sol' : 'Sağ'} ${name.toLocaleLowerCase('tr')} (${square})`;
       return { id: f, label, icon: { type, color } };
     }),
+  };
+}
+
+function setupQuestionEn(color: Color): SetupQuestionTexts {
+  const options = SLOT_FILES.map((f) => {
+    const { type, leftSide, square } = slot(color, f);
+    const name = STANDARD_PIECE_NAMES_EN[type];
+    const label =
+      type === 'q' ? `${name} (${square})` : `${leftSide ? 'Left' : 'Right'} ${name.toLowerCase()} (${square})`;
+    return [f, label] as const;
+  });
+  return {
+    title: `${color === 'w' ? 'White' : 'Black'}: which piece becomes the Jester?`,
+    options: Object.fromEntries(options),
   };
 }
 
@@ -209,6 +256,47 @@ export const jester = defineVariant({
           "Vezirle a4'teki kaleyi almak yasal değil: vezir oynanınca siyah Jester vezir olur ve e hattından şahı alır.",
       },
     ],
+  },
+  translations: {
+    en: {
+      name: 'Jester',
+      description: [
+        "Before the game each player picks their queen or left/right rook, bishop or knight as the Jester (J); the Jester takes that piece's place.",
+        'If a rook is picked, that side cannot castle on that wing.',
+        'The Jester moves and captures like the type of piece the opponent moved last (its form).',
+        "If the opponent castled it takes the King form (1 square, no castling); if the opponent moved their Jester, that Jester's current form; with no move yet, the Knight form.",
+        'Pawn form: one square forward, diagonal captures; no double step, en passant or promotion.',
+        "Careful: the type of piece you move becomes the opponent Jester's next form. A move that leaves your king open to that form is illegal.",
+      ],
+      rules: {
+        title: 'Jester',
+        summary: 'The Jester moves and captures like the type of piece the opponent moved last.',
+        bullets: [
+          'Before the game each player picks which piece (queen, rook, bishop, knight) becomes their Jester.',
+          'If the opponent just moved a bishop the Jester moves like a bishop; after a pawn move, like a pawn.',
+          'In pawn form there is no double step, en passant or promotion; after castling it takes the king form.',
+          'With no opponent move yet it takes the knight form.',
+          "The type of piece you move becomes the opponent Jester's form: a move that leaves your king open to that form is illegal.",
+        ],
+        captions: [
+          'Black just moved a bishop: the white Jester moves like a bishop and can take the pawn on h5.',
+          'Black moved a pawn: the Jester steps one square forward or captures diagonally. No double step, no promotion.',
+          'Taking the rook on a4 with the queen is illegal: after a queen move the black Jester becomes a queen and takes the king along the e-file.',
+        ],
+      },
+      pieceNames: { ...STANDARD_PIECE_NAMES_EN, j: 'Jester' },
+      setup: { w: setupQuestionEn('w'), b: setupQuestionEn('b') },
+      badges: {
+        j: (pos, color) =>
+          jesterBadge(
+            pos,
+            color,
+            (name) => `The opponent has not moved yet: default form (${name})`,
+            (name) => `Opponent's last piece: ${name}`,
+            (t) => STANDARD_PIECE_NAMES_EN[t],
+          ),
+      },
+    },
   },
   initialExtra,
   fast: FAST_HOOKS,
