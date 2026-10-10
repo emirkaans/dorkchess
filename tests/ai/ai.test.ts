@@ -176,3 +176,22 @@ describe('süre sınırı', () => {
     expect(legalMoves(v, g.position).some((m) => m.from === r.move.from && m.to === r.move.to)).toBe(true);
   });
 });
+
+describe('tekrar', () => {
+  it('oyunda bir kez görülmüş konuma dönmek beraberlik sayılmaz (üç kez tekrar gerekir)', async () => {
+    // A real online game: 38. Qf6+ repeats the position after 36. Qf6+ once.
+    // Black's Ke2 would repeat a position seen once too, which is no draw:
+    // White can play on and is clearly winning.
+    const { playSan } = await import('../../src/engine/game.ts');
+    const v = getVariant('standard');
+    const line =
+      'e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 Nc3 O-O O-O d6 Bg5 h6 Bh4 Bg4 h3 Bxf3 Qxf3 Nd4 Qd1 a6 Nd5 g5 Nxf6+ Qxf6 ' +
+      'c3 Ne6 Bxe6 fxe6 Bg3 Bxf2+ Rxf2 Qg6 Rxf8+ Rxf8 Qe2 Qg7 Rf1 c5 Rxf8+ Qxf8 Qg4 b5 Qxe6+ Kg7 h4 gxh4 ' +
+      'Bxh4 c4 dxc4 bxc4 Qxc4 Qf4 Qc7+ Kg6 Qxd6+ Kh5 Bf2 Qxe4 Qxa6 Qc2 Qb5 Qe4 Qe8+ Kg4 Qe6+ Kf4 g3+ Kf3 ' +
+      'Qf6+ Ke2 Qa6+ Kf3 Qf6+';
+    const state = playSan(v, createGame(v), ...line.split(' '));
+    const r = chooseMove(v, state, 4, { timeLimitMs: 300, seed: 1 });
+    // Score from Black's point of view: clearly lost, not 0.
+    expect(r.score).toBeLessThan(-200);
+  });
+});

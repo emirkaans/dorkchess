@@ -198,13 +198,23 @@ class Searcher {
     this.keysHi[this.base + ply] = this.b.keyHi();
   }
 
-  /** Did the current position occur before since the last irreversible move (path or game)? */
+  /**
+   * Is the current position a draw by repetition? A repeat inside the search
+   * (root included) counts at once: the side that repeats could keep doing so.
+   * A position seen only in the game before the root counts when it was seen
+   * twice already (a real threefold repetition); one earlier occurrence leaves
+   * both sides free to play on.
+   */
   private repeated(ply: number): boolean {
     const idx = this.base + ply;
     const lo = this.keysLo[idx];
     const hi = this.keysHi[idx];
     const stop = Math.max(0, idx - this.b.halfmove);
-    for (let i = idx - 2; i >= stop; i -= 2) if (this.keysLo[i] === lo && this.keysHi[i] === hi) return true;
+    let inGame = 0;
+    for (let i = idx - 2; i >= stop; i -= 2) {
+      if (this.keysLo[i] !== lo || this.keysHi[i] !== hi) continue;
+      if (i >= this.base || ++inGame >= 2) return true;
+    }
     return false;
   }
 
