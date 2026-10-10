@@ -10,10 +10,9 @@ import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
-import { PieceView } from './PieceView.tsx';
-import { PlayerRow, lostPieces } from './PlayerRow.tsx';
+import { PlayerRow } from './PlayerRow.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
-import { Crown, Splatter } from './Punk.tsx';
+import { Splatter } from './Punk.tsx';
 import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
@@ -229,25 +228,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     .filter(Boolean)
     .join(' · ');
 
-  /** Captured pieces of one color, grouped by type: "×2". */
-  const capturedColumn = (color: Color) => {
-    const lost = lostPieces(variant, start, game.position, color);
-    const groups = [...new Set(lost)].map((type) => ({ type, n: lost.filter((x) => x === type).length }));
-    return (
-      <div className="captured">
-        <h3>{t('game.captured', { color: t(`color.${color}`) })}</h3>
-        {groups.map((g) => (
-          <div key={g.type} className="captured-item">
-            <span className="captured-piece">
-              <PieceView variant={variant} piece={{ type: g.type, color }} />
-            </span>
-            ×{g.n}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="app">
       {updateReady && (
@@ -272,17 +252,19 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         <HomePage onPlay={openNewGame} />
       ) : (
         <main className="layout">
-          <aside className="captures">
-            {capturedColumn(top)}
-            <p className="graffiti" aria-hidden="true">
-              {t('home.slogan1')}
-              <br />
-              {t('home.slogan2')}
-              <br />
-              {t('home.slogan3')}
-              <Crown />
-            </p>
-            {capturedColumn(bottom)}
+          <aside className="players" aria-label={t('game.players')}>
+            {[top, bottom].map((c) => (
+              <PlayerRow
+                key={c}
+                variant={variant}
+                color={c}
+                player={players[c]}
+                start={start}
+                position={game.position}
+                active={!outcome && !setup && turn === c}
+                clock={timed ? session.clock : null}
+              />
+            ))}
           </aside>
 
           <section className="board-wrap">
@@ -358,61 +340,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 <h2>{texts.name}</h2>
                 <span className="game-label">{gameLabel}</span>
               </div>
-              {[top, bottom].map((c) => (
-                <PlayerRow
-                  key={c}
-                  variant={variant}
-                  color={c}
-                  player={players[c]}
-                  start={start}
-                  position={game.position}
-                  active={!outcome && !setup && turn === c}
-                  clock={timed ? session.clock : null}
-                />
-              ))}
               <div className={`status${thinking ? ' thinking' : ''}${outcome || (inCheck && !setup) ? ' alert' : ''}`}>
                 {status}
               </div>
               {notice && <div className="notice">{notice}</div>}
-            </div>
-
-            <div className="box">
-              <div className="tabs" role="tablist" aria-label={t('game.tabs')}>
-                {(
-                  [
-                    ['moves', t('panel.moves')],
-                    ['variant', t('game.variantTab')],
-                    ['position', t('panel.position')],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    role="tab"
-                    aria-selected={tab === id}
-                    className={tab === id ? 'tab on' : 'tab'}
-                    onClick={() => setTab(id)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="tab-body" role="tabpanel">
-                {tab === 'moves' && (
-                  <MoveList
-                    game={view.endState}
-                    cursor={timeline.cursor}
-                    onSelect={vsBot ? () => {} : (cursor) => dispatch({ type: 'goTo', cursor })}
-                  />
-                )}
-                {tab === 'variant' && (
-                  <ul className="rules">
-                    {texts.description.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                )}
-                {tab === 'position' && <code className="fen">{fen}</code>}
-              </div>
             </div>
 
             {view.finalOutcome && view.endState.moves.length > 0 && (
@@ -452,6 +383,45 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             <button className="primary new-game-button" onClick={() => openNewGame()}>
               {t('toolbar.newGame')}
             </button>
+
+            <div className="box">
+              <div className="tabs" role="tablist" aria-label={t('game.tabs')}>
+                {(
+                  [
+                    ['moves', t('panel.moves')],
+                    ['variant', t('game.variantTab')],
+                    ['position', t('panel.position')],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={tab === id}
+                    className={tab === id ? 'tab on' : 'tab'}
+                    onClick={() => setTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="tab-body" role="tabpanel">
+                {tab === 'moves' && (
+                  <MoveList
+                    game={view.endState}
+                    cursor={timeline.cursor}
+                    onSelect={vsBot ? () => {} : (cursor) => dispatch({ type: 'goTo', cursor })}
+                  />
+                )}
+                {tab === 'variant' && (
+                  <ul className="rules">
+                    {texts.description.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+                {tab === 'position' && <code className="fen">{fen}</code>}
+              </div>
+            </div>
           </aside>
         </main>
       )}

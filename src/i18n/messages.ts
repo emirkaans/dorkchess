@@ -62,7 +62,7 @@ export const tr = {
   'home.botvbotSub': 'Arkana yaslan, izle',
 
   // Game page
-  'game.captured': 'Alınan: {color}',
+  'game.players': 'Oyuncular',
   'game.variantTab': 'Varyant',
   'game.tabs': 'Oyun bilgisi',
   'settings.title': 'Ayarlar',
@@ -280,7 +280,7 @@ export const en: Record<MessageKey, string> = {
   'home.botSub': 'Five levels',
   'home.botvbotSub': 'Sit back and watch',
 
-  'game.captured': 'Captured: {color}',
+  'game.players': 'Players',
   'game.variantTab': 'Variant',
   'game.tabs': 'Game info',
   'settings.title': 'Settings',

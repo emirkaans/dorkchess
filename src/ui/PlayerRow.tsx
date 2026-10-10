@@ -8,7 +8,7 @@ import { PieceView } from './PieceView.tsx';
 import { Avatar } from './Punk.tsx';
 
 /** Pieces of `color` missing from `now` compared with `start`, most valuable first. */
-export function lostPieces(v: VariantDefinition, start: Position, now: Position, color: Color): PieceType[] {
+function lostPieces(v: VariantDefinition, start: Position, now: Position, color: Color): PieceType[] {
   const count = (p: Position) => {
     const c = new Map<PieceType, number>();
     for (const piece of p.board) if (piece?.color === color) c.set(piece.type, (c.get(piece.type) ?? 0) + 1);
