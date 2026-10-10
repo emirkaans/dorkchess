@@ -48,9 +48,6 @@ const ICONS = {
     'M10 8h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z',
     'M15 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4',
   ],
-  link: ['M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1', 'M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'],
-  pin: ['M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z', 'M12 7.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'],
-  check: 'M5 12l5 5 9-10',
   back: 'M15 5l-7 7 7 7',
   forward: 'M9 5l7 7-7 7',
 };
@@ -135,17 +132,12 @@ interface ToolProps {
   canBrowse: boolean;
   canBack: boolean;
   canForward: boolean;
-  copied: 'fen' | 'game' | 'position' | null;
-  hasMoves: boolean;
   onBack: () => void;
   onForward: () => void;
   onFlip: () => void;
-  onCopy: () => void;
-  /** Copies a link to the whole game (when it has moves) or to the shown position. */
-  onCopyLink: (kind: 'game' | 'position') => void;
 }
 
-/** Icon bar under the move list: flip, copy, share links and move browsing. */
+/** Icon bar under the move list: flip and move browsing. */
 export function GameTools(p: ToolProps) {
   const { t } = useI18n();
   const tool = (key: string, label: string, icon: string | string[], onClick: () => void, disabled = false) => (
@@ -156,25 +148,6 @@ export function GameTools(p: ToolProps) {
   return (
     <div className="tools">
       {tool('flip', t('controls.flip'), ICONS.flip, p.onFlip)}
-      {tool(
-        'fen',
-        p.copied === 'fen' ? t('controls.copied') : t('controls.copyFen'),
-        p.copied === 'fen' ? ICONS.check : ICONS.copy,
-        p.onCopy,
-      )}
-      {p.hasMoves &&
-        tool(
-          'game',
-          p.copied === 'game' ? t('controls.linkCopied') : t('controls.gameLink'),
-          p.copied === 'game' ? ICONS.check : ICONS.link,
-          () => p.onCopyLink('game'),
-        )}
-      {tool(
-        'position',
-        p.copied === 'position' ? t('controls.linkCopied') : t('controls.positionLink'),
-        p.copied === 'position' ? ICONS.check : ICONS.pin,
-        () => p.onCopyLink('position'),
-      )}
       {p.canBrowse && tool('back', t('nav.back'), ICONS.back, p.onBack, !p.canBack)}
       {p.canBrowse && tool('forward', t('nav.forward'), ICONS.forward, p.onForward, !p.canForward)}
     </div>

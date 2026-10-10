@@ -3,6 +3,7 @@ import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import { AnalysisPage } from './AnalysisPage.tsx';
+import type { AnalysisSeed } from './AnalysisPage.tsx';
 import { Board } from './Board.tsx';
 import { BoardResizer } from './BoardResizer.tsx';
 import { GameControls, GameTools } from './GameControls.tsx';
@@ -19,14 +20,15 @@ import { Splatter } from './Punk.tsx';
 import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
+import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
 import type { Page } from './Toolbar.tsx';
 import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
-import { botName, newSession, outcomeText } from './game/session.ts';
+import { botName, newSession, outcomeText, resultCode } from './game/session.ts';
 import { errorText } from '../i18n/index.ts';
 import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
-import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
+import { decodeLink } from '../storage/share.ts';
 import type { GameState } from '../engine/index.ts';
 import { TIME_CONTROLS } from '../clock/clock.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
@@ -70,7 +72,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const [tab, setTab] = useState<Tab>('moves');
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
-  const [copied, setCopied] = useState<'fen' | 'game' | 'position' | null>(null);
+  /** Game sent to the analysis board (from a viewer, the game page or an online game). */
+  const [analysisSeed, setAnalysisSeed] = useState<AnalysisSeed | null>(null);
   /** A game opened from a shared link (shown in the viewer). */
   const [sharedGame, setSharedGame] = useState<readonly GameState[] | null>(null);
   const [showHighlight, setShowHighlight] = useState(true);
@@ -139,28 +142,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   };
 
   const fen = toFen(variant, game.position);
-  const copyText = async (text: string, what: 'fen' | 'game' | 'position') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(what);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      window.prompt(t('copyPrompt'), text);
-    }
+  const openAnalysis = (variantId: string, states: readonly GameState[], cursor: number) => {
+    setAnalysisSeed({ key: Date.now(), variantId, states, cursor });
+    setShowAnalysis(false);
+    setSharedGame(null);
+    setShowHistory(false);
+    setPage('analysis');
   };
-  const copyFen = () => copyText(fen, 'fen');
-  const copyLink = (kind: 'game' | 'position') => {
-    const hash =
-      kind === 'game'
-        ? encodeGame({
-            variantId: variant.id,
-            startFen: toFen(variant, timeline.states[0].position),
-            moves: view.endState.moves.map((m) => m.san),
-          })
-        : encodePosition(variant.id, fen);
-    void copyText(location.origin + location.pathname + hash, kind);
-  };
-
   // Opening a shared link: a game goes to the viewer, a position starts a two-player game from it.
   const openLinkRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -277,7 +265,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       {page === 'home' ? (
         <HomePage onPlay={openNewGame} />
       ) : page === 'analysis' ? (
-        <AnalysisPage initialVariantId={settings.variantId} />
+        <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={settings.variantId} seed={analysisSeed} />
       ) : page === 'online' ? (
         <OnlinePage
           gameId={onlineId}
@@ -286,6 +274,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           prefs={prefs}
           setPrefs={setPrefs}
           defaultVariantId={settings.variantId}
+          onOpenAnalysis={openAnalysis}
         />
       ) : (
         <main className="layout">
@@ -484,20 +473,27 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 canBrowse={!vsBot}
                 canBack={timeline.cursor > 0}
                 canForward={!atEnd}
-                copied={copied}
-                hasMoves={view.endState.moves.length > 0}
                 onBack={() => dispatch({ type: 'goTo', cursor: timeline.cursor - 1 })}
                 onForward={() => dispatch({ type: 'goTo', cursor: timeline.cursor + 1 })}
                 onFlip={() => setFlipped((f) => !f)}
-                onCopy={copyFen}
-                onCopyLink={copyLink}
               />
             </div>
+            <SharePanel
+              variant={variant}
+              states={timeline.states}
+              cursor={timeline.cursor}
+              meta={{
+                white: botName(players.w, t),
+                black: botName(players.b, t),
+                result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
+              }}
+              onOpenAnalysis={() => openAnalysis(variant.id, timeline.states, timeline.cursor)}
+            />
           </aside>
         </main>
       )}
 
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} onOpenAnalysis={openAnalysis} />}
       {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
         <Modal label={t('analysis.shared')} className="viewer-modal" onClose={() => setSharedGame(null)}>
@@ -509,6 +505,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 {t('analysis.shared')} · {vt(variantOf(sharedGame)).name}
               </h2>
             }
+            onOpenAnalysis={(states, cursor) => openAnalysis(sharedGame[0].variantId, states, cursor)}
           >
             <button onClick={() => setSharedGame(null)}>{t('close')}</button>
           </GameViewer>
@@ -526,6 +523,12 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 <p className="muted">{gameLabel}</p>
               </>
             }
+            meta={{
+              white: botName(players.w, t),
+              black: botName(players.b, t),
+              result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
+            }}
+            onOpenAnalysis={(states, cursor) => openAnalysis(variant.id, states, cursor)}
           >
             <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
           </GameViewer>

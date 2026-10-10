@@ -14,6 +14,7 @@ import { PlayerRow } from '../PlayerRow.tsx';
 import { PromotionDialog } from '../PromotionDialog.tsx';
 import { Splatter } from '../Punk.tsx';
 import { SetupDialog } from '../SetupDialog.tsx';
+import { SharePanel } from '../ShareTools.tsx';
 import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
@@ -39,6 +40,7 @@ interface Props {
   prefs: Prefs;
   setPrefs: Dispatch<SetStateAction<Prefs>>;
   defaultVariantId: string;
+  onOpenAnalysis: (variantId: string, states: readonly GameState[], cursor: number) => void;
 }
 
 export function OnlinePage({ gameId, ...rest }: Props) {
@@ -172,7 +174,7 @@ function clockOf(view: GameView, offset: number): ClockState {
   };
 }
 
-function OnlineGame({ gameId, onLobby, prefs, setPrefs }: Omit<Props, 'gameId'> & { gameId: string }) {
+function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<Props, 'gameId'> & { gameId: string }) {
   const { t, vt } = useI18n();
   const [ticket, setTicket] = useState(() => loadTicket(gameId));
   const link = useOnlineGame(gameId, ticket?.token ?? null);
@@ -548,6 +550,25 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs }: Omit<Props, 'gameId'> 
             </button>
           </div>
         </div>
+        {states.length > 0 && (
+          <SharePanel
+            variant={variant}
+            states={states}
+            cursor={shownIndex}
+            meta={{
+              white: nameOf('w'),
+              black: nameOf('b'),
+              result: !view.outcome
+                ? '*'
+                : view.outcome.winner === 'w'
+                  ? '1-0'
+                  : view.outcome.winner === 'b'
+                    ? '0-1'
+                    : '1/2-1/2',
+            }}
+            onOpenAnalysis={() => onOpenAnalysis(variant.id, states, shownIndex)}
+          />
+        )}
       </aside>
 
       {showAnalysis && (
@@ -564,6 +585,7 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs }: Omit<Props, 'gameId'> 
                 </p>
               </>
             }
+            onOpenAnalysis={(all, cursor) => onOpenAnalysis(variant.id, all, cursor)}
           >
             <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
           </GameViewer>

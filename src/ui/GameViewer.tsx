@@ -8,6 +8,8 @@ import { moveToSan } from '../engine/index.ts';
 import type { GameState, Move, VariantDefinition } from '../engine/index.ts';
 import { Board } from './Board.tsx';
 import { MoveList } from './MoveList.tsx';
+import { SharePanel } from './ShareTools.tsx';
+import type { PgnMeta } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
 
 /** Search time per position during analysis. */
@@ -84,6 +86,10 @@ interface Props {
   children?: ReactNode;
   /** Start analysing as soon as the viewer opens. */
   autoAnalyse?: boolean;
+  /** Names and result for the exported PGN. */
+  meta?: PgnMeta;
+  /** Opens the game on the analysis board at the given position. */
+  onOpenAnalysis?: (states: readonly GameState[], cursor: number) => void;
 }
 
 /** SAN of the engine's suggestion (empty if it cannot be written). */
@@ -112,7 +118,7 @@ const KEY_STEPS: Record<string, (cursor: number, last: number) => number> = {
  * side panel holds the engine line, the moves, the graph and the navigation.
  * Arrow keys step through the moves.
  */
-export function GameViewer({ variant, states, title, children, autoAnalyse = false }: Props) {
+export function GameViewer({ variant, states, title, children, autoAnalyse = false, meta, onOpenAnalysis }: Props) {
   const { t } = useI18n();
   const [cursor, setCursor] = useState(states.length - 1);
   const [flipped, setFlipped] = useState(false);
@@ -256,6 +262,13 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
         </div>
 
         {showEval && <p className="muted analysis-note">{t('analysis.marks')}</p>}
+        <SharePanel
+          variant={variant}
+          states={states}
+          cursor={cursor}
+          meta={meta}
+          onOpenAnalysis={onOpenAnalysis && (() => onOpenAnalysis(states, cursor))}
+        />
         {children && <div className="viewer-actions">{children}</div>}
       </div>
     </div>

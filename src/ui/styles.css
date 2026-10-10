@@ -2265,6 +2265,119 @@ button.primary:hover:not(:disabled) {
   animation: blink 1s infinite;
 }
 
+/* ---------- share / import ---------- */
+
+.share-box {
+  overflow: visible;
+}
+.share-box summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 16px;
+  cursor: pointer;
+  list-style: none;
+  font: 500 15px/1 var(--ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+.share-box summary::-webkit-details-marker {
+  display: none;
+}
+.share-box summary::after {
+  content: '';
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+.share-box[open] summary::after {
+  transform: rotate(-135deg);
+}
+.share-box summary:hover {
+  color: var(--pink);
+}
+.share-box summary .ic {
+  color: var(--pink);
+}
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+.share-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 13px;
+  text-align: left;
+}
+.share-item .ic {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.share-item:hover:not(:disabled) .ic {
+  color: var(--pink);
+}
+.viewer-side .share-box {
+  flex: none;
+}
+
+.analysis-import {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  font: 500 14px/1 var(--ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.analysis-import .ic {
+  width: 18px;
+  height: 18px;
+}
+
+.modal.import-modal {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.import-modal h2 {
+  margin: 0;
+}
+.import-help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.import-modal textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    13px/1.5 'Space Mono',
+    ui-monospace,
+    monospace;
+  resize: vertical;
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 1100px) {

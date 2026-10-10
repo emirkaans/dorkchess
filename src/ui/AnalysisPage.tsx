@@ -27,6 +27,8 @@ import { EvalBar } from './GameViewer.tsx';
 import { MoveList } from './MoveList.tsx';
 import { PieceView } from './PieceView.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
+import { ImportDialog, SharePanel } from './ShareTools.tsx';
+import type { ImportedLine } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
 
 /** Engine time per position on the analysis board. */
@@ -126,22 +128,40 @@ function useLiveAnalysis(variant: VariantDefinition, state: GameState | null, on
  * move, castling, FEN), then play moves for both sides while the engine
  * shows the evaluation bar, the score and its best move.
  */
-export function AnalysisPage({ initialVariantId }: { initialVariantId: string }) {
+/** A game handed to the analysis board, opened at `cursor`. */
+export interface AnalysisSeed {
+  /** Changes with every hand-over (the page starts afresh). */
+  readonly key: number;
+  readonly variantId: string;
+  readonly states: readonly GameState[];
+  readonly cursor: number;
+}
+
+export function AnalysisPage({
+  initialVariantId,
+  seed = null,
+}: {
+  initialVariantId: string;
+  seed?: AnalysisSeed | null;
+}) {
   const { t, vt } = useI18n();
-  const [variantId, setVariantId] = useState(initialVariantId);
+  const [variantId, setVariantId] = useState(seed?.variantId ?? initialVariantId);
   const variant = getVariant(variantId);
   const texts = vt(variant);
 
-  const [mode, setMode] = useState<'edit' | 'analyse'>('edit');
-  const [editPos, setEditPos] = useState<Position>(() => parseFen(variant, variant.startPosition));
+  const [mode, setMode] = useState<'edit' | 'analyse'>(seed ? 'analyse' : 'edit');
+  const [editPos, setEditPos] = useState<Position>(() =>
+    seed ? seed.states[seed.cursor].position : parseFen(variant, variant.startPosition),
+  );
   const [tool, setTool] = useState<Tool>({ kind: 'move' });
   const [pickFrom, setPickFrom] = useState<Square | null>(null);
   const [fenDraft, setFenDraft] = useState<string | null>(null);
   const [fenError, setFenError] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
 
-  const [states, setStates] = useState<GameState[]>([]);
-  const [cursor, setCursor] = useState(0);
+  const [states, setStates] = useState<GameState[]>(() => (seed ? [...seed.states] : []));
+  const [cursor, setCursor] = useState(seed?.cursor ?? 0);
+  const [importing, setImporting] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
   const [engineOn, setEngineOn] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -222,6 +242,18 @@ export function AnalysisPage({ initialVariantId }: { initialVariantId: string })
     setMode('analyse');
     setPromotion(null);
   };
+  /** A pasted PGN, FEN or link: a game opens in analysis mode at its last move. */
+  const importLine = (line: ImportedLine) => {
+    setVariantId(line.variantId);
+    setStates([...line.states]);
+    setCursor(line.states.length - 1);
+    setEditPos(line.states[line.states.length - 1].position);
+    setMode('analyse');
+    setPromotion(null);
+    setPickFrom(null);
+    setImporting(false);
+  };
+
   const backToEditor = () => {
     if (state) loadPosition(state.position);
     setMode('edit');
@@ -371,6 +403,12 @@ export function AnalysisPage({ initialVariantId }: { initialVariantId: string })
             <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
           </svg>
           <h1>{mode === 'edit' ? t('analysisPage.editor') : t('analysisPage.title')}</h1>
+          <button className="analysis-import" onClick={() => setImporting(true)}>
+            <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4M12 3v12M7 10l5 5 5-5" />
+            </svg>
+            {t('import.button')}
+          </button>
         </div>
 
         {mode === 'edit' ? (
@@ -597,6 +635,7 @@ export function AnalysisPage({ initialVariantId }: { initialVariantId: string })
                 </span>
               </label>
             )}
+            <SharePanel variant={variant} states={states} cursor={cursor} />
 
             <button className="analysis-go" onClick={backToEditor}>
               {t('analysisPage.edit')}
@@ -604,6 +643,7 @@ export function AnalysisPage({ initialVariantId }: { initialVariantId: string })
           </>
         )}
       </aside>
+      {importing && <ImportDialog variantId={variantId} onImport={importLine} onClose={() => setImporting(false)} />}
     </main>
   );
 }

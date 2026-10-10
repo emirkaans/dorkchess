@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { Modal } from './Modal.tsx';
 import { getVariant } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
-import { exportPgn, importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
-import { encodeGame } from '../storage/share.ts';
+import { importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
 import type { SavedGame } from '../storage/games.ts';
 import { errorText } from '../i18n/index.ts';
 import { recordTexts } from '../i18n/records.ts';
@@ -13,6 +12,7 @@ import type { I18n } from './i18n.tsx';
 
 interface Props {
   onClose: () => void;
+  onOpenAnalysis: (variantId: string, states: readonly GameState[], cursor: number) => void;
 }
 
 const formatDate = (iso: string, locale: string) =>
@@ -27,7 +27,7 @@ const variantName = (id: string, vt: I18n['vt']) => {
 };
 
 /** History: stored games, replay with a slider, PGN-like export/import. */
-export function HistoryModal({ onClose }: Props) {
+export function HistoryModal({ onClose, onOpenAnalysis }: Props) {
   const { t, vt, locale } = useI18n();
   const [games, setGames] = useState<SavedGame[]>(() => loadGames());
   const [open, setOpen] = useState<SavedGame | null>(null);
@@ -50,7 +50,7 @@ export function HistoryModal({ onClose }: Props) {
     <Modal label={t('history.label')} className={open ? 'viewer-modal' : 'history'} onClose={onClose}>
       <div>
         {open ? (
-          <Replay game={open} onBack={() => setOpen(null)} />
+          <Replay game={open} onBack={() => setOpen(null)} onOpenAnalysis={onOpenAnalysis} />
         ) : (
           <>
             <h2>{t('history.title')}</h2>
@@ -117,34 +117,19 @@ export function HistoryModal({ onClose }: Props) {
   );
 }
 
-function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
+function Replay({
+  game,
+  onBack,
+  onOpenAnalysis,
+}: {
+  game: SavedGame;
+  onBack: () => void;
+  onOpenAnalysis: Props['onOpenAnalysis'];
+}) {
   const { t, vt } = useI18n();
   const variant = getVariant(game.variantId);
   const states = useMemo<GameState[]>(() => replay(game), [game]);
-  const [copied, setCopied] = useState<'pgn' | 'link' | null>(null);
   const texts = recordTexts(game, t);
-  // The exported text carries the record's texts in the current language.
-  const pgn = exportPgn({ ...game, ...texts });
-
-  const copyText = async (text: string, what: 'pgn' | 'link') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(what);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      window.prompt(t('copyPrompt'), text);
-    }
-  };
-  const link = () => location.origin + location.pathname + encodeGame(game);
-
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([pgn], { type: 'text/plain;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `punkchess-${game.variantId}-${game.date.slice(0, 10)}.pgn`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="replay">
@@ -156,14 +141,9 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
             {variantName(game.variantId, vt)} · {texts.white} – {texts.black} · {game.result}
           </h2>
         }
+        meta={{ white: texts.white, black: texts.black, result: game.result, termination: texts.termination }}
+        onOpenAnalysis={(all, cursor) => onOpenAnalysis(game.variantId, all, cursor)}
       >
-        <button onClick={() => copyText(pgn, 'pgn')}>
-          {copied === 'pgn' ? t('controls.copied') : t('history.copyText')}
-        </button>
-        <button onClick={() => copyText(link(), 'link')}>
-          {copied === 'link' ? t('controls.linkCopied') : t('history.copyLink')}
-        </button>
-        <button onClick={download}>{t('history.download')}</button>
         <button onClick={onBack}>{t('history.back')}</button>
       </GameViewer>
     </div>
