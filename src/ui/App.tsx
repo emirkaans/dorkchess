@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
+import { AnalysisPage } from './AnalysisPage.tsx';
 import { Board } from './Board.tsx';
 import { BoardResizer } from './BoardResizer.tsx';
 import { GameControls, GameTools } from './GameControls.tsx';
@@ -84,8 +85,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   });
 
   const clients = useBotClients();
-  // The bot waits while a dialog is open or the home page is shown.
-  const paused = newGame !== null || showRules || page === 'home';
+  // The bot waits while a dialog is open or another page is shown.
+  const paused = newGame !== null || showRules || page !== 'game';
   const thinking = useBotPlayer(session, view, dispatch, clients.bot, paused, setNotice);
   useClockTicker(session, view, dispatch, sound);
   useGameFeedback(session, view, sound);
@@ -249,12 +250,15 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         onPrefs={setPrefs}
         onHome={() => setPage('home')}
         onPlay={goPlay}
+        onAnalysis={() => setPage('analysis')}
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
       />
 
       {page === 'home' ? (
         <HomePage onPlay={openNewGame} />
+      ) : page === 'analysis' ? (
+        <AnalysisPage initialVariantId={settings.variantId} />
       ) : (
         <main className="layout">
           <section

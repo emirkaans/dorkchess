@@ -3,7 +3,7 @@ import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
 
-export type Page = 'home' | 'game';
+export type Page = 'home' | 'game' | 'analysis';
 
 interface Props {
   page: Page;
@@ -11,12 +11,13 @@ interface Props {
   onPrefs: (update: (p: Prefs) => Prefs) => void;
   onHome: () => void;
   onPlay: () => void;
+  onAnalysis: () => void;
   onHistory: () => void;
   onSettings: () => void;
 }
 
-/** Top bar: logo, main menu (home, play, history), language and settings. */
-export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onHistory, onSettings }: Props) {
+/** Top bar: logo, main menu (home, play, analysis, history), language and settings. */
+export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHistory, onSettings }: Props) {
   const { t } = useI18n();
   return (
     <header className="toolbar">
@@ -39,6 +40,13 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onHistory, onSet
           onClick={onPlay}
         >
           {t('menu.play')}
+        </button>
+        <button
+          className={page === 'analysis' ? 'on' : ''}
+          aria-current={page === 'analysis' ? 'page' : undefined}
+          onClick={onAnalysis}
+        >
+          {t('menu.analysis')}
         </button>
         <button onClick={onHistory}>{t('toolbar.history')}</button>
       </nav>

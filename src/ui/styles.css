@@ -1950,6 +1950,231 @@ button.primary:hover:not(:disabled) {
   }
 }
 
+/* ---------- analysis board page ---------- */
+
+.analysis-page {
+  --bar: 26px;
+  --board: clamp(300px, min(100vh - 130px, 100vw - 48px - 40px - var(--bar) - 400px), 900px);
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+}
+.analysis-board {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.analysis-board-inner {
+  position: relative;
+  width: var(--board);
+  height: var(--board);
+}
+/* Transparent squares over the board while editing: they take the clicks. */
+.editor-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+}
+.editor-square {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: crosshair;
+}
+.editor-square:hover:not(:disabled) {
+  background: rgba(255, 46, 147, 0.18);
+}
+.editor-square.picked {
+  background: rgba(198, 255, 61, 0.35);
+  box-shadow: inset 0 0 0 3px var(--lime);
+}
+
+.analysis-side {
+  flex: 1 1 340px;
+  max-width: 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.analysis-page .viewer-moves {
+  flex: none;
+  height: clamp(160px, calc(var(--board) - 470px), 520px);
+}
+.analysis-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.analysis-head .bolt {
+  width: 26px;
+  height: 26px;
+  fill: var(--pink);
+  flex: none;
+}
+.analysis-head h1 {
+  margin: 0;
+  font: 400 30px/1 var(--marker);
+}
+.analysis-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 500 13px/1 var(--ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.analysis-field select,
+.analysis-field input {
+  font:
+    400 13px/1.2 'Space Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg);
+  border-radius: 4px;
+}
+.analysis-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.fen-row {
+  display: flex;
+  gap: 6px;
+}
+.fen-row button {
+  flex: none;
+  border-radius: 4px;
+  font: 500 14px/1 var(--ui);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.palette-tool {
+  --board: 368px;
+  aspect-ratio: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 4px;
+  background: var(--bg);
+}
+.palette-tool .piece {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.palette-tool.on {
+  border-color: var(--pink);
+  background: rgba(255, 46, 147, 0.2);
+  color: var(--pink);
+}
+.analysis-hint {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.analysis-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.analysis-row legend {
+  margin-bottom: 6px;
+  font: 500 13px/1 var(--ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.analysis-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.analysis-buttons button {
+  flex: 1 1 auto;
+  border-radius: 4px;
+}
+.analysis-problem {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--pink);
+  border-radius: 4px;
+  color: var(--pink);
+  font-size: 13px;
+}
+.analysis-go {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 4px;
+  font: 500 17px/1 var(--ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.analysis-go.primary {
+  font: 400 22px/1 var(--marker);
+}
+.analysis-depth {
+  margin-left: auto;
+  font-size: 12px;
+}
+.analysis-page .viewer-engine .switch-row {
+  width: 100%;
+  font: 500 15px/1 var(--ui);
+}
+.analysis-page .status {
+  align-self: flex-start;
+}
+
+@media (max-width: 1100px) {
+  .analysis-page {
+    --board: clamp(280px, min(100vw - 48px - var(--bar) - 8px, 100vh - 130px), 880px);
+  }
+  .analysis-side {
+    max-width: calc(var(--board) + var(--bar) + 8px);
+    flex-basis: 100%;
+  }
+  .analysis-page .viewer-moves {
+    height: 260px;
+  }
+}
+@media (max-width: 760px) {
+  .analysis-page {
+    --board: calc(100vw - 24px - var(--bar) - 8px);
+    padding: 14px 12px 32px;
+  }
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 1100px) {

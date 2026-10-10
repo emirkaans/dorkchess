@@ -271,7 +271,7 @@ function NavIcon({ d }: { d: string }) {
 }
 
 /** Vertical bar beside the board: White's share from White's side (bottom unless flipped), Black's above. */
-function EvalBar({ score, flipped }: { score: WhiteScore | null; flipped: boolean }) {
+export function EvalBar({ score, flipped }: { score: WhiteScore | null; flipped: boolean }) {
   const { t } = useI18n();
   const share = score === null ? 0.5 : whiteShare(score);
   const whiteAhead = share >= 0.5;

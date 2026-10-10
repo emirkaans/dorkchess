@@ -316,3 +316,48 @@ describe('uygulama: dil', () => {
     expect(screen.getByRole('button', { name: /Right knight \(g1\)/ })).toBeTruthy();
   });
 });
+
+describe('analiz tahtası', () => {
+  it('menüden açılır; tahta yapıcıda konum kurulur, analizde motor sorulur ve hamle oynanır', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Analiz' }));
+    expect(screen.getByRole('heading', { name: 'Tahta yapıcı' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tahtayı temizle' }));
+    expect(document.querySelector('.analysis-problem')?.textContent).toBe('İki tarafın da şahı olmalı.');
+    const place = (tool: string, square: string) => {
+      fireEvent.click(screen.getByRole('button', { name: tool }));
+      fireEvent.click(document.querySelector(`.editor-square[aria-label^="${square}:"]`)!);
+    };
+    place('Beyaz Şah', 'g1');
+    place('Siyah Şah', 'g8');
+    place('Beyaz Kale', 'a1');
+    for (const sq of ['f7', 'g7', 'h7']) place('Siyah Piyon', sq);
+    expect(document.querySelector('.analysis-problem')).toBeNull();
+    expect((document.querySelector('.fen-row input') as HTMLInputElement).value).toMatch(
+      /^6k1\/5ppp\/8\/8\/8\/8\/8\/R5K1 w - /,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analize başla' }));
+    expect(screen.getByRole('heading', { name: 'Analiz tahtası' })).toBeTruthy();
+    expect(bot.pending).toHaveLength(1);
+    const v = getVariant('standard');
+    const best = findMove(
+      v,
+      { ...bot.pending[0].opts.state, result: null } as never,
+      parseSquare('a1'),
+      parseSquare('a8'),
+    )!;
+    await act(async () => bot.pending[0].resolve({ move: best, score: 30000, depth: 3, nodes: 1 }));
+    expect(document.querySelector('.viewer-best')?.textContent).toBe('En iyi: Ra8#');
+
+    // The analysis board is the only board on the page.
+    const analysisBoard = document.querySelector('.analysis-page .board') as HTMLElement;
+    for (const sq of ['a1', 'a8']) {
+      fireEvent.pointerDown(analysisBoard, { ...at(sq), button: 0, pointerId: 1 });
+      fireEvent.pointerUp(analysisBoard, { ...at(sq), button: 0, pointerId: 1 });
+    }
+    expect(moves()).toEqual(['Ra8#']);
+    expect(document.querySelector('.analysis-page .status')?.textContent).toContain('Mat');
+  });
+});
