@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import { Board } from './Board.tsx';
-import { GameControls } from './GameControls.tsx';
+import { BoardResizer } from './BoardResizer.tsx';
+import { GameControls, GameTools } from './GameControls.tsx';
 import { GameViewer } from './GameViewer.tsx';
 import { HistoryModal } from './HistoryModal.tsx';
 import { HomePage } from './HomePage.tsx';
@@ -69,6 +70,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   /** A game opened from a shared link (shown in the viewer). */
   const [sharedGame, setSharedGame] = useState<readonly GameState[] | null>(null);
   const [showHighlight, setShowHighlight] = useState(true);
+  const boardArea = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // A new app version is installed and waiting (service worker): offer a reload.
   const [updateReady, setUpdateReady] = useState(false);
@@ -216,6 +218,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   else status = t('status.turn', { color: turnName }) + (inCheck ? t('status.check') : '');
   const texts = vt(variant);
 
+  // Against the bot: a tape on the board when it is the human's move.
+  const yourTurn = vsBot && humanToMove && !outcome && !setup && atEnd;
+
   const top: Color = flipped ? 'w' : 'b';
   const bottom: Color = flipped ? 'b' : 'w';
   const start = timeline.states[0].position;
@@ -252,87 +257,112 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         <HomePage onPlay={openNewGame} />
       ) : (
         <main className="layout">
-          <aside className="players" aria-label={t('game.players')}>
-            {[top, bottom].map((c) => (
+          <section
+            className={prefs.boardSize ? 'board-wrap sized' : 'board-wrap'}
+            style={prefs.boardSize ? ({ '--board-user': `${prefs.boardSize}px` } as CSSProperties) : undefined}
+          >
+            {/* Players and clocks: a column left of the board that stays on screen. */}
+            <aside className="players" aria-label={t('game.players')}>
               <PlayerRow
-                key={c}
                 variant={variant}
-                color={c}
-                player={players[c]}
+                color={top}
+                player={players[top]}
                 start={start}
                 position={game.position}
-                active={!outcome && !setup && turn === c}
+                active={!outcome && !setup && turn === top}
                 clock={timed ? session.clock : null}
+                place="top"
               />
-            ))}
-          </aside>
-
-          <section className="board-wrap">
-            <div className="board-frame">
-              <Splatter className="splatter-tl" />
-              <Splatter className="splatter-br" />
-              <div className="board-area">
-                <Board
-                  variant={variant}
-                  position={game.position}
-                  lastMove={game.moves.at(-1)?.move ?? null}
-                  flipped={flipped}
-                  highlight={showHighlight && variant.highlight ? variant.highlight.squares(game.position) : []}
-                  bandRanks={variant.highlight?.ranks ?? []}
-                  arrows={assistant.hintArrow ? [assistant.hintArrow] : []}
-                  disabled={boardDisabled}
-                  premoveColor={premoveColor}
-                  premove={session.premove}
-                  onPremove={(p) => dispatch({ type: 'premove', premove: p })}
-                  onCancelPremove={() => dispatch({ type: 'premove', premove: null })}
-                  onMove={onMove}
+              <PlayerRow
+                variant={variant}
+                color={bottom}
+                player={players[bottom]}
+                start={start}
+                position={game.position}
+                active={!outcome && !setup && turn === bottom}
+                clock={timed ? session.clock : null}
+                place="bottom"
+              />
+            </aside>
+            <div className="board-col">
+              <div className="board-frame">
+                <Splatter className="splatter-tl" />
+                <Splatter className="splatter-br" />
+                {yourTurn && <div className="turn-tape">{t('game.yourTurn')}</div>}
+                <div className="board-area" ref={boardArea}>
+                  <Board
+                    variant={variant}
+                    position={game.position}
+                    lastMove={game.moves.at(-1)?.move ?? null}
+                    flipped={flipped}
+                    highlight={showHighlight && variant.highlight ? variant.highlight.squares(game.position) : []}
+                    bandRanks={variant.highlight?.ranks ?? []}
+                    arrows={assistant.hintArrow ? [assistant.hintArrow] : []}
+                    disabled={boardDisabled}
+                    premoveColor={premoveColor}
+                    premove={session.premove}
+                    onPremove={(p) => dispatch({ type: 'premove', premove: p })}
+                    onCancelPremove={() => dispatch({ type: 'premove', premove: null })}
+                    onMove={onMove}
+                  />
+                  {setup && (
+                    <SetupDialog
+                      variant={variant}
+                      question={setup.questions[setup.step]}
+                      step={setup.step}
+                      total={setup.questions.length}
+                      onPick={(optionId) => dispatch({ type: 'setupAnswer', optionId })}
+                    />
+                  )}
+                  {promotion && (
+                    <PromotionDialog
+                      variant={variant}
+                      color={turn}
+                      options={promotion.map((m) => m.promotion!)}
+                      onPick={onPromote}
+                      onCancel={() => setPromotion(null)}
+                    />
+                  )}
+                </div>
+                <BoardResizer
+                  current={() => boardArea.current?.getBoundingClientRect().width ?? 0}
+                  onResize={(boardSize) => setPrefs((p) => ({ ...p, boardSize }))}
                 />
-                {setup && (
-                  <SetupDialog
-                    variant={variant}
-                    question={setup.questions[setup.step]}
-                    step={setup.step}
-                    total={setup.questions.length}
-                    onPick={(optionId) => dispatch({ type: 'setupAnswer', optionId })}
-                  />
-                )}
-                {promotion && (
-                  <PromotionDialog
-                    variant={variant}
-                    color={turn}
-                    options={promotion.map((m) => m.promotion!)}
-                    onPick={onPromote}
-                    onCancel={() => setPromotion(null)}
-                  />
-                )}
               </div>
-            </div>
-            <div className="board-bar">
-              <label className="switch-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.sound}
-                  onChange={() => setPrefs((p) => ({ ...p, sound: !p.sound }))}
-                />
-                <span className="switch" aria-hidden="true" />
-                {t('toolbar.sound')}
-              </label>
-              <button className="bar-button" onClick={() => setShowRules(true)}>
-                {t('toolbar.rules')}
-              </button>
-              <button className="bar-button" onClick={() => setShowSettings(true)}>
-                <GearIcon />
-                {t('toolbar.settings')}
-              </button>
-            </div>
-            {/* Screen readers: the last move and the result are announced. */}
-            <div className="sr-only" aria-live="polite">
-              {announcement}
+              <div className="board-bar">
+                <label className="switch-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.sound}
+                    onChange={() => setPrefs((p) => ({ ...p, sound: !p.sound }))}
+                  />
+                  <span className="switch" aria-hidden="true" />
+                  {t('toolbar.sound')}
+                </label>
+                <button className="bar-button" onClick={() => setShowRules(true)}>
+                  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 4h11l5 5v11H4z" />
+                    <path d="M8 12h8M8 16h5" />
+                  </svg>
+                  {t('toolbar.rules')}
+                </button>
+                <button className="bar-button" onClick={() => setShowSettings(true)}>
+                  <GearIcon />
+                  {t('toolbar.settings')}
+                </button>
+                <span className="bar-slogan" aria-hidden="true">
+                  {t('home.slogan1')} {t('home.slogan2')} {t('home.slogan3')}
+                </span>
+              </div>
+              {/* Screen readers: the last move and the result are announced. */}
+              <div className="sr-only" aria-live="polite">
+                {announcement}
+              </div>
             </div>
           </section>
 
           <aside className="side">
-            <div className="box">
+            <div className="box game-box">
               <div className="box-head">
                 <svg className="bolt" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
@@ -358,30 +388,27 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
               setupPending={!!setup}
               // With a clock, taking back moves and hints are off.
               canUndo={vsBot && !timed && timeline.states.length > 1}
-              canBack={timeline.cursor > 0}
-              canForward={!atEnd}
               hintEnabled={!timed && humanToMove && !outcome && !setup}
               hintBusy={assistant.hintBusy}
               run={session.run}
               atEnd={atEnd}
               highlightLabel={texts.highlightLabel}
               showHighlight={showHighlight}
-              copied={copied}
               onUndo={undoPair}
-              onBack={() => dispatch({ type: 'goTo', cursor: timeline.cursor - 1 })}
-              onForward={() => dispatch({ type: 'goTo', cursor: timeline.cursor + 1 })}
               onHint={assistant.askHint}
               onDraw={assistant.offerDraw}
               onResign={resign}
               onRun={(run) => dispatch({ type: 'run', run })}
-              onFlip={() => setFlipped((f) => !f)}
               onToggleHighlight={() => setShowHighlight((h) => !h)}
-              onCopy={copyFen}
-              onCopyLink={copyLink}
-              hasMoves={view.endState.moves.length > 0}
             />
             <button className="primary new-game-button" onClick={() => openNewGame()}>
+              <svg className="ic bolt-ic" viewBox="0 0 24 24" aria-hidden="true">
+                <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
+              </svg>
               {t('toolbar.newGame')}
+              <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 12h15M13 6l6 6-6 6" />
+              </svg>
             </button>
 
             <div className="box">
@@ -421,6 +448,18 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 )}
                 {tab === 'position' && <code className="fen">{fen}</code>}
               </div>
+              <GameTools
+                canBrowse={!vsBot}
+                canBack={timeline.cursor > 0}
+                canForward={!atEnd}
+                copied={copied}
+                hasMoves={view.endState.moves.length > 0}
+                onBack={() => dispatch({ type: 'goTo', cursor: timeline.cursor - 1 })}
+                onForward={() => dispatch({ type: 'goTo', cursor: timeline.cursor + 1 })}
+                onFlip={() => setFlipped((f) => !f)}
+                onCopy={copyFen}
+                onCopyLink={copyLink}
+              />
             </div>
           </aside>
         </main>

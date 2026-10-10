@@ -193,7 +193,7 @@ describe('uygulama: bilgisayara karşı', () => {
     await botPlays('e7', 'e5');
     move('g1', 'f3');
     await botPlays('b8', 'c6');
-    fireEvent.click(screen.getByRole('button', { name: '↶ Geri al' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Geri al' }));
     expect(moves()).toEqual(['e4', 'e5']);
     expect(status()).toBe('Sıra: Beyaz');
   });

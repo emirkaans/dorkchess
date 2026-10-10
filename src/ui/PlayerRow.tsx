@@ -35,21 +35,25 @@ interface Props {
   active: boolean;
   /** Shown only in timed games. */
   clock: ClockState | null;
+  /** Card above or below in the players column (the clock sits toward the middle). */
+  place: 'top' | 'bottom';
 }
 
-/** One player in the side panel: skull avatar, who plays, pieces taken, clock. */
-export function PlayerRow({ variant, color, player, start, position, active, clock }: Props) {
+/** One player card left of the board: skull avatar, who plays, pieces taken, clock. */
+export function PlayerRow({ variant, color, player, start, position, active, clock, place }: Props) {
   const { t } = useI18n();
   const taken = lostPieces(variant, start, position, color === 'w' ? 'b' : 'w');
   const lead = Math.round(material(variant, position, color) - material(variant, position, color === 'w' ? 'b' : 'w'));
   return (
-    <div className={`player-row${active ? ' turn' : ''}`}>
+    <div className={`player-row ${place}${active ? ' turn' : ''}`}>
       <span className="avatar">
         <Avatar bot={player.kind === 'bot'} />
       </span>
       <div className="player-info">
-        <div className="player-name">{t(`color.${color}`)}</div>
-        <div className="player-sub">{botName(player, t)}</div>
+        <div className="player-head">
+          <span className="player-name">{t(`color.${color}`)}</span>
+          <span className="player-sub">{botName(player, t)}</span>
+        </div>
         <div className="taken">
           {taken.map((type, i) => (
             <span key={i} className="taken-piece">
