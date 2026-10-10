@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "wrangler dev --port 8787",
+    "deploy": "npm run build && wrangler deploy",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b && tsc -p tsconfig.engine.json",
+    "typecheck": "tsc -b && tsc -p tsconfig.engine.json && tsc -p tsconfig.server.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "node --experimental-strip-types --no-warnings scripts/bench.ts",
@@ -28,6 +30,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261010.1",
     "@eslint/js": "^10.0.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
@@ -43,6 +46,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.4",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.149.0"
   }
 }

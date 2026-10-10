@@ -12,6 +12,7 @@ import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
+import { OnlinePage } from './online/OnlinePage.tsx';
 import { PlayerRow } from './PlayerRow.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
 import { Splatter } from './Punk.tsx';
@@ -58,6 +59,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const { t, vt } = useI18n();
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
   const [page, setPage] = useState<Page>('home');
+  /** Online game shown on the online page (null: its lobby). */
+  const [onlineId, setOnlineId] = useState<string | null>(null);
   /** Settings the new game dialog opens with (null: closed). */
   const [newGame, setNewGame] = useState<GameSettings | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -162,6 +165,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const openLinkRef = useRef<() => void>(() => {});
   useEffect(() => {
     openLinkRef.current = () => {
+      // An online game link: #online/<id>.
+      const online = /^#online\/([A-Za-z0-9]{8})$/.exec(location.hash);
+      if (online) {
+        setOnlineId(online[1]);
+        setPage('online');
+        return;
+      }
       let link;
       try {
         link = decodeLink(location.hash);
@@ -191,6 +201,14 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     window.addEventListener('hashchange', open);
     return () => window.removeEventListener('hashchange', open);
   }, []);
+
+  // The address bar shows the open online game (so it can be reloaded or shared), and nothing elsewhere.
+  useEffect(() => {
+    const want = page === 'online' && onlineId ? `#online/${onlineId}` : '';
+    const isOnline = location.hash.startsWith('#online');
+    if (want && location.hash !== want) history.replaceState(null, '', location.pathname + location.search + want);
+    else if (!want && isOnline) history.replaceState(null, '', location.pathname + location.search);
+  }, [page, onlineId]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -251,6 +269,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         onHome={() => setPage('home')}
         onPlay={goPlay}
         onAnalysis={() => setPage('analysis')}
+        onOnline={() => setPage('online')}
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
       />
@@ -259,6 +278,15 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         <HomePage onPlay={openNewGame} />
       ) : page === 'analysis' ? (
         <AnalysisPage initialVariantId={settings.variantId} />
+      ) : page === 'online' ? (
+        <OnlinePage
+          gameId={onlineId}
+          onOpenGame={setOnlineId}
+          onLobby={() => setOnlineId(null)}
+          prefs={prefs}
+          setPrefs={setPrefs}
+          defaultVariantId={settings.variantId}
+        />
       ) : (
         <main className="layout">
           <section

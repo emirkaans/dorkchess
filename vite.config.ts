@@ -29,6 +29,10 @@ function serviceWorker(): Plugin {
 
 export default defineConfig({
   plugins: [react(), serviceWorker()],
+  server: {
+    // The online game API runs in `npm run dev:server` (wrangler dev).
+    proxy: { '/api': { target: 'http://localhost:8787', ws: true } },
+  },
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
     environment: 'node',

@@ -37,10 +37,12 @@ interface Props {
   clock: ClockState | null;
   /** Card above or below in the players column (the clock sits toward the middle). */
   place: 'top' | 'bottom';
+  /** Shown under the colour instead of the player kind (e.g. an online player's name). */
+  label?: string;
 }
 
 /** One player card left of the board: skull avatar, who plays, pieces taken, clock. */
-export function PlayerRow({ variant, color, player, start, position, active, clock, place }: Props) {
+export function PlayerRow({ variant, color, player, start, position, active, clock, place, label }: Props) {
   const { t } = useI18n();
   const taken = lostPieces(variant, start, position, color === 'w' ? 'b' : 'w');
   const lead = Math.round(material(variant, position, color) - material(variant, position, color === 'w' ? 'b' : 'w'));
@@ -52,7 +54,7 @@ export function PlayerRow({ variant, color, player, start, position, active, clo
       <div className="player-info">
         <div className="player-head">
           <span className="player-name">{t(`color.${color}`)}</span>
-          <span className="player-sub">{botName(player, t)}</span>
+          <span className="player-sub">{label ?? botName(player, t)}</span>
         </div>
         <div className="taken">
           {taken.map((type, i) => (

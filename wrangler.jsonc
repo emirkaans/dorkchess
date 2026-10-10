@@ -1,0 +1,24 @@
+// Cloudflare Worker: the built site (dist/) plus the online game server.
+// Deploy: npm run deploy. Local server for development: npm run dev:server.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "punkchess",
+  "main": "server/index.ts",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Every request reaches the Worker first (www redirect, API); it hands the rest to the assets.
+    "run_worker_first": true,
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "GAME", "class_name": "GameRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "routes": [
+    { "pattern": "punkchess.com", "custom_domain": true },
+    { "pattern": "www.punkchess.com", "custom_domain": true },
+  ],
+  "observability": { "enabled": true },
+}
