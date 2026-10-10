@@ -36,11 +36,7 @@ export function HomePage({ onPlay }: Props) {
       <section className="hero">
         <img className="hero-image" src={`${import.meta.env.BASE_URL}hero.webp`} alt={t('home.heroAlt')} />
         <div className="hero-copy">
-          <h1 className="hero-title">
-            <Crown className="hero-crown" />
-            <span className="logo-punk">punk</span>
-            <span className="logo-chess">chess</span>
-          </h1>
+          <h1 className="sr-only">punkchess</h1>
           <p className="tape">
             <span>{t('home.tape1')}</span>
             <span>{t('home.tape2')}</span>

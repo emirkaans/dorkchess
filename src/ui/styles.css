@@ -11,7 +11,9 @@
   --on-pink: #0a0a0b;
   --accent: var(--pink);
   --display: 'Bebas Neue', 'Arial Narrow', sans-serif;
-  --marker: 'Permanent Marker', 'Comic Sans MS', cursive;
+  --marker: 'Sedgwick Ave', 'Comic Sans MS', cursive;
+  /* The logo only: "punkchess" in Permanent Marker. */
+  --logo: 'Permanent Marker', 'Sedgwick Ave', cursive;
   --ui: 'Oswald', 'Arial Narrow', sans-serif;
   /* Board side: fits the screen height next to the players column and the side panel. */
   --board: clamp(300px, min(100vw - 720px, 100vh - 170px), 880px);
@@ -171,6 +173,29 @@ button.primary:hover:not(:disabled) {
 
 /* ---------- top bar ---------- */
 
+/* Sticky top bar: solid, except see-through while it sits over the home hero image. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--grit), var(--bg);
+  border-bottom: 1px solid var(--border);
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+.topbar.over-hero {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+.topbar.over-hero .menu button,
+.topbar.over-hero .logo {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.topbar.over-hero select,
+.topbar.over-hero .icon-button {
+  background: rgba(10, 10, 11, 0.55);
+}
 .toolbar {
   max-width: 1400px;
   margin: 0 auto;
@@ -179,7 +204,6 @@ button.primary:hover:not(:disabled) {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 36px;
-  border-bottom: 1px solid var(--border);
 }
 .logo {
   display: flex;
@@ -198,13 +222,13 @@ button.primary:hover:not(:disabled) {
   color: var(--fg);
 }
 .logo-punk {
-  font: 400 34px/1 var(--marker);
+  font: 400 34px/1 var(--logo);
   color: var(--pink);
 }
 .logo-chess {
-  font: 400 40px/1 var(--display);
+  font: 400 34px/1 var(--logo);
   color: var(--fg);
-  margin-left: -4px;
+  margin-left: -2px;
 }
 .menu {
   display: flex;
@@ -245,8 +269,11 @@ button.primary:hover:not(:disabled) {
 
 .hero {
   position: relative;
-  min-height: 680px;
-  padding: 48px max(28px, calc((100% - 1400px) / 2 + 28px)) 72px;
+  /* The whole first screen, under the see-through top bar. */
+  min-height: 100svh;
+  margin-top: calc(-1 * var(--toolbar-h, 73px));
+  padding: calc(var(--toolbar-h, 73px) + clamp(20px, 4vh, 48px)) max(28px, calc((100% - 1400px) / 2 + 28px))
+    clamp(20px, 4vh, 48px);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -262,45 +289,13 @@ button.primary:hover:not(:disabled) {
 }
 .hero-copy {
   position: relative;
-  max-width: 640px;
-}
-.hero-title {
-  position: relative;
-  margin: 0;
-  padding-top: 40px;
-  line-height: 0.85;
-  font-weight: 400;
-}
-.hero-crown {
-  position: absolute;
-  left: 70px;
-  top: 0;
-  width: 78px;
-  height: 60px;
-  color: var(--pink);
-  stroke-width: 5;
-  transform: rotate(-12deg);
-}
-.hero-title .logo-punk {
-  display: inline-block;
-  font-size: clamp(84px, 11vw, 168px);
-  line-height: 0.9;
-  text-shadow: 4px 4px 0 rgba(255, 46, 147, 0.25);
-  transform: rotate(-4deg);
-}
-.hero-title .logo-chess {
-  display: inline-block;
-  font-size: clamp(92px, 12vw, 184px);
-  line-height: 0.85;
-  margin-left: -6px;
-  transform: rotate(-3deg);
-  text-shadow: 3px 3px 0 #000;
+  max-width: 780px;
 }
 .tape {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 18px 0 26px 40px;
+  margin: clamp(10px, 2vh, 18px) 0 clamp(14px, 3vh, 26px) 40px;
   transform: rotate(-5deg);
 }
 .tape span {
@@ -316,7 +311,7 @@ button.primary:hover:not(:disabled) {
   font-size: 17px;
   line-height: 1.6;
   max-width: 520px;
-  margin: 0 0 28px;
+  margin: 0 0 clamp(16px, 3vh, 28px);
   text-shadow: 0 1px 2px #000;
 }
 .ctas {
@@ -2401,7 +2396,7 @@ button.primary:hover:not(:disabled) {
     font-size: 28px;
   }
   .logo-chess {
-    font-size: 32px;
+    font-size: 28px;
   }
   .menu {
     order: 3;
@@ -2409,16 +2404,11 @@ button.primary:hover:not(:disabled) {
     gap: 4px 18px;
   }
   .hero {
-    min-height: 0;
     padding: 28px 16px 40px;
   }
   .hero-image {
     object-position: 80% center;
     opacity: 0.45;
-  }
-  .hero-crown {
-    left: 30px;
-    width: 56px;
   }
   .tape {
     margin-left: 10px;

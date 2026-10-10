@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { LOCALES, isLocale } from '../i18n/index.ts';
 import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
@@ -20,68 +21,95 @@ interface Props {
 /** Top bar: logo, main menu (home, play, online, analysis, history), language and settings. */
 export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOnline, onHistory, onSettings }: Props) {
   const { t } = useI18n();
+  // Publishes the bar's height as --toolbar-h (the home hero slides under the bar by that much).
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const publish = () => document.documentElement.style.setProperty('--toolbar-h', `${el.offsetHeight}px`);
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    publish();
+    return () => observer.disconnect();
+  }, []);
+
+  // On the home page the bar is see-through at the top, over the hero image; once the page scrolls it turns solid.
+  const [overHero, setOverHero] = useState(page === 'home');
+  useEffect(() => {
+    if (page !== 'home') {
+      setOverHero(false);
+      return;
+    }
+    const check = () => setOverHero(window.scrollY < 24);
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, [page]);
+
   return (
-    <header className="toolbar">
-      <button className="logo" onClick={onHome} aria-label={t('menu.logo')}>
-        <Crown className="logo-crown" />
-        <span className="logo-punk">punk</span>
-        <span className="logo-chess">chess</span>
-      </button>
-      <nav className="menu" aria-label={t('menu.label')}>
-        <button
-          className={page === 'home' ? 'on' : ''}
-          aria-current={page === 'home' ? 'page' : undefined}
-          onClick={onHome}
-        >
-          {t('menu.home')}
+    <header className={`topbar${overHero ? ' over-hero' : ''}`} ref={ref}>
+      <div className="toolbar">
+        <button className="logo" onClick={onHome} aria-label={t('menu.logo')}>
+          <Crown className="logo-crown" />
+          <span className="logo-punk">punk</span>
+          <span className="logo-chess">chess</span>
         </button>
-        <button
-          className={page === 'game' ? 'on' : ''}
-          aria-current={page === 'game' ? 'page' : undefined}
-          onClick={onPlay}
-        >
-          {t('menu.play')}
-        </button>
-        <button
-          className={page === 'online' ? 'on' : ''}
-          aria-current={page === 'online' ? 'page' : undefined}
-          onClick={onOnline}
-        >
-          {t('menu.online')}
-        </button>
-        <button
-          className={page === 'analysis' ? 'on' : ''}
-          aria-current={page === 'analysis' ? 'page' : undefined}
-          onClick={onAnalysis}
-        >
-          {t('menu.analysis')}
-        </button>
-        <button onClick={onHistory}>{t('toolbar.history')}</button>
-      </nav>
-      <div className="toolbar-end">
-        <select
-          className="lang"
-          aria-label={t('toolbar.language')}
-          value={prefs.locale}
-          onChange={(e) => {
-            const locale = e.target.value;
-            if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
-          }}
-        >
-          {Object.entries(LOCALES).map(([code, name]) => (
-            <option key={code} value={code}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <button
-          className="icon-button"
-          onClick={onSettings}
-          aria-label={t('toolbar.settings')}
-          title={t('toolbar.settings')}
-        >
-          <GearIcon />
-        </button>
+        <nav className="menu" aria-label={t('menu.label')}>
+          <button
+            className={page === 'home' ? 'on' : ''}
+            aria-current={page === 'home' ? 'page' : undefined}
+            onClick={onHome}
+          >
+            {t('menu.home')}
+          </button>
+          <button
+            className={page === 'game' ? 'on' : ''}
+            aria-current={page === 'game' ? 'page' : undefined}
+            onClick={onPlay}
+          >
+            {t('menu.play')}
+          </button>
+          <button
+            className={page === 'online' ? 'on' : ''}
+            aria-current={page === 'online' ? 'page' : undefined}
+            onClick={onOnline}
+          >
+            {t('menu.online')}
+          </button>
+          <button
+            className={page === 'analysis' ? 'on' : ''}
+            aria-current={page === 'analysis' ? 'page' : undefined}
+            onClick={onAnalysis}
+          >
+            {t('menu.analysis')}
+          </button>
+          <button onClick={onHistory}>{t('toolbar.history')}</button>
+        </nav>
+        <div className="toolbar-end">
+          <select
+            className="lang"
+            aria-label={t('toolbar.language')}
+            value={prefs.locale}
+            onChange={(e) => {
+              const locale = e.target.value;
+              if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
+            }}
+          >
+            {Object.entries(LOCALES).map(([code, name]) => (
+              <option key={code} value={code}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="icon-button"
+            onClick={onSettings}
+            aria-label={t('toolbar.settings')}
+            title={t('toolbar.settings')}
+          >
+            <GearIcon />
+          </button>
+        </div>
       </div>
     </header>
   );
