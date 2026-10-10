@@ -1,4 +1,4 @@
-# dorkchess
+# punkchess
 
 Tarayıcıda çalışan satranç varyantları: **Standart**, **Bürokrat**, **Jester**, **Diplomat**.
 İki kişi aynı ekranda, bilgisayara karşı (5 seviye) ya da bot vs bot izleyerek oynanır. Satranç saati,

@@ -141,7 +141,7 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
     const url = URL.createObjectURL(new Blob([pgn], { type: 'text/plain;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `dorkchess-${game.variantId}-${game.date.slice(0, 10)}.pgn`;
+    a.download = `punkchess-${game.variantId}-${game.date.slice(0, 10)}.pgn`;
     a.click();
     URL.revokeObjectURL(url);
   };

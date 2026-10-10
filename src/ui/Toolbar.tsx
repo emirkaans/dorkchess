@@ -1,53 +1,51 @@
 import { LOCALES, isLocale } from '../i18n/index.ts';
-import type { MessageKey } from '../i18n/index.ts';
 import { useI18n } from './i18n.tsx';
-import { BOARD_THEMES, UI_MODES } from './prefs.ts';
-import type { BoardTheme, Prefs, UiMode } from './prefs.ts';
+import { Crown } from './Punk.tsx';
+import type { Prefs } from './prefs.ts';
+
+export type Page = 'home' | 'game';
 
 interface Props {
-  label: string;
+  page: Page;
   prefs: Prefs;
   onPrefs: (update: (p: Prefs) => Prefs) => void;
-  onRules: () => void;
+  onHome: () => void;
+  onPlay: () => void;
   onHistory: () => void;
-  onNewGame: () => void;
+  onSettings: () => void;
 }
 
-/** Top bar: game label, rules, history, theme / interface / language / sound preferences, new game. */
-export function Toolbar({ label, prefs, onPrefs, onRules, onHistory, onNewGame }: Props) {
+/** Top bar: logo, main menu (home, play, history), language and settings. */
+export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onHistory, onSettings }: Props) {
   const { t } = useI18n();
   return (
     <header className="toolbar">
-      <h1>dorkchess</h1>
-      <span className="muted game-label">{label}</span>
-      <button onClick={onRules}>{t('toolbar.rules')}</button>
-      <button onClick={onHistory}>{t('toolbar.history')}</button>
-      <label className="pref">
-        {t('toolbar.theme')}{' '}
-        <select
-          value={prefs.boardTheme}
-          onChange={(e) => onPrefs((p) => ({ ...p, boardTheme: e.target.value as BoardTheme }))}
+      <button className="logo" onClick={onHome} aria-label={t('menu.logo')}>
+        <Crown className="logo-crown" />
+        <span className="logo-punk">punk</span>
+        <span className="logo-chess">chess</span>
+      </button>
+      <nav className="menu" aria-label={t('menu.label')}>
+        <button
+          className={page === 'home' ? 'on' : ''}
+          aria-current={page === 'home' ? 'page' : undefined}
+          onClick={onHome}
         >
-          {BOARD_THEMES.map((theme) => (
-            <option key={theme} value={theme}>
-              {t(`theme.${theme}` as MessageKey)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="pref">
-        {t('toolbar.interface')}{' '}
-        <select value={prefs.ui} onChange={(e) => onPrefs((p) => ({ ...p, ui: e.target.value as UiMode }))}>
-          {UI_MODES.map((m) => (
-            <option key={m} value={m}>
-              {t(`ui.${m}` as MessageKey)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="pref">
-        {t('toolbar.language')}{' '}
+          {t('menu.home')}
+        </button>
+        <button
+          className={page === 'game' ? 'on' : ''}
+          aria-current={page === 'game' ? 'page' : undefined}
+          onClick={onPlay}
+        >
+          {t('menu.play')}
+        </button>
+        <button onClick={onHistory}>{t('toolbar.history')}</button>
+      </nav>
+      <div className="toolbar-end">
         <select
+          className="lang"
+          aria-label={t('toolbar.language')}
           value={prefs.locale}
           onChange={(e) => {
             const locale = e.target.value;
@@ -60,15 +58,24 @@ export function Toolbar({ label, prefs, onPrefs, onRules, onHistory, onNewGame }
             </option>
           ))}
         </select>
-      </label>
-      <button
-        onClick={() => onPrefs((p) => ({ ...p, sound: !p.sound }))}
-        aria-pressed={prefs.sound}
-        title={prefs.sound ? t('toolbar.mute') : t('toolbar.unmute')}
-      >
-        {prefs.sound ? t('toolbar.soundOn') : t('toolbar.soundOff')}
-      </button>
-      <button onClick={onNewGame}>{t('toolbar.newGame')}</button>
+        <button
+          className="icon-button"
+          onClick={onSettings}
+          aria-label={t('toolbar.settings')}
+          title={t('toolbar.settings')}
+        >
+          <GearIcon />
+        </button>
+      </div>
     </header>
+  );
+}
+
+export function GearIcon() {
+  return (
+    <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" />
+    </svg>
   );
 }

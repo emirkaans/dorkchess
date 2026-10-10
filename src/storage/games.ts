@@ -55,7 +55,7 @@ const pgnDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 /** Writes headers ([Variant "jester"] etc.), then numbered SAN moves and the result. */
 export function exportPgn(g: SavedGame): string {
   const tags: [string, string][] = [
-    ['Event', 'dorkchess'],
+    ['Event', 'punkchess'],
     ['Variant', g.variantId],
     ['Date', pgnDate(g.date)],
     ['Mode', g.mode],

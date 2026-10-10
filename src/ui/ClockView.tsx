@@ -7,11 +7,10 @@ import { useI18n } from './i18n.tsx';
 interface Props {
   clock: ClockState;
   color: Color;
-  players: Readonly<Record<Color, { kind: string; level?: number }>>;
 }
 
-/** One side's clock: red with tenths in the last 10 seconds, highlighted while running. */
-export function ClockView({ clock, color, players }: Props) {
+/** One side's clock: pink while running, tenths in the last 10 seconds. */
+export function ClockView({ clock, color }: Props) {
   // Only this component re-renders while the clock runs.
   const { t } = useI18n();
   const [, setTick] = useState(0);
@@ -22,14 +21,13 @@ export function ClockView({ clock, color, players }: Props) {
     return () => clearInterval(id);
   }, [running]);
   const ms = remainingMs(clock, color, Date.now());
-  const p = players[color];
-  const classes = ['clock', clock.running === color ? 'running' : '', ms < LOW_TIME_MS ? 'low' : ''].join(' ');
+  const classes = ['clock', running ? 'running' : '', ms < LOW_TIME_MS ? 'low' : ''].join(' ');
   return (
-    <div className={classes} aria-label={t('clock.label', { color: t(`color.${color}`) })}>
-      <span className="clock-name">
-        {t(`color.${color}`)}
-        {p.kind === 'bot' ? ` · ${t('clock.bot', { level: p.level ?? '' })}` : ''}
-      </span>
+    <div className={classes} role="timer" aria-label={t('clock.label', { color: t(`color.${color}`) })}>
+      <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="13" r="8" />
+        <path d="M12 9v4l2 2M9 2h6" />
+      </svg>
       <span className="clock-time">{formatClock(ms)}</span>
     </div>
   );

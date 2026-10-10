@@ -3,17 +3,22 @@ import type { Dispatch, SetStateAction } from 'react';
 import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import { Board } from './Board.tsx';
-import { ClockView } from './ClockView.tsx';
 import { GameControls } from './GameControls.tsx';
 import { GameViewer } from './GameViewer.tsx';
 import { HistoryModal } from './HistoryModal.tsx';
+import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
 import { NewGameDialog } from './NewGameDialog.tsx';
+import { PieceView } from './PieceView.tsx';
+import { PlayerRow, lostPieces } from './PlayerRow.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
+import { Crown, Splatter } from './Punk.tsx';
 import { RuleCardModal } from './RuleCardModal.tsx';
+import { SettingsDialog } from './SettingsDialog.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
-import { Toolbar } from './Toolbar.tsx';
+import { GearIcon, Toolbar } from './Toolbar.tsx';
+import type { Page } from './Toolbar.tsx';
 import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
 import { botName, newSession, outcomeText } from './game/session.ts';
 import { errorText } from '../i18n/index.ts';
@@ -21,6 +26,7 @@ import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
 import type { GameState } from '../engine/index.ts';
+import { TIME_CONTROLS } from '../clock/clock.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
 import type { Prefs } from './prefs.ts';
 import { isRuleCardHidden, loadSettings, saveSettings } from './settings.ts';
@@ -31,7 +37,9 @@ import type { SoundKind } from './sound.ts';
 /** Variant of a list of game states (all states of one game share it). */
 const variantOf = (states: readonly GameState[]) => getVariant(states[0].variantId);
 
-/** Holds the preferences (theme, sound, language) and provides the language to the whole app. */
+type Tab = 'moves' | 'variant' | 'position';
+
+/** Holds the preferences (themes, sound, language) and provides the language to the whole app. */
 export function App() {
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
   useEffect(() => {
@@ -48,10 +56,14 @@ export function App() {
 function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetStateAction<Prefs>> }) {
   const { t, vt } = useI18n();
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
-  const [showNewGame, setShowNewGame] = useState(true);
+  const [page, setPage] = useState<Page>('home');
+  /** Settings the new game dialog opens with (null: closed). */
+  const [newGame, setNewGame] = useState<GameSettings | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [tab, setTab] = useState<Tab>('moves');
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
   const [copied, setCopied] = useState<'fen' | 'game' | 'position' | null>(null);
@@ -71,7 +83,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   });
 
   const clients = useBotClients();
-  const thinking = useBotPlayer(session, view, dispatch, clients.bot, showNewGame || showRules, setNotice);
+  // The bot waits while a dialog is open or the home page is shown.
+  const paused = newGame !== null || showRules || page === 'home';
+  const thinking = useBotPlayer(session, view, dispatch, clients.bot, paused, setNotice);
   useClockTicker(session, view, dispatch, sound);
   useGameFeedback(session, view, sound);
   const assistant = useAssistant(session, view, dispatch, clients, setNotice);
@@ -84,6 +98,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const { variant, game, atEnd, outcome, turn, toMove, vsBot, watching, humanColor, timed } = view;
   const now = () => Date.now();
 
+  const openNewGame = (patch: Partial<GameSettings> = {}) => setNewGame({ ...settings, ...patch });
+  // "Play": back to the running game, or a new one if none was started yet.
+  const goPlay = () => (session.key > 1 ? setPage('game') : openNewGame());
+
   const startGame = (s: GameSettings) => {
     saveSettings(s);
     clients.bot.stop();
@@ -92,7 +110,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     dispatch({ type: 'start', session: next });
     setFlipped(next.players.w.kind === 'bot' && next.players.b.kind === 'human');
     setPromotion(null);
-    setShowNewGame(false);
+    setNewGame(null);
+    setPage('game');
+    setTab('moves');
     setShowRules(!isRuleCardHidden(s.variantId));
   };
 
@@ -145,6 +165,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         link = decodeLink(location.hash);
       } catch (e) {
         setNotice(t('notice.linkError', { reason: errorText(e, t) }));
+        setPage('game');
         history.replaceState(null, '', location.pathname + location.search);
         return;
       }
@@ -157,7 +178,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       const s: GameSettings = { ...loadSettings(), mode: 'hotseat', variantId: link.variantId, timeControl: 'none' };
       clients.bot.stop();
       dispatch({ type: 'start', session: newSession(s, session.key + 1, Math.random, link.fen) });
-      setShowNewGame(false);
+      setNewGame(null);
+      setPage('game');
       setFlipped(false);
     };
   });
@@ -185,14 +207,46 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     .filter(Boolean)
     .join('. ');
 
+  const inCheck = isInCheck(variant, game.position);
   let status: string;
   const turnName = t(`color.${turn}`);
   if (outcome) status = outcomeText(outcome, t);
   else if (setup) status = t('status.setup');
   else if (thinking) status = t('status.thinking', { color: turnName, name: botName(toMove, t) });
   else if (watching && session.run === 'pause') status = t('status.paused', { color: turnName });
-  else status = t('status.turn', { color: turnName }) + (isInCheck(variant, game.position) ? t('status.check') : '');
+  else status = t('status.turn', { color: turnName }) + (inCheck ? t('status.check') : '');
   const texts = vt(variant);
+
+  const top: Color = flipped ? 'w' : 'b';
+  const bottom: Color = flipped ? 'b' : 'w';
+  const start = timeline.states[0].position;
+  const timeControl = TIME_CONTROLS.find((tc) => tc.id === settings.timeControl);
+  const gameLabel = [
+    texts.name,
+    settings.mode === 'hotseat' ? t('mode.hotseatShort') : `${botName(players.w, t)} – ${botName(players.b, t)}`,
+    timeControl && timed ? timeControl.label : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  /** Captured pieces of one color, grouped by type: "×2". */
+  const capturedColumn = (color: Color) => {
+    const lost = lostPieces(variant, start, game.position, color);
+    const groups = [...new Set(lost)].map((type) => ({ type, n: lost.filter((x) => x === type).length }));
+    return (
+      <div className="captured">
+        <h3>{t('game.captured', { color: t(`color.${color}`) })}</h3>
+        {groups.map((g) => (
+          <div key={g.type} className="captured-item">
+            <span className="captured-piece">
+              <PieceView variant={variant} piece={{ type: g.type, color }} />
+            </span>
+            ×{g.n}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="app">
@@ -205,120 +259,205 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         </div>
       )}
       <Toolbar
-        label={`${texts.name} · ${settings.mode === 'hotseat' ? t('mode.hotseatShort') : `${botName(players.w, t)} – ${botName(players.b, t)}`}`}
+        page={page}
         prefs={prefs}
         onPrefs={setPrefs}
-        onRules={() => setShowRules(true)}
+        onHome={() => setPage('home')}
+        onPlay={goPlay}
         onHistory={() => setShowHistory(true)}
-        onNewGame={() => setShowNewGame(true)}
+        onSettings={() => setShowSettings(true)}
       />
 
-      <main className="layout">
-        <section className="board-wrap">
-          {timed && <ClockView clock={session.clock} color={flipped ? 'w' : 'b'} players={players} />}
-          <div className="board-area">
-            <Board
-              variant={variant}
-              position={game.position}
-              lastMove={game.moves.at(-1)?.move ?? null}
-              flipped={flipped}
-              highlight={showHighlight && variant.highlight ? variant.highlight.squares(game.position) : []}
-              bandRanks={variant.highlight?.ranks ?? []}
-              arrows={assistant.hintArrow ? [assistant.hintArrow] : []}
-              disabled={boardDisabled}
-              premoveColor={premoveColor}
-              premove={session.premove}
-              onPremove={(p) => dispatch({ type: 'premove', premove: p })}
-              onCancelPremove={() => dispatch({ type: 'premove', premove: null })}
-              onMove={onMove}
-            />
-            {setup && (
-              <SetupDialog
-                variant={variant}
-                question={setup.questions[setup.step]}
-                step={setup.step}
-                total={setup.questions.length}
-                onPick={(optionId) => dispatch({ type: 'setupAnswer', optionId })}
-              />
-            )}
-            {promotion && (
-              <PromotionDialog
-                variant={variant}
-                color={turn}
-                options={promotion.map((m) => m.promotion!)}
-                onPick={onPromote}
-                onCancel={() => setPromotion(null)}
-              />
-            )}
-          </div>
-          {timed && <ClockView clock={session.clock} color={flipped ? 'b' : 'w'} players={players} />}
-          <div className={`status${thinking ? ' thinking' : ''}`}>{status}</div>
-          {/* Screen readers: the last move and the result are announced. */}
-          <div className="sr-only" aria-live="polite">
-            {announcement}
-          </div>
-          {notice && <div className="notice">{notice}</div>}
-          {view.finalOutcome && view.endState.moves.length > 0 && (
-            <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
-              {t('analysis.button')}
-            </button>
-          )}
-          <GameControls
-            vsBot={vsBot}
-            watching={watching}
-            over={!!outcome}
-            setupPending={!!setup}
-            // With a clock, taking back moves and hints are off.
-            canUndo={vsBot && !timed && timeline.states.length > 1}
-            canBack={timeline.cursor > 0}
-            canForward={!atEnd}
-            hintEnabled={!timed && humanToMove && !outcome && !setup}
-            hintBusy={assistant.hintBusy}
-            run={session.run}
-            atEnd={atEnd}
-            highlightLabel={texts.highlightLabel}
-            showHighlight={showHighlight}
-            copied={copied}
-            onUndo={undoPair}
-            onBack={() => dispatch({ type: 'goTo', cursor: timeline.cursor - 1 })}
-            onForward={() => dispatch({ type: 'goTo', cursor: timeline.cursor + 1 })}
-            onHint={assistant.askHint}
-            onDraw={assistant.offerDraw}
-            onResign={resign}
-            onRun={(run) => dispatch({ type: 'run', run })}
-            onFlip={() => setFlipped((f) => !f)}
-            onToggleHighlight={() => setShowHighlight((h) => !h)}
-            onCopy={copyFen}
-            onCopyLink={copyLink}
-            hasMoves={view.endState.moves.length > 0}
-          />
-        </section>
+      {page === 'home' ? (
+        <HomePage onPlay={openNewGame} />
+      ) : (
+        <main className="layout">
+          <aside className="captures">
+            {capturedColumn(top)}
+            <p className="graffiti" aria-hidden="true">
+              {t('home.slogan1')}
+              <br />
+              {t('home.slogan2')}
+              <br />
+              {t('home.slogan3')}
+              <Crown />
+            </p>
+            {capturedColumn(bottom)}
+          </aside>
 
-        <aside className="side">
-          <div className="panel">
-            <h2>{texts.name}</h2>
-            <ul className="rules">
-              {texts.description.map((line) => (
-                <li key={line}>{line}</li>
+          <section className="board-wrap">
+            <div className="board-frame">
+              <Splatter className="splatter-tl" />
+              <Splatter className="splatter-br" />
+              <div className="board-area">
+                <Board
+                  variant={variant}
+                  position={game.position}
+                  lastMove={game.moves.at(-1)?.move ?? null}
+                  flipped={flipped}
+                  highlight={showHighlight && variant.highlight ? variant.highlight.squares(game.position) : []}
+                  bandRanks={variant.highlight?.ranks ?? []}
+                  arrows={assistant.hintArrow ? [assistant.hintArrow] : []}
+                  disabled={boardDisabled}
+                  premoveColor={premoveColor}
+                  premove={session.premove}
+                  onPremove={(p) => dispatch({ type: 'premove', premove: p })}
+                  onCancelPremove={() => dispatch({ type: 'premove', premove: null })}
+                  onMove={onMove}
+                />
+                {setup && (
+                  <SetupDialog
+                    variant={variant}
+                    question={setup.questions[setup.step]}
+                    step={setup.step}
+                    total={setup.questions.length}
+                    onPick={(optionId) => dispatch({ type: 'setupAnswer', optionId })}
+                  />
+                )}
+                {promotion && (
+                  <PromotionDialog
+                    variant={variant}
+                    color={turn}
+                    options={promotion.map((m) => m.promotion!)}
+                    onPick={onPromote}
+                    onCancel={() => setPromotion(null)}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="board-bar">
+              <label className="switch-row">
+                <input
+                  type="checkbox"
+                  checked={prefs.sound}
+                  onChange={() => setPrefs((p) => ({ ...p, sound: !p.sound }))}
+                />
+                <span className="switch" aria-hidden="true" />
+                {t('toolbar.sound')}
+              </label>
+              <button className="bar-button" onClick={() => setShowRules(true)}>
+                {t('toolbar.rules')}
+              </button>
+              <button className="bar-button" onClick={() => setShowSettings(true)}>
+                <GearIcon />
+                {t('toolbar.settings')}
+              </button>
+            </div>
+            {/* Screen readers: the last move and the result are announced. */}
+            <div className="sr-only" aria-live="polite">
+              {announcement}
+            </div>
+          </section>
+
+          <aside className="side">
+            <div className="box">
+              <div className="box-head">
+                <svg className="bolt" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
+                </svg>
+                <h2>{texts.name}</h2>
+                <span className="game-label">{gameLabel}</span>
+              </div>
+              {[top, bottom].map((c) => (
+                <PlayerRow
+                  key={c}
+                  variant={variant}
+                  color={c}
+                  player={players[c]}
+                  start={start}
+                  position={game.position}
+                  active={!outcome && !setup && turn === c}
+                  clock={timed ? session.clock : null}
+                />
               ))}
-            </ul>
-          </div>
-          <div className="panel">
-            <h2>{t('panel.moves')}</h2>
-            <MoveList
-              game={view.endState}
-              cursor={timeline.cursor}
-              onSelect={vsBot ? () => {} : (cursor) => dispatch({ type: 'goTo', cursor })}
+              <div className={`status${thinking ? ' thinking' : ''}${outcome || (inCheck && !setup) ? ' alert' : ''}`}>
+                {status}
+              </div>
+              {notice && <div className="notice">{notice}</div>}
+            </div>
+
+            <div className="box">
+              <div className="tabs" role="tablist" aria-label={t('game.tabs')}>
+                {(
+                  [
+                    ['moves', t('panel.moves')],
+                    ['variant', t('game.variantTab')],
+                    ['position', t('panel.position')],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={tab === id}
+                    className={tab === id ? 'tab on' : 'tab'}
+                    onClick={() => setTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="tab-body" role="tabpanel">
+                {tab === 'moves' && (
+                  <MoveList
+                    game={view.endState}
+                    cursor={timeline.cursor}
+                    onSelect={vsBot ? () => {} : (cursor) => dispatch({ type: 'goTo', cursor })}
+                  />
+                )}
+                {tab === 'variant' && (
+                  <ul className="rules">
+                    {texts.description.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+                {tab === 'position' && <code className="fen">{fen}</code>}
+              </div>
+            </div>
+
+            {view.finalOutcome && view.endState.moves.length > 0 && (
+              <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
+                {t('analysis.button')}
+              </button>
+            )}
+            <GameControls
+              vsBot={vsBot}
+              watching={watching}
+              over={!!outcome}
+              setupPending={!!setup}
+              // With a clock, taking back moves and hints are off.
+              canUndo={vsBot && !timed && timeline.states.length > 1}
+              canBack={timeline.cursor > 0}
+              canForward={!atEnd}
+              hintEnabled={!timed && humanToMove && !outcome && !setup}
+              hintBusy={assistant.hintBusy}
+              run={session.run}
+              atEnd={atEnd}
+              highlightLabel={texts.highlightLabel}
+              showHighlight={showHighlight}
+              copied={copied}
+              onUndo={undoPair}
+              onBack={() => dispatch({ type: 'goTo', cursor: timeline.cursor - 1 })}
+              onForward={() => dispatch({ type: 'goTo', cursor: timeline.cursor + 1 })}
+              onHint={assistant.askHint}
+              onDraw={assistant.offerDraw}
+              onResign={resign}
+              onRun={(run) => dispatch({ type: 'run', run })}
+              onFlip={() => setFlipped((f) => !f)}
+              onToggleHighlight={() => setShowHighlight((h) => !h)}
+              onCopy={copyFen}
+              onCopyLink={copyLink}
+              hasMoves={view.endState.moves.length > 0}
             />
-          </div>
-          <div className="panel">
-            <h2>{t('panel.position')}</h2>
-            <code className="fen">{fen}</code>
-          </div>
-        </aside>
-      </main>
+            <button className="primary new-game-button" onClick={() => openNewGame()}>
+              {t('toolbar.newGame')}
+            </button>
+          </aside>
+        </main>
+      )}
 
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
         <Modal label={t('analysis.shared')} className="history" onClose={() => setSharedGame(null)}>
           <h2>
@@ -338,13 +477,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         </Modal>
       )}
       {showRules && <RuleCardModal variant={variant} onClose={() => setShowRules(false)} />}
-      {showNewGame && (
-        <NewGameDialog
-          initial={settings}
-          onStart={startGame}
-          onCancel={session.key > 1 ? () => setShowNewGame(false) : undefined}
-        />
-      )}
+      {newGame && <NewGameDialog initial={newGame} onStart={startGame} onCancel={() => setNewGame(null)} />}
     </div>
   );
 }

@@ -71,6 +71,8 @@ function startGame(settings: Record<string, unknown>) {
     JSON.stringify({ variantId: 'standard', timeControl: 'none', humanColor: 'w', ...settings }),
   );
   render(<App />);
+  // The app opens on the home page: Play now opens the new game dialog.
+  fireEvent.click(screen.getByRole('button', { name: 'Hemen oyna' }));
   fireEvent.click(screen.getByRole('button', { name: 'Oyuna başla' }));
 }
 
@@ -300,7 +302,7 @@ describe('uygulama: dil', () => {
     localStorage.removeItem('dorkchess:prefs');
     vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US']);
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Start game' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Play now' })).toBeTruthy();
   });
 
   it('Jester kurulum sorusu İngilizce sorulur', () => {
@@ -308,6 +310,7 @@ describe('uygulama: dil', () => {
     localStorage.setItem('dorkchess:hideRules:jester', 'true');
     localStorage.setItem('dorkchess:settings', JSON.stringify({ mode: 'hotseat', variantId: 'jester' }));
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Play now' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
     expect(screen.getByRole('dialog', { name: 'White: which piece becomes the Jester?' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Right knight \(g1\)/ })).toBeTruthy();
