@@ -1660,27 +1660,6 @@ button.primary:hover:not(:disabled) {
   color: var(--pink);
   margin: 0 0 6px;
 }
-.replay h2 {
-  margin-bottom: 10px;
-}
-.replay-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-.replay-side {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-.replay-slider {
-  width: 100%;
-  margin: 10px 0;
-  accent-color: var(--pink);
-}
-.replay-pos {
-  align-self: center;
-  font-variant-numeric: tabular-nums;
-}
 
 /* ---------- app update (service worker) ---------- */
 
@@ -1697,16 +1676,170 @@ button.primary:hover:not(:disabled) {
 
 /* ---------- analysis ---------- */
 
-.viewer-board {
+/* A dialog holding a game viewer takes the whole screen. */
+.modal.viewer-modal {
+  width: min(1500px, 100%);
+  height: calc(100vh - 32px);
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+.viewer-modal > div:not(.viewer),
+.viewer-modal .replay {
+  display: contents;
+}
+
+/* Board on the left (as tall as the dialog allows), side panel on the right. */
+.viewer {
+  --bar: 26px;
+  --board: max(260px, min(100vh - 32px - 40px, 100vw - 32px - 32px - var(--bar) - 400px));
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+}
+.viewer-board {
+  flex: none;
+  display: flex;
+  gap: 8px;
   align-items: stretch;
 }
+.viewer-side {
+  flex: 1 1 340px;
+  max-width: 440px;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.viewer-title h2 {
+  margin: 0;
+  font: 400 26px/1.15 var(--marker);
+}
+.viewer-title .muted {
+  margin-top: 4px;
+  font-size: 13px;
+}
+.viewer-engine {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.viewer-engine button {
+  min-height: 44px;
+  border-radius: 4px;
+}
+.viewer-eval {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.viewer-score {
+  font: 700 34px/1 var(--ui);
+  font-variant-numeric: tabular-nums;
+}
+.viewer-best {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.viewer-progress {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.viewer-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 46, 147, 0.25);
+  transition: width 0.2s;
+}
+.viewer-progress-text {
+  position: relative;
+}
+/* The move list takes the remaining height and scrolls. */
+.viewer-moves {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.viewer-moves .moves li {
+  grid-template-columns: 3.4em 1fr 1fr;
+  gap: 4px;
+  padding: 1px 10px 1px 0;
+}
+.viewer-moves .moves li:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
+}
+.viewer-moves .num {
+  padding-left: 14px;
+}
+.viewer-moves .mv {
+  border-radius: 3px;
+}
+.viewer-moves .mv.current {
+  background: var(--pink);
+  color: var(--on-pink);
+}
+.viewer-moves > .muted {
+  padding: 12px 14px;
+}
+.viewer-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.viewer-nav button {
+  flex: 1;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 4px;
+}
+.viewer-nav button[aria-pressed='true'] {
+  border-color: var(--lime);
+}
+.viewer-nav .replay-pos {
+  flex: 1;
+  text-align: center;
+  font: 500 16px/1 var(--ui);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.viewer-actions button {
+  flex: 1 1 auto;
+  border-radius: 4px;
+}
+
+/* Black from the top, White from the bottom (swapped when the board is flipped). */
 .eval-bar {
   position: relative;
-  width: 18px;
+  width: var(--bar);
   height: var(--board);
-  background: #1c1c1f;
+  background: #000;
+  border: 1px solid #45454c;
+  border-radius: 3px;
   overflow: hidden;
   flex: none;
 }
@@ -1715,37 +1848,58 @@ button.primary:hover:not(:disabled) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #e9e4d8;
-  transition: height 0.25s;
+  background: #f1eee8;
+  transition: height 0.3s;
+}
+.eval-bar.flipped .eval-white {
+  top: 0;
+  bottom: auto;
+}
+.eval-mid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--pink);
+  opacity: 0.8;
 }
 .eval-text {
   position: absolute;
   left: 0;
   right: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-align: center;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
 }
 .eval-text.bottom {
-  bottom: 4px;
-  color: #111;
+  bottom: 6px;
 }
 .eval-text.top {
-  top: 4px;
-  color: #eee;
+  top: 6px;
+}
+.eval-text.on-white {
+  color: #111;
+}
+.eval-text.on-black {
+  color: #f1eee8;
 }
 .eval-graph {
+  flex: none;
   width: 100%;
-  height: 80px;
-  margin-top: 10px;
-  background: var(--bg);
+  height: 90px;
+  background: #000;
   border: 1px solid var(--border);
+  border-radius: 4px;
   cursor: pointer;
 }
+.eval-area {
+  fill: #f1eee8;
+  opacity: 0.85;
+}
 .eval-axis {
-  stroke: var(--border);
+  stroke: var(--muted);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -1757,7 +1911,7 @@ button.primary:hover:not(:disabled) {
 }
 .eval-cursor {
   stroke: var(--lime);
-  stroke-width: 1;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 .mv.blunder {
@@ -1767,9 +1921,33 @@ button.primary:hover:not(:disabled) {
 .mv.mistake {
   color: #f0b429;
 }
+.viewer-moves .mv.current.blunder,
+.viewer-moves .mv.current.mistake {
+  color: var(--on-pink);
+}
 .analysis-note {
-  font-size: 0.82rem;
-  margin-top: 6px;
+  font-size: 0.8rem;
+}
+
+/* Narrow screens: board on top at full width, side panel below; the dialog scrolls. */
+@media (max-width: 900px) {
+  .modal.viewer-modal {
+    height: auto;
+    overflow: visible;
+  }
+  .viewer {
+    --board: min(100vw - 16px - 32px - 2px - var(--bar) - 8px, 640px);
+    flex-direction: column;
+    align-items: center;
+  }
+  .viewer-side {
+    width: 100%;
+    max-width: none;
+    flex: none;
+  }
+  .viewer-moves {
+    max-height: 260px;
+  }
 }
 
 /* ---------- narrow screens ---------- */

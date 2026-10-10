@@ -47,7 +47,7 @@ export function HistoryModal({ onClose }: Props) {
   };
 
   return (
-    <Modal label={t('history.label')} className="history" onClose={onClose}>
+    <Modal label={t('history.label')} className={open ? 'viewer-modal' : 'history'} onClose={onClose}>
       <div>
         {open ? (
           <Replay game={open} onBack={() => setOpen(null)} />
@@ -148,10 +148,15 @@ function Replay({ game, onBack }: { game: SavedGame; onBack: () => void }) {
 
   return (
     <div className="replay">
-      <h2>
-        {variantName(game.variantId, vt)} · {texts.white} – {texts.black} · {game.result}
-      </h2>
-      <GameViewer variant={variant} states={states}>
+      <GameViewer
+        variant={variant}
+        states={states}
+        title={
+          <h2>
+            {variantName(game.variantId, vt)} · {texts.white} – {texts.black} · {game.result}
+          </h2>
+        }
+      >
         <button onClick={() => copyText(pgn, 'pgn')}>
           {copied === 'pgn' ? t('controls.copied') : t('history.copyText')}
         </button>

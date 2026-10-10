@@ -468,19 +468,33 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
       {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
-        <Modal label={t('analysis.shared')} className="history" onClose={() => setSharedGame(null)}>
-          <h2>
-            {t('analysis.shared')} · {vt(variantOf(sharedGame)).name}
-          </h2>
-          <GameViewer variant={variantOf(sharedGame)} states={sharedGame}>
+        <Modal label={t('analysis.shared')} className="viewer-modal" onClose={() => setSharedGame(null)}>
+          <GameViewer
+            variant={variantOf(sharedGame)}
+            states={sharedGame}
+            title={
+              <h2>
+                {t('analysis.shared')} · {vt(variantOf(sharedGame)).name}
+              </h2>
+            }
+          >
             <button onClick={() => setSharedGame(null)}>{t('close')}</button>
           </GameViewer>
         </Modal>
       )}
       {showAnalysis && (
-        <Modal label={t('analysis.dialog')} className="history" onClose={() => setShowAnalysis(false)}>
-          <h2>{t('analysis.title')}</h2>
-          <GameViewer variant={variant} states={timeline.states} autoAnalyse>
+        <Modal label={t('analysis.dialog')} className="viewer-modal" onClose={() => setShowAnalysis(false)}>
+          <GameViewer
+            variant={variant}
+            states={timeline.states}
+            autoAnalyse
+            title={
+              <>
+                <h2>{t('analysis.title')}</h2>
+                <p className="muted">{gameLabel}</p>
+              </>
+            }
+          >
             <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
           </GameViewer>
         </Modal>

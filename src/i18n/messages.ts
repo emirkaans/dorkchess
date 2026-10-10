@@ -200,9 +200,8 @@ export const tr = {
   'analysis.start': 'Analiz et',
   'analysis.continue': 'Analize devam et',
   'analysis.progress': 'Analiz: {done}/{total} — durdur',
-  'analysis.score': 'Değerlendirme: {score}',
   'analysis.notYet': 'Bu konum henüz analiz edilmedi.',
-  'analysis.arrow': ' · Ok: motorun önerdiği hamle.',
+  'analysis.best': 'En iyi: {san}',
   'analysis.marks': '?? = hata (2+ piyon), ? = yanlışlık (1+ piyon).',
   'analysis.bar': 'Değerlendirme çubuğu',
   'analysis.graph': 'Değerlendirme grafiği',
@@ -210,7 +209,6 @@ export const tr = {
   'nav.back': 'Geri',
   'nav.forward': 'İleri',
   'nav.last': 'Sona',
-  'nav.slider': 'Hamle',
 
   // Errors from links and imports
   'error.broken': 'Link bozuk (okunamadı).',
@@ -407,9 +405,8 @@ export const en: Record<MessageKey, string> = {
   'analysis.start': 'Analyse',
   'analysis.continue': 'Continue analysis',
   'analysis.progress': 'Analysis: {done}/{total} — stop',
-  'analysis.score': 'Evaluation: {score}',
   'analysis.notYet': 'This position is not analysed yet.',
-  'analysis.arrow': " · Arrow: the engine's suggestion.",
+  'analysis.best': 'Best: {san}',
   'analysis.marks': '?? = blunder (2+ pawns), ? = mistake (1+ pawn).',
   'analysis.bar': 'Evaluation bar',
   'analysis.graph': 'Evaluation graph',
@@ -417,7 +414,6 @@ export const en: Record<MessageKey, string> = {
   'nav.back': 'Back',
   'nav.forward': 'Forward',
   'nav.last': 'Last',
-  'nav.slider': 'Move',
 
   'error.broken': 'The link is broken (unreadable).',
   'error.unknownVariant': 'Unknown variant: {id}',
