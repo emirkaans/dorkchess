@@ -6,6 +6,7 @@ import { quickTimeControls } from '../../online/lobby.ts';
 import type { Seek } from '../../online/lobby.ts';
 import type { MessageKey } from '../../i18n/index.ts';
 import { useI18n } from '../i18n.tsx';
+import type { Mode } from '../settings.ts';
 import { ApiError, createOnlineGame, loadName, saveName } from './connection.ts';
 import { playerIdentity, useLobby } from './lobbyConnection.ts';
 
@@ -34,9 +35,13 @@ const BOLT = (
 export function LobbyPage({
   onOpenGame,
   defaultVariantId,
+  onPlayOffline,
+  onResumeGame,
 }: {
   onOpenGame: (id: string) => void;
   defaultVariantId: string;
+  onPlayOffline: (mode: Mode) => void;
+  onResumeGame: (() => void) | null;
 }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('quick');
@@ -52,7 +57,7 @@ export function LobbyPage({
 
   return (
     <main className="online-lobby">
-      <section className="online-card">
+      <section className="online-card lobby-card">
         <div className="lobby-head">
           <div className="analysis-head">
             {BOLT}
@@ -63,7 +68,7 @@ export function LobbyPage({
           </span>
         </div>
 
-        <label className="analysis-field">
+        <label className="analysis-field lobby-name">
           <span>{t('online.name')}</span>
           <input
             value={name}
@@ -98,6 +103,22 @@ export function LobbyPage({
         {tab === 'seeks' && <SeekList mine={mine} lobby={lobby} defaultVariantId={defaultVariantId} />}
         {tab === 'friend' && <FriendGame onOpenGame={onOpenGame} defaultVariantId={defaultVariantId} />}
       </section>
+
+      <section className="offline-play" aria-labelledby="offline-title">
+        <h2 id="offline-title">{t('lobby.offline')}</h2>
+        <div className="offline-buttons">
+          {onResumeGame && (
+            <button className="primary" onClick={onResumeGame}>
+              {t('lobby.resume')}
+            </button>
+          )}
+          {(['bot', 'hotseat'] as const).map((mode) => (
+            <button key={mode} onClick={() => onPlayOffline(mode)}>
+              {t(`mode.${mode}`)}
+            </button>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
@@ -109,23 +130,27 @@ function QuickPairing({ mine, lobby }: { mine: Seek | null; lobby: Lobby }) {
   const controls = quickTimeControls(TIME_CONTROLS.map((tc) => tc.id));
   return (
     <div className="lobby-panel">
-      <p className="muted online-lede">{t('lobby.quickHint')}</p>
-      <div className="quick-grid">
-        {controls.map((id) => {
-          const searching = mine?.quick === true && mine.timeControlId === id;
-          return (
-            <button
-              key={id}
-              className={`quick-tile${searching ? ' on' : ''}`}
-              disabled={lobby.status !== 'open'}
-              onClick={() => (searching ? lobby.cancel() : lobby.quick(id))}
-            >
-              <span className="quick-time">{timeControl(id).label}</span>
-              <span className="quick-speed">{searching ? t('lobby.searching') : t(`lobby.speed.${speedOf(id)}`)}</span>
-              {searching && <span className="quick-cancel">{t('lobby.cancel')}</span>}
-            </button>
-          );
-        })}
+      <div className="lobby-scroll">
+        <p className="muted online-lede">{t('lobby.quickHint')}</p>
+        <div className="quick-grid">
+          {controls.map((id) => {
+            const searching = mine?.quick === true && mine.timeControlId === id;
+            return (
+              <button
+                key={id}
+                className={`quick-tile${searching ? ' on' : ''}`}
+                disabled={lobby.status !== 'open'}
+                onClick={() => (searching ? lobby.cancel() : lobby.quick(id))}
+              >
+                <span className="quick-time">{timeControl(id).label}</span>
+                <span className="quick-speed">
+                  {searching ? t('lobby.searching') : t(`lobby.speed.${speedOf(id)}`)}
+                </span>
+                {searching && <span className="quick-cancel">{t('lobby.cancel')}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -141,97 +166,105 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
 
   return (
     <div className="lobby-panel">
-      <div className="seek-table" role="table" aria-label={t('lobby.tab.seeks')}>
-        <div className="seek-row head" role="row">
-          <span role="columnheader">{t('lobby.player')}</span>
-          <span role="columnheader">{t('lobby.variant')}</span>
-          <span role="columnheader">{t('lobby.time')}</span>
-          <span role="columnheader">{t('lobby.color')}</span>
+      <div className="lobby-scroll">
+        <div className="seek-table" role="table" aria-label={t('lobby.tab.seeks')}>
+          <div className="seek-row head" role="row">
+            <span role="columnheader">{t('lobby.player')}</span>
+            <span role="columnheader">{t('lobby.variant')}</span>
+            <span role="columnheader">{t('lobby.time')}</span>
+            <span role="columnheader">{t('lobby.color')}</span>
+          </div>
+          {lobby.seeks.length === 0 && <p className="muted seek-empty">{t('lobby.empty')}</p>}
+          {lobby.seeks.map((s) => {
+            const own = s.id === lobby.mySeek || s.player.id === me;
+            return (
+              <button
+                key={s.id}
+                role="row"
+                className={`seek-row${own ? ' own' : ''}`}
+                disabled={own || lobby.status !== 'open'}
+                onClick={() => lobby.accept(s.id)}
+                title={own ? undefined : t('lobby.join')}
+              >
+                <span role="cell" className="seek-player">
+                  {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
+                </span>
+                <span role="cell">{vt(getVariant(s.variantId)).name}</span>
+                <span role="cell">
+                  {timeControl(s.timeControlId).initialMs === null
+                    ? t('time.none')
+                    : timeControl(s.timeControlId).label}
+                </span>
+                <span role="cell">
+                  <span className={`seek-color ${s.color}`} aria-hidden="true" />
+                  {colorLabel(s.color)}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        {lobby.seeks.length === 0 && <p className="muted seek-empty">{t('lobby.empty')}</p>}
-        {lobby.seeks.map((s) => {
-          const own = s.id === lobby.mySeek || s.player.id === me;
-          return (
-            <button
-              key={s.id}
-              role="row"
-              className={`seek-row${own ? ' own' : ''}`}
-              disabled={own || lobby.status !== 'open'}
-              onClick={() => lobby.accept(s.id)}
-              title={own ? undefined : t('lobby.join')}
-            >
-              <span role="cell" className="seek-player">
-                {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
-              </span>
-              <span role="cell">{vt(getVariant(s.variantId)).name}</span>
-              <span role="cell">
-                {timeControl(s.timeControlId).initialMs === null ? t('time.none') : timeControl(s.timeControlId).label}
-              </span>
-              <span role="cell">
-                <span className={`seek-color ${s.color}`} aria-hidden="true" />
-                {colorLabel(s.color)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
-      {mine && !mine.quick ? (
-        <div className="seek-mine">
-          <p className="muted">{t('lobby.waiting')}</p>
+        {mine && !mine.quick ? (
+          <p className="muted seek-mine">{t('lobby.waiting')}</p>
+        ) : (
+          <form
+            id="seek-form"
+            className="seek-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              lobby.seek({ variantId, timeControlId, color });
+            }}
+          >
+            <h2>{t('lobby.newSeek')}</h2>
+            <fieldset className="choice-row">
+              <legend>{t('newGame.variant')}</legend>
+              {listVariants().map((v) => (
+                <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
+                  <input
+                    type="radio"
+                    name="seek-variant"
+                    checked={variantId === v.id}
+                    onChange={() => setVariantId(v.id)}
+                  />
+                  {vt(v).name}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="choice-row">
+              <legend>{t('newGame.time')}</legend>
+              {TIME_CONTROLS.map((tc) => (
+                <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
+                  <input
+                    type="radio"
+                    name="seek-time"
+                    checked={timeControlId === tc.id}
+                    onChange={() => setTimeControlId(tc.id)}
+                  />
+                  {tc.initialMs === null ? t('time.none') : tc.label}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="choice-row">
+              <legend>{t('online.color')}</legend>
+              {(['w', 'random', 'b'] as const).map((c) => (
+                <label key={c} className={`chip${color === c ? ' on' : ''}`}>
+                  <input type="radio" name="seek-color" checked={color === c} onChange={() => setColor(c)} />
+                  {colorLabel(c)}
+                </label>
+              ))}
+            </fieldset>
+          </form>
+        )}
+      </div>
+      <div className="lobby-actions">
+        {mine && !mine.quick ? (
           <button onClick={lobby.cancel}>{t('lobby.removeSeek')}</button>
-        </div>
-      ) : (
-        <form
-          className="seek-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            lobby.seek({ variantId, timeControlId, color });
-          }}
-        >
-          <h2>{t('lobby.newSeek')}</h2>
-          <fieldset className="choice-row">
-            <legend>{t('newGame.variant')}</legend>
-            {listVariants().map((v) => (
-              <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
-                <input
-                  type="radio"
-                  name="seek-variant"
-                  checked={variantId === v.id}
-                  onChange={() => setVariantId(v.id)}
-                />
-                {vt(v).name}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="choice-row">
-            <legend>{t('newGame.time')}</legend>
-            {TIME_CONTROLS.map((tc) => (
-              <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
-                <input
-                  type="radio"
-                  name="seek-time"
-                  checked={timeControlId === tc.id}
-                  onChange={() => setTimeControlId(tc.id)}
-                />
-                {tc.initialMs === null ? t('time.none') : tc.label}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="choice-row">
-            <legend>{t('online.color')}</legend>
-            {(['w', 'random', 'b'] as const).map((c) => (
-              <label key={c} className={`chip${color === c ? ' on' : ''}`}>
-                <input type="radio" name="seek-color" checked={color === c} onChange={() => setColor(c)} />
-                {colorLabel(c)}
-              </label>
-            ))}
-          </fieldset>
-          <button type="submit" className="primary analysis-go" disabled={lobby.status !== 'open'}>
+        ) : (
+          <button type="submit" form="seek-form" className="primary analysis-go" disabled={lobby.status !== 'open'}>
             {t('lobby.newSeek')}
           </button>
-        </form>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -267,51 +300,55 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
         void create();
       }}
     >
-      <p className="muted online-lede">{t('online.lede')}</p>
-      <fieldset className="choice-row">
-        <legend>{t('newGame.variant')}</legend>
-        {listVariants().map((v) => (
-          <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
-            <input
-              type="radio"
-              name="online-variant"
-              checked={variantId === v.id}
-              onChange={() => setVariantId(v.id)}
-            />
-            {vt(v).name}
-          </label>
-        ))}
-      </fieldset>
-      <fieldset className="choice-row">
-        <legend>{t('newGame.time')}</legend>
-        {TIME_CONTROLS.map((tc) => (
-          <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
-            <input
-              type="radio"
-              name="online-time"
-              checked={timeControlId === tc.id}
-              onChange={() => setTimeControlId(tc.id)}
-            />
-            {tc.initialMs === null ? t('time.none') : tc.label}
-          </label>
-        ))}
-      </fieldset>
-      <fieldset className="choice-row">
-        <legend>{t('online.color')}</legend>
-        {(['w', 'random', 'b'] as const).map((c) => (
-          <label key={c} className={`chip${color === c ? ' on' : ''}`}>
-            <input type="radio" name="online-color" checked={color === c} onChange={() => setColor(c)} />
-            {c === 'random' ? t('online.random') : t(`color.${c}`)}
-          </label>
-        ))}
-      </fieldset>
-      {error && <p className="error">{t(error)}</p>}
-      <button type="submit" className="primary analysis-go" disabled={busy}>
-        <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-          <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
-        </svg>
-        {busy ? t('online.creating') : t('online.create')}
-      </button>
+      <div className="lobby-scroll">
+        <p className="muted online-lede">{t('online.lede')}</p>
+        <fieldset className="choice-row">
+          <legend>{t('newGame.variant')}</legend>
+          {listVariants().map((v) => (
+            <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
+              <input
+                type="radio"
+                name="online-variant"
+                checked={variantId === v.id}
+                onChange={() => setVariantId(v.id)}
+              />
+              {vt(v).name}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset className="choice-row">
+          <legend>{t('newGame.time')}</legend>
+          {TIME_CONTROLS.map((tc) => (
+            <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
+              <input
+                type="radio"
+                name="online-time"
+                checked={timeControlId === tc.id}
+                onChange={() => setTimeControlId(tc.id)}
+              />
+              {tc.initialMs === null ? t('time.none') : tc.label}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset className="choice-row">
+          <legend>{t('online.color')}</legend>
+          {(['w', 'random', 'b'] as const).map((c) => (
+            <label key={c} className={`chip${color === c ? ' on' : ''}`}>
+              <input type="radio" name="online-color" checked={color === c} onChange={() => setColor(c)} />
+              {c === 'random' ? t('online.random') : t(`color.${c}`)}
+            </label>
+          ))}
+        </fieldset>
+        {error && <p className="error">{t(error)}</p>}
+      </div>
+      <div className="lobby-actions">
+        <button type="submit" className="primary analysis-go" disabled={busy}>
+          <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
+          </svg>
+          {busy ? t('online.creating') : t('online.create')}
+        </button>
+      </div>
     </form>
   );
 }

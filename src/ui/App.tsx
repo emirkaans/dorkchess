@@ -145,8 +145,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     gameId: session.gameId,
   });
   const openNewGame = (patch: Partial<GameSettings> = {}) => setNewGame({ ...settings, ...patch });
-  // "Play": back to the running game, or a new one if none was started yet.
-  const goPlay = () => (session.key > 1 ? setPage('game') : openNewGame());
 
   const startGame = (s: GameSettings) => {
     saveSettings(s);
@@ -424,9 +422,11 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         prefs={prefs}
         onPrefs={setPrefs}
         onHome={() => setPage('home')}
-        onPlay={goPlay}
+        onPlay={() => {
+          setOnlineId(null);
+          setPage('online');
+        }}
         onAnalysis={() => setPage('analysis')}
-        onOnline={() => setPage('online')}
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
       />
@@ -460,6 +460,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           gameId={onlineId}
           onOpenGame={setOnlineId}
           onLobby={() => setOnlineId(null)}
+          onPlayOffline={(mode) => openNewGame({ mode })}
+          onResumeGame={session.key > 1 ? () => setPage('game') : null}
           prefs={prefs}
           setPrefs={setPrefs}
           defaultVariantId={settings.variantId}

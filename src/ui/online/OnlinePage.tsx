@@ -30,6 +30,7 @@ import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
 import type { Prefs } from '../prefs.ts';
+import type { Mode } from '../settings.ts';
 import { moveSound, playSound } from '../sound.ts';
 import { ApiError, joinOnlineGame, loadName, loadTicket, saveName, saveTicket, useOnlineGame } from './connection.ts';
 import { LobbyPage } from './LobbyPage.tsx';
@@ -41,6 +42,10 @@ interface Props {
   gameId: string | null;
   onOpenGame: (gameId: string) => void;
   onLobby: () => void;
+  /** A game on this device: against the computer, or two players on one screen. */
+  onPlayOffline: (mode: Mode) => void;
+  /** Back to the game running on this device, or null when there is none. */
+  onResumeGame: (() => void) | null;
   prefs: Prefs;
   setPrefs: Dispatch<SetStateAction<Prefs>>;
   defaultVariantId: string;
@@ -53,7 +58,12 @@ export function OnlinePage({ gameId, ...rest }: Props) {
   return gameId ? (
     <OnlineGame key={gameId} gameId={gameId} {...rest} />
   ) : (
-    <LobbyPage onOpenGame={rest.onOpenGame} defaultVariantId={rest.defaultVariantId} />
+    <LobbyPage
+      onOpenGame={rest.onOpenGame}
+      defaultVariantId={rest.defaultVariantId}
+      onPlayOffline={rest.onPlayOffline}
+      onResumeGame={rest.onResumeGame}
+    />
   );
 }
 

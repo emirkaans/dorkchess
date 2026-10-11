@@ -11,15 +11,15 @@ interface Props {
   prefs: Prefs;
   onPrefs: (update: (p: Prefs) => Prefs) => void;
   onHome: () => void;
+  /** Play: the online lobby (the computer and two-player games are offered there too). */
   onPlay: () => void;
   onAnalysis: () => void;
-  onOnline: () => void;
   onHistory: () => void;
   onSettings: () => void;
 }
 
 /** Top bar: logo, main menu (home, play, online, analysis, history), language and settings. */
-export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOnline, onHistory, onSettings }: Props) {
+export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHistory, onSettings }: Props) {
   const { t } = useI18n();
   // Publishes the bar's height as --toolbar-h (the home hero slides under the bar by that much).
   const ref = useRef<HTMLElement>(null);
@@ -63,25 +63,11 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOn
         </button>
         <nav className={`menu${menuOpen ? ' open' : ''}`} id="main-menu" aria-label={t('menu.label')}>
           <button
-            className={page === 'home' ? 'on' : ''}
-            aria-current={page === 'home' ? 'page' : undefined}
-            onClick={close(onHome)}
-          >
-            {t('menu.home')}
-          </button>
-          <button
-            className={page === 'game' ? 'on' : ''}
-            aria-current={page === 'game' ? 'page' : undefined}
+            className={page === 'online' || page === 'game' ? 'on' : ''}
+            aria-current={page === 'online' || page === 'game' ? 'page' : undefined}
             onClick={close(onPlay)}
           >
             {t('menu.play')}
-          </button>
-          <button
-            className={page === 'online' ? 'on' : ''}
-            aria-current={page === 'online' ? 'page' : undefined}
-            onClick={close(onOnline)}
-          >
-            {t('menu.online')}
           </button>
           <button
             className={page === 'analysis' ? 'on' : ''}

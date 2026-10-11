@@ -2729,6 +2729,78 @@ button.primary:hover:not(:disabled) {
 }
 
 /* Lobby: quick pairing, open games, a game for a friend. */
+/*
+ * The lobby fits the screen: the card shrinks to the space left under the top
+ * bar, its tab content scrolls inside, and the main button stays visible.
+ */
+.online-lobby:has(.lobby-card) {
+  max-width: 760px;
+  height: calc(100svh - var(--toolbar-h, 73px));
+  padding-block: clamp(10px, 2.5vh, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lobby-card {
+  flex: 0 1 auto;
+  min-height: 0;
+  padding: clamp(14px, 2.4vh, 24px);
+  gap: clamp(10px, 1.8vh, 18px);
+}
+.lobby-card .lobby-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+}
+.lobby-scroll {
+  /* Holds the hidden radio inputs of the chips, which are positioned absolutely. */
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vh, 16px);
+  padding: 2px;
+}
+.lobby-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+.lobby-actions > button {
+  width: 100%;
+}
+.lobby-name {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.lobby-name input {
+  min-height: 40px;
+}
+.offline-play {
+  flex: none;
+  padding: 12px 18px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 18px;
+}
+.offline-play h2 {
+  margin: 0;
+  font: 400 20px/1 var(--display);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.offline-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .lobby-head {
   display: flex;
   flex-wrap: wrap;
@@ -2793,7 +2865,7 @@ button.primary:hover:not(:disabled) {
   gap: 10px;
 }
 .quick-tile {
-  min-height: 112px;
+  min-height: clamp(72px, 13vh, 112px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2909,18 +2981,29 @@ button.seek-row:hover:not(:disabled) {
   letter-spacing: 0.06em;
 }
 .seek-mine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.seek-mine p {
   margin: 0;
 }
 @media (max-width: 520px) {
   .quick-tile {
-    min-height: 92px;
+    min-height: 72px;
+  }
+  .offline-play {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .offline-play h2 {
+    width: 100%;
+    font-size: 16px;
+  }
+  .offline-buttons {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .offline-buttons button {
+    flex: 1;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 13px;
   }
   .quick-time {
     font-size: 30px;
