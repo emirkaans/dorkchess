@@ -2507,6 +2507,30 @@ button.primary:hover:not(:disabled) {
   --board: max(260px, min(100svh - var(--toolbar-h, 73px) - 40px, 100vw - 48px - 20px - var(--bar) - 8px - 400px));
 }
 
+/* ---------- loading a game address ---------- */
+
+.page-loading {
+  min-height: 50vh;
+  display: grid;
+  place-items: center;
+}
+
+.app-notice {
+  position: relative;
+  z-index: 25;
+  max-width: 1400px;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--pink);
+  border-radius: 4px;
+  background: var(--panel);
+  font-size: 14px;
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 1100px) {

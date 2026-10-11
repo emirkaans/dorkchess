@@ -3,7 +3,7 @@
 // bot turns (fake bot client), premoves, undo against the bot, the clock
 // (fake timers) and right-click arrows.
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ThinkOptions } from '../../src/ai/client.ts';
 import type { Move } from '../../src/engine/types.ts';
@@ -43,6 +43,8 @@ const { encodeGame, encodePosition } = await import('../../src/storage/share.ts'
 const BOARD = 400;
 
 beforeEach(() => {
+  // Every test starts at the home address (pages push their own addresses).
+  history.replaceState(null, '', '/');
   localStorage.clear();
   localStorage.setItem('dorkchess:hideRules:standard', 'true');
   // Tests read Turkish texts unless they switch the language themselves.
@@ -350,7 +352,7 @@ describe('uygulama: erişilebilirlik', () => {
     expect(status()).toContain('Mat');
   });
 
-  it('geçmişteki oyun analiz sayfasında kendi adresiyle açılır; adres yeniden açılabilir', () => {
+  it('geçmişteki oyun analiz sayfasında kendi adresiyle açılır; adres yeniden açılabilir', async () => {
     startGame({ mode: 'hotseat' });
     for (const [a, b] of [
       ['f2', 'f3'],
@@ -359,27 +361,26 @@ describe('uygulama: erişilebilirlik', () => {
       ['d8', 'h4'],
     ])
       move(a, b);
+    expect(location.pathname).toMatch(/^\/[A-Za-z0-9]{8}$/); // the game's own address
+    const gamePath = location.pathname;
     fireEvent.click(screen.getByRole('button', { name: 'Geçmiş' }));
     fireEvent.click(screen.getByRole('button', { name: 'İzle' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.querySelector('.review-page .viewer')).not.toBeNull();
-    expect(location.hash).toMatch(/^#review\//);
-    const address = location.hash;
+    expect(location.pathname).toBe(`${gamePath}/analysis`);
     fireEvent.click(screen.getByRole('button', { name: '← Geçmişe dön' }));
     expect(screen.getByRole('dialog', { name: 'Oyun geçmişi' })).toBeTruthy();
-    expect(location.hash).toBe('');
     // The address alone opens the game again (reload or a bookmark).
     cleanup();
-    history.replaceState(null, '', address);
+    history.replaceState(null, '', `${gamePath}/analysis`);
     render(<App />);
-    expect(document.querySelector('.review-page .viewer')).not.toBeNull();
+    await waitFor(() => expect(document.querySelector('.review-page .viewer')).not.toBeNull());
     expect([...document.querySelectorAll('.review-page .tree-row .mv')].map((b) => b.textContent)).toEqual([
       'f3',
       'e5',
       'g4',
       'Qh4#',
     ]);
-    history.replaceState(null, '', location.pathname);
   });
 
   it('kural kartı yeni oyunda yalnızca varyantlarda kendiliğinden açılır', () => {
@@ -387,6 +388,7 @@ describe('uygulama: erişilebilirlik', () => {
     startGame({ mode: 'hotseat' });
     expect(screen.queryByRole('dialog', { name: /kuralları/ })).toBeNull();
     cleanup();
+    history.replaceState(null, '', '/');
     startGame({ mode: 'hotseat', variantId: 'burokrat' });
     expect(screen.getByRole('dialog', { name: /kuralları/ })).toBeTruthy();
   });

@@ -12,6 +12,7 @@ import type {
   ServerMessage,
 } from '../../online/protocol.ts';
 import { loadJSON, saveJSON } from '../../storage/local.ts';
+import type { GameInfo, GameRecord, RecordUpload } from '../../online/record.ts';
 
 const ticketKey = (gameId: string) => `online:${gameId}`;
 
@@ -135,4 +136,41 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(msg));
   };
   return { view, offset, status, error, send };
+}
+
+// ---------------------------------------------------------------------------
+// Game links: what /<id> shows, and uploading local games so their link works anywhere.
+
+/** What the server knows about a game id (null: nothing, or no connection). */
+export async function fetchGameInfo(id: string): Promise<GameInfo | null> {
+  try {
+    const res = await fetch(`/api/games/${encodeURIComponent(id)}`);
+    if (!res.ok) return null;
+    return (await res.json()) as GameInfo;
+  } catch {
+    return null;
+  }
+}
+
+/** This browser's secret for the local games it uploads (only it may update them). */
+function ownerToken(): string {
+  let token = loadJSON<string>('owner', '');
+  if (token.length < 16) {
+    token = crypto.randomUUID();
+    saveJSON('owner', token);
+  }
+  return token;
+}
+
+/** Stores a local game on the server; failures (offline, …) are ignored, the game simply has no shared copy. */
+export async function uploadRecord(id: string, record: GameRecord): Promise<void> {
+  try {
+    await fetch(`/api/games/${encodeURIComponent(id)}/record`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ record, owner: ownerToken() } satisfies RecordUpload),
+    });
+  } catch {
+    // offline: the game stays local
+  }
 }

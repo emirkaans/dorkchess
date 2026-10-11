@@ -14,8 +14,10 @@ export interface Review {
   /** Line under the heading (players, time control, …). */
   readonly subtitle: string;
   readonly meta?: PgnMeta;
-  /** Id of the stored game (history): the page then has its own address, #review/<id>. */
-  readonly savedId?: string;
+  /** The game's id: the page's address is /<id>/analysis (or /<id> when just watching). */
+  readonly gameId?: string;
+  /** Opened from a game link (/<id>): shown without starting the analysis. */
+  readonly watch?: boolean;
 }
 
 interface Props {
@@ -36,10 +38,11 @@ export function ReviewPage({ review, onBack, backLabel, onOpenAnalysis }: Props)
         key={review.key}
         variant={variant}
         states={review.states}
-        autoAnalyse
+        autoAnalyse={!review.watch}
+        gameId={review.gameId}
         title={
           <>
-            <h2>{t('analysis.title')}</h2>
+            <h2>{review.watch ? t('review.game') : t('analysis.title')}</h2>
             <p className="muted">{review.subtitle}</p>
           </>
         }

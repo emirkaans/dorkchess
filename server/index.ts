@@ -4,6 +4,8 @@
 //   POST /api/games               create a game -> { gameId, color, token }
 //   POST /api/games/:id/join      take the free seat -> { gameId, color, token }
 //   GET  /api/games/:id/ws        WebSocket (first message: { t: 'hello', token })
+//   GET  /api/games/:id           what the game link shows (online room or stored local game)
+//   PUT  /api/games/:id/record    stores a local game (bot / two players) so its link works anywhere
 
 import { GAME_ID } from '../src/online/protocol.ts';
 import type { Env } from './game-room.ts';
@@ -45,10 +47,10 @@ export default {
     if (url.pathname === '/api/games' && request.method === 'POST') {
       return toRoom(env, request, newGameId(), '/create');
     }
-    const m = /^\/api\/games\/([^/]+)\/(join|ws)$/.exec(url.pathname);
+    const m = /^\/api\/games\/([^/]+)(?:\/(join|ws|record))?$/.exec(url.pathname);
     if (m) {
       if (!GAME_ID.test(m[1])) return notFound();
-      return toRoom(env, request, m[1], `/${m[2]}`);
+      return toRoom(env, request, m[1], `/${m[2] ?? 'info'}`);
     }
     if (url.pathname.startsWith('/api/')) return notFound();
     return env.ASSETS.fetch(request);

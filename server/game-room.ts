@@ -21,6 +21,8 @@ import {
   viewOf,
 } from '../src/online/room.ts';
 import type { Room } from '../src/online/room.ts';
+import { recordOfRoom, validateRecord } from '../src/online/record.ts';
+import type { GameInfo, GameRecord, RecordUpload } from '../src/online/record.ts';
 
 export interface Env {
   readonly GAME: DurableObjectNamespace<GameRoom>;
@@ -33,6 +35,8 @@ interface Attachment {
 }
 
 const MAX_MESSAGE = 2048;
+/** A stored local game: about 1000 moves of SAN with room to spare. */
+const MAX_RECORD_BYTES = 32_000;
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -91,6 +95,8 @@ export class GameRoom extends DurableObject<Env> {
       if (url.pathname === '/create' && request.method === 'POST') return await this.create(id, request);
       if (url.pathname === '/join' && request.method === 'POST') return await this.join(request);
       if (url.pathname === '/ws') return await this.openSocket(request);
+      if (url.pathname === '/info' && request.method === 'GET') return await this.info();
+      if (url.pathname === '/record' && request.method === 'PUT') return await this.putRecord(request);
     } catch (e) {
       if (e instanceof RoomError) return json({ error: e.code }, e.code === 'not-found' ? 404 : 400);
       throw e;
@@ -98,8 +104,37 @@ export class GameRoom extends DurableObject<Env> {
     return json({ error: 'not-found' }, 404);
   }
 
-  private async create(id: string, request: Request): Promise<Response> {
+  /** The game behind a link: an online room, or a local game uploaded by its player. */
+  private async info(): Promise<Response> {
+    const room = await this.load();
+    if (room) return json({ kind: 'online', phase: room.phase, record: recordOfRoom(room) } satisfies GameInfo);
+    const stored = await this.ctx.storage.get<{ record: GameRecord }>('record');
+    if (stored) return json({ kind: 'local', record: stored.record } satisfies GameInfo);
+    return json({ error: 'not-found' }, 404);
+  }
+
+  /** Stores (or updates) a local game; only the browser that first stored it may update it. */
+  private async putRecord(request: Request): Promise<Response> {
     if (await this.load()) return json({ error: 'bad-request' }, 409);
+    const text = await request.text();
+    if (text.length > MAX_RECORD_BYTES) return json({ error: 'bad-request' }, 413);
+    let body: Partial<RecordUpload>;
+    try {
+      body = JSON.parse(text) as Partial<RecordUpload>;
+    } catch {
+      return json({ error: 'bad-request' }, 400);
+    }
+    const record = validateRecord(body.record);
+    const owner = typeof body.owner === 'string' ? body.owner.slice(0, 80) : '';
+    if (!record || owner.length < 16) return json({ error: 'bad-request' }, 400);
+    const stored = await this.ctx.storage.get<{ owner: string }>('record');
+    if (stored && stored.owner !== owner) return json({ error: 'bad-request' }, 403);
+    await this.ctx.storage.put('record', { record, owner });
+    return json({ ok: true });
+  }
+
+  private async create(id: string, request: Request): Promise<Response> {
+    if ((await this.load()) || (await this.ctx.storage.get('record'))) return json({ error: 'bad-request' }, 409);
     const body = (await request.json()) as CreateRequest;
     const token = crypto.randomUUID();
     const { room, color } = createRoom(id, body, token, Math.random);

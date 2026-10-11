@@ -95,6 +95,8 @@ interface Props {
   meta?: PgnMeta;
   /** Opens the game on the analysis board at the given position. */
   onOpenAnalysis?: (states: readonly GameState[], cursor: number) => void;
+  /** The game's id, for its links (/<id>, /<id>/analysis). */
+  gameId?: string;
 }
 
 /** SAN of the engine's suggestion (empty if it cannot be written). */
@@ -114,7 +116,16 @@ function bestSan(variant: VariantDefinition, state: GameState, move: Move | null
  * tried on the board: they open variations next to the game (as on lichess),
  * which the engine looks at live. Arrow keys walk the moves.
  */
-export function GameViewer({ variant, states, title, children, autoAnalyse = false, meta, onOpenAnalysis }: Props) {
+export function GameViewer({
+  variant,
+  states,
+  title,
+  children,
+  autoAnalyse = false,
+  meta,
+  onOpenAnalysis,
+  gameId,
+}: Props) {
   const { t } = useI18n();
   const [tree, setTree] = useState(() => treeOf(states));
   const [current, setCurrent] = useState(states.length - 1);
@@ -264,6 +275,7 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
           variant={variant}
           states={shownLine}
           cursor={shownLine.length - 1}
+          gameId={gameId}
           meta={meta}
           onOpenAnalysis={onOpenAnalysis && (() => onOpenAnalysis(shownLine, shownLine.length - 1))}
         />

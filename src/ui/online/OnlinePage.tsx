@@ -15,6 +15,7 @@ import { Splatter } from '../Punk.tsx';
 import { SetupDialog } from '../SetupDialog.tsx';
 import type { Review } from '../ReviewPage.tsx';
 import { SharePanel } from '../ShareTools.tsx';
+import { gameUrl } from '../routes.ts';
 import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
@@ -298,7 +299,7 @@ function OnlineGame({
     if (move) play(move);
   };
 
-  const shareUrl = `${location.origin}/#online/${gameId}`;
+  const shareUrl = gameUrl(gameId);
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -583,6 +584,7 @@ function OnlineGame({
             variant={variant}
             states={states}
             cursor={shownIndex}
+            gameId={gameId}
             meta={{
               white: nameOf('w'),
               black: nameOf('b'),

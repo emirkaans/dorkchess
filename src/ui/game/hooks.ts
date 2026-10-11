@@ -9,7 +9,8 @@ import { HINT, acceptsDraw, botTimeMs } from '../../ai/levels.ts';
 import { LOW_TIME_MS, remainingMs } from '../../clock/clock.ts';
 import { isInCheck, opposite, toFen } from '../../engine/index.ts';
 import type { GameState, Square } from '../../engine/index.ts';
-import { newGameId, storeGame } from '../../storage/games.ts';
+import { storeGame } from '../../storage/games.ts';
+import { uploadRecord } from '../online/connection.ts';
 import { moveSound } from '../sound.ts';
 import type { SoundKind } from '../sound.ts';
 import { gameReducer } from './reducer.ts';
@@ -168,7 +169,7 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
     recorded.current = key;
     if (v.endState.moves.length === 0) return;
     storeGame({
-      id: newGameId(),
+      id: s.gameId,
       date: new Date().toISOString(),
       variantId: v.variant.id,
       mode: s.settings.mode,
@@ -180,6 +181,36 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
       moves: v.endState.moves.map((m) => m.san),
     });
   }, [finalOutcome, key, latest]);
+}
+
+/**
+ * Keeps the server copy of a local game up to date (a second after each move,
+ * and when it ends), so its link /<gameId> works for anyone.
+ */
+export function useGameUpload(session: GameSession, view: SessionView): void {
+  const latest = useLatest({ session, view });
+  const length = view.endState.moves.length;
+  const outcome = view.finalOutcome;
+  const gameId = session.gameId;
+  useEffect(() => {
+    if (length === 0) return;
+    const timer = setTimeout(() => {
+      const { session: s, view: v } = latest.current;
+      void uploadRecord(gameId, {
+        variantId: v.variant.id,
+        startFen: toFen(v.variant, s.timeline.states[0].position),
+        moves: v.endState.moves.map((m) => m.san),
+        white: playerCode(s.players.w),
+        black: playerCode(s.players.b),
+        mode: s.settings.mode,
+        timeControlId: s.settings.timeControl,
+        result: v.finalOutcome ? resultCode(v.finalOutcome) : '*',
+        termination: v.finalOutcome?.reason ?? '',
+        date: new Date().toISOString(),
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [gameId, length, outcome, latest]);
 }
 
 /** Hint (level 4 search, shown as an arrow) and draw offers against the bot. */

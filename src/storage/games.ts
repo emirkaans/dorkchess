@@ -4,6 +4,7 @@
 import { createGame, getVariant, listVariants, playSan, toFen } from '../engine/index.ts';
 import type { GameState } from '../engine/index.ts';
 import { LocalizedError } from '../i18n/index.ts';
+import { randomGameId } from '../online/record.ts';
 import { loadJSON, saveJSON } from './local.ts';
 
 export const MAX_GAMES = 200;
@@ -142,7 +143,7 @@ export function importPgn(text: string): ImportedGame {
   return {
     states,
     game: {
-      id: newGameId(),
+      id: randomGameId(),
       date: tags.Date ? new Date(tags.Date.replace(/\./g, '-')).toISOString() : new Date().toISOString(),
       variantId,
       mode: tags.Mode ?? 'imported',

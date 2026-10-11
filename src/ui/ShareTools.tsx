@@ -6,6 +6,7 @@ import { exportPgn, importPgn } from '../storage/games.ts';
 import type { ResultCode } from '../storage/games.ts';
 import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
 import { Modal } from './Modal.tsx';
+import { gameUrl } from './routes.ts';
 import { useI18n } from './i18n.tsx';
 
 /** Player names and result written into an exported PGN. */
@@ -86,6 +87,8 @@ interface ShareProps {
   onOpenAnalysis?: () => void;
   /** Start opened (otherwise a click on the heading opens it). */
   open?: boolean;
+  /** The game's id: "Game link" is then its address (/<id>), plus a link to its analysis. */
+  gameId?: string;
 }
 
 const Icon = ({ d }: { d: string }) => (
@@ -102,7 +105,7 @@ const CHECK = 'M5 12l5 5 9-10';
 const ANALYSE = 'M4 19V5M4 19h16M8 15l4-5 3 3 5-7';
 
 /** Share and export: game link, PGN (copy / download), FEN and position link; optionally "open on the analysis board". */
-export function SharePanel({ variant, states, cursor, meta, onOpenAnalysis, open = false }: ShareProps) {
+export function SharePanel({ variant, states, cursor, meta, onOpenAnalysis, open = false, gameId }: ShareProps) {
   const { t } = useI18n();
   const { copied, copy } = useCopy();
   const shown = states[Math.min(cursor, states.length - 1)];
@@ -120,7 +123,11 @@ export function SharePanel({ variant, states, cursor, meta, onOpenAnalysis, open
         {t('share.title')}
       </summary>
       <div className="share-grid">
-        {item('game', LINK, t('share.gameLink'), () => copy(gameLinkOf(variant, states), 'game'), !hasMoves)}
+        {gameId
+          ? item('game', LINK, t('share.gameLink'), () => copy(gameUrl(gameId), 'game'))
+          : item('game', LINK, t('share.gameLink'), () => copy(gameLinkOf(variant, states), 'game'), !hasMoves)}
+        {gameId &&
+          item('analysis-link', LINK, t('share.analysisLink'), () => copy(gameUrl(gameId, true), 'analysis-link'))}
         {item('pgn', DOC, t('share.copyPgn'), () => copy(pgnOf(variant, states, meta), 'pgn'))}
         {item('fen', BOARD, t('share.copyFen'), () => copy(toFen(variant, shown.position), 'fen'))}
         {item('position', PIN, t('share.positionLink'), () => copy(positionLinkOf(variant, shown), 'position'))}

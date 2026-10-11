@@ -29,12 +29,24 @@ import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
 import type { Page } from './Toolbar.tsx';
-import { useAssistant, useBotClients, useBotPlayer, useClockTicker, useGame, useGameFeedback } from './game/hooks.ts';
+import {
+  useAssistant,
+  useBotClients,
+  useBotPlayer,
+  useClockTicker,
+  useGame,
+  useGameFeedback,
+  useGameUpload,
+} from './game/hooks.ts';
 import { botName, newSession, outcomeText, resultCode } from './game/session.ts';
 import { errorText } from '../i18n/index.ts';
 import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { decodeLink } from '../storage/share.ts';
+import { isGameId } from '../online/record.ts';
+import { fetchGameInfo, uploadRecord } from './online/connection.ts';
+import { parseRoute, pathOf } from './routes.ts';
+import type { Route } from './routes.ts';
 import type { GameState } from '../engine/index.ts';
 import { TIME_CONTROLS } from '../clock/clock.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
@@ -66,7 +78,8 @@ export function App() {
 function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetStateAction<Prefs>> }) {
   const { t, vt } = useI18n();
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
-  const [page, setPage] = useState<Page>('home');
+  // A game address opened directly shows a short loading state while the game is looked up.
+  const [page, setPage] = useState<Page>(() => (parseRoute(location.pathname).kind === 'home' ? 'home' : 'loading'));
   /** Online game shown on the online page (null: its lobby). */
   const [onlineId, setOnlineId] = useState<string | null>(null);
   /** Settings the new game dialog opens with (null: closed). */
@@ -103,6 +116,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const thinking = useBotPlayer(session, view, dispatch, clients.bot, paused, setNotice);
   useClockTicker(session, view, dispatch, sound);
   useGameFeedback(session, view, sound);
+  useGameUpload(session, view);
   const assistant = useAssistant(session, view, dispatch, clients, setNotice);
 
   // Any new move (or a new game) clears the last notice.
@@ -113,6 +127,18 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const { variant, game, atEnd, outcome, turn, toMove, vsBot, watching, humanColor, timed } = view;
   const now = () => Date.now();
 
+  /** The current game for the review page (its address: /<gameId>/analysis). */
+  const postGameReview = (): Omit<Review, 'key'> => ({
+    variantId: variant.id,
+    states: timeline.states,
+    subtitle: gameLabel,
+    meta: {
+      white: botName(players.w, t),
+      black: botName(players.b, t),
+      result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
+    },
+    gameId: session.gameId,
+  });
   const openNewGame = (patch: Partial<GameSettings> = {}) => setNewGame({ ...settings, ...patch });
   // "Play": back to the running game, or a new one if none was started yet.
   const goPlay = () => (session.key > 1 ? setPage('game') : openNewGame());
@@ -155,22 +181,27 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     setPage('review');
     window.scrollTo(0, 0);
   };
-  /** A stored game from the history, on the review page at #review/<id> (pushed, so Back works). */
-  const openSaved = (game: SavedGame, back: Page | 'history', push = true) => {
-    const v = getVariant(game.variantId);
-    const texts = recordTexts(game, t);
-    setShowHistory(false);
-    if (push && location.hash !== `#review/${game.id}`) history.pushState(null, '', `#review/${game.id}`);
+  /** A stored or shared game (history record or server copy) on the review page. */
+  const openRecord = (id: string, g: SavedGame, back: Page | 'history', watch = false) => {
+    const v = getVariant(g.variantId);
+    const texts = recordTexts(g, t);
     openReview(
       {
         variantId: v.id,
-        states: replay(game),
-        subtitle: `${vt(v).name} · ${texts.white} – ${texts.black} · ${game.result}`,
-        meta: { white: texts.white, black: texts.black, result: game.result, termination: texts.termination },
-        savedId: game.id,
+        states: replay(g),
+        subtitle: `${vt(v).name} · ${texts.white} – ${texts.black} · ${g.result}`,
+        meta: { white: texts.white, black: texts.black, result: g.result, termination: texts.termination },
+        gameId: id,
+        watch,
       },
       back,
     );
+  };
+  /** A game from the history; its server copy is refreshed so the link works for others too. */
+  const openSaved = (g: SavedGame) => {
+    setShowHistory(false);
+    if (isGameId(g.id)) void uploadRecord(g.id, { ...g, timeControlId: '' });
+    openRecord(g.id, g, 'history');
   };
   const leaveReview = () => {
     if (!review) return;
@@ -185,44 +216,70 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     setShowHistory(false);
     setPage('analysis');
   };
-  // Opening a shared link: a game goes to the viewer, a position starts a two-player game from it.
-  const openLinkRef = useRef<() => void>(() => {});
+
+  /**
+   * Shows what an address asks for (on load, Back / Forward, an opened link):
+   * a page, this browser's game, or any game known to the server.
+   */
+  const applyRouteRef = useRef<(r: Route) => void>(() => {});
   useEffect(() => {
-    openLinkRef.current = () => {
-      // A stored game: #review/<id> (also when coming back to it with the browser's Back / Forward).
-      const saved = /^#review\/([^/]+)$/.exec(location.hash);
-      if (saved) {
-        const game = loadGames().find((g) => g.id === decodeURIComponent(saved[1]));
-        if (game) openSaved(game, 'history', false);
-        else history.replaceState(null, '', location.pathname + location.search);
-        return;
+    applyRouteRef.current = (r: Route) => {
+      setShowHistory(false);
+      if (r.kind === 'home' || r.kind === 'analysis') return setPage(r.kind);
+      if (r.kind === 'online') {
+        setOnlineId(null);
+        return setPage('online');
       }
-      // Leaving a review page with the browser's Back button.
-      if (page === 'review' && review?.review.savedId) {
-        leaveReview();
-        return;
+      const id = r.id;
+      // This browser's running (or just finished) game.
+      if (id === session.gameId && session.key > 1) {
+        if (r.kind === 'game' || !view.finalOutcome) return setPage('game');
+        return openReview(postGameReview(), 'game');
       }
-      // An online game link: #online/<id>.
-      const online = /^#online\/([A-Za-z0-9]{8})$/.exec(location.hash);
-      if (online) {
-        setOnlineId(online[1]);
-        setPage('online');
-        return;
+      setPage('loading');
+      const saved = loadGames().find((g) => g.id === id);
+      void (async () => {
+        const info = isGameId(id) ? await fetchGameInfo(id) : null;
+        if (info?.kind === 'online' && (r.kind === 'game' || !info.record)) {
+          setOnlineId(id);
+          return setPage('online');
+        }
+        const record = info?.record ? { ...info.record, id } : saved;
+        if (!record) {
+          setNotice(t('notice.gameNotFound'));
+          history.replaceState(null, '', '/');
+          return setPage('home');
+        }
+        openRecord(id, record, saved ? 'history' : 'home', r.kind === 'game');
+      })();
+    };
+  });
+
+  // Old hash links (#online/<id>, #review/<id>) become paths; #g= / #p= share links are opened.
+  const openHashRef = useRef<() => boolean>(() => false);
+  useEffect(() => {
+    openHashRef.current = () => {
+      const old = /^#(online|review)\/([^/]+)$/.exec(location.hash);
+      if (old) {
+        const id = decodeURIComponent(old[2]);
+        history.replaceState(null, '', old[1] === 'online' ? `/${id}` : `/${id}/analysis`);
+        applyRouteRef.current(parseRoute(location.pathname));
+        return true;
       }
       let link;
       try {
         link = decodeLink(location.hash);
       } catch (e) {
         setNotice(t('notice.linkError', { reason: errorText(e, t) }));
-        setPage('game');
         history.replaceState(null, '', location.pathname + location.search);
-        return;
+        setPage('game');
+        return true;
       }
-      if (!link) return;
+      if (!link) return false;
       history.replaceState(null, '', location.pathname + location.search);
       if (link.kind === 'game') {
         setSharedGame(link.states);
-        return;
+        return false;
       }
       const s: GameSettings = { ...loadSettings(), mode: 'hotseat', variantId: link.variantId, timeControl: 'none' };
       clients.bot.stop();
@@ -230,24 +287,34 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       setNewGame(null);
       setPage('game');
       setFlipped(false);
+      return true;
     };
   });
   useEffect(() => {
-    const open = () => openLinkRef.current();
-    open();
-    window.addEventListener('hashchange', open);
-    return () => window.removeEventListener('hashchange', open);
+    if (!openHashRef.current()) applyRouteRef.current(parseRoute(location.pathname));
+    const onHash = () => openHashRef.current();
+    const onPop = () => applyRouteRef.current(parseRoute(location.pathname));
+    window.addEventListener('hashchange', onHash);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('popstate', onPop);
+    };
   }, []);
 
-  // The address bar shows the open online game (so it can be reloaded or shared), and nothing elsewhere.
+  // The address bar follows the page: every page and every game has its own address.
   useEffect(() => {
-    const savedId = page === 'review' ? review?.review.savedId : undefined;
-    const want =
-      page === 'online' && onlineId ? `#online/${onlineId}` : savedId ? `#review/${encodeURIComponent(savedId)}` : '';
-    const ours = location.hash.startsWith('#online') || location.hash.startsWith('#review');
-    if (want && location.hash !== want) history.replaceState(null, '', location.pathname + location.search + want);
-    else if (!want && ours) history.replaceState(null, '', location.pathname + location.search);
-  }, [page, onlineId, review]);
+    let want: string;
+    if (page === 'loading') return;
+    else if (page === 'online') want = pathOf(onlineId ? { kind: 'game', id: onlineId } : { kind: 'online' });
+    else if (page === 'game') want = pathOf({ kind: 'game', id: session.gameId });
+    else if (page === 'review' && review?.review.gameId) {
+      const id = review.review.gameId;
+      want = pathOf(review.review.watch ? { kind: 'game', id } : { kind: 'review', id });
+    } else if (page === 'review') want = location.pathname;
+    else want = pathOf({ kind: page });
+    if (want !== location.pathname) history.pushState(null, '', want);
+  }, [page, onlineId, review, session.gameId]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -313,7 +380,20 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         onSettings={() => setShowSettings(true)}
       />
 
-      {page === 'home' ? (
+      {/* Notices outside the game page (e.g. a link to a game that does not exist). */}
+      {notice && page !== 'game' && (
+        <div className="app-notice" role="status">
+          {notice}
+          <button className="icon-button" aria-label={t('close')} onClick={() => setNotice(null)}>
+            ×
+          </button>
+        </div>
+      )}
+      {page === 'loading' ? (
+        <main className="page-loading">
+          <p className="muted">{t('online.connecting')}</p>
+        </main>
+      ) : page === 'home' ? (
         <HomePage onPlay={openNewGame} />
       ) : page === 'analysis' ? (
         <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={settings.variantId} seed={analysisSeed} />
@@ -468,24 +548,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             </div>
 
             {view.finalOutcome && view.endState.moves.length > 0 && (
-              <button
-                className="primary analyse-button"
-                onClick={() =>
-                  openReview(
-                    {
-                      variantId: variant.id,
-                      states: timeline.states,
-                      subtitle: gameLabel,
-                      meta: {
-                        white: botName(players.w, t),
-                        black: botName(players.b, t),
-                        result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
-                      },
-                    },
-                    'game',
-                  )
-                }
-              >
+              <button className="primary analyse-button" onClick={() => openReview(postGameReview(), 'game')}>
                 {t('analysis.button')}
               </button>
             )}
@@ -569,6 +632,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
               variant={variant}
               states={timeline.states}
               cursor={timeline.cursor}
+              gameId={session.gameId}
               meta={{
                 white: botName(players.w, t),
                 black: botName(players.b, t),
@@ -580,9 +644,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         </main>
       )}
 
-      {showHistory && (
-        <HistoryModal onClose={() => setShowHistory(false)} onOpenGame={(g) => openSaved(g, 'history')} />
-      )}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} onOpenGame={openSaved} />}
       {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
         <Modal label={t('analysis.shared')} className="viewer-modal" onClose={() => setSharedGame(null)}>

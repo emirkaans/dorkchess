@@ -4,6 +4,7 @@
 
 import { createClock, isTimed, stopClock, timeControl } from '../../clock/clock.ts';
 import type { ClockState } from '../../clock/clock.ts';
+import { randomGameId } from '../../online/record.ts';
 import { createGame, getVariant, opposite, setupStartPosition } from '../../engine/index.ts';
 import type { Color, GameEndReason, GameState, SetupQuestion, Square, VariantDefinition } from '../../engine/index.ts';
 import type { MessageKey, Translate } from '../../i18n/index.ts';
@@ -44,6 +45,8 @@ export type Run = 'play' | 'pause' | 'step';
 export interface GameSession {
   /** Changes with every new game (stale bot answers are ignored). */
   readonly key: number;
+  /** The game's id: its address /<id>, its stored copy on the server and in the history. */
+  readonly gameId: string;
   readonly settings: GameSettings;
   readonly players: Readonly<Record<Color, Player>>;
   readonly timeline: Timeline;
@@ -102,6 +105,7 @@ export function newSession(
   const clock = createClock(timeControl(settings.timeControl));
   return {
     key,
+    gameId: randomGameId(),
     settings,
     players,
     timeline: startFen ? { states: [createGame(v, startFen)], cursor: 0 } : timelineFor(v, answers),
