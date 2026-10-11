@@ -56,6 +56,9 @@
   --pb: #18181b;
   --pb-line: #ff2e93;
   --pb-glow: rgba(255, 46, 147, 0.4);
+  /* Decoration colour of the drawn piece sets (crests, gems, badge rings). */
+  --pw-accent: var(--pink);
+  --pb-accent: var(--lime);
   /* The glyph outline (a piece theme may replace the whole shadow). */
   --pw-shadow:
     -1px -1px 0 var(--pw-line), 1px -1px 0 var(--pw-line), -1px 1px 0 var(--pw-line), 1px 1px 0 var(--pw-line),
@@ -65,8 +68,38 @@
     0 0 8px var(--pb-glow);
 }
 
+/*
+ * Themes apply to any element carrying data-board / data-pieces (the page root,
+ * or a settings tile previewing another theme), so each one starts from the defaults.
+ */
+[data-board] {
+  --light-paint: initial;
+  --dark-paint: initial;
+}
+[data-board='punk'] {
+  --light: #d6d0c3;
+  --dark: #1c1c1f;
+  --coord: #8a8590;
+}
+[data-pieces] {
+  --pw-shadow:
+    -1px -1px 0 var(--pw-line), 1px -1px 0 var(--pw-line), -1px 1px 0 var(--pw-line), 1px 1px 0 var(--pw-line),
+    0 0 8px var(--pw-glow);
+  --pb-shadow:
+    -1px -1px 0 var(--pb-line), 1px -1px 0 var(--pb-line), -1px 1px 0 var(--pb-line), 1px 1px 0 var(--pb-line),
+    0 0 8px var(--pb-glow);
+}
+[data-pieces='punk'] {
+  --pw: #e9e4d8;
+  --pw-line: #111;
+  --pw-glow: rgba(198, 255, 61, 0.35);
+  --pb: #18181b;
+  --pb-line: #ff2e93;
+  --pb-glow: rgba(255, 46, 147, 0.4);
+}
+
 /* ---------- board themes ---------- */
-:root[data-board='klasik'] {
+[data-board='klasik'] {
   --light: #eedab5;
   --dark: #b58863;
   --coord: #5a3d22;
@@ -78,7 +111,7 @@
   --zone-line: rgba(70, 150, 230, 0.6);
   --board-grime: none;
 }
-:root[data-board='koyu'] {
+[data-board='koyu'] {
   --light: #a7b3c2;
   --dark: #4f5d70;
   --coord: #1e2733;
@@ -90,7 +123,7 @@
   --zone-line: rgba(255, 210, 80, 0.7);
   --board-grime: none;
 }
-:root[data-board='dork'] {
+[data-board='dork'] {
   --light: #fbe7ff;
   --dark: #9b5de5;
   --coord: #3d0b6b;
@@ -104,7 +137,7 @@
 }
 
 /* ---------- piece themes ---------- */
-:root[data-pieces='klasik'] {
+[data-pieces='klasik'] {
   --pw: #fafafa;
   --pw-line: #222;
   --pw-glow: rgba(0, 0, 0, 0.35);
@@ -112,7 +145,7 @@
   --pb-line: rgba(255, 255, 255, 0.35);
   --pb-glow: transparent;
 }
-:root[data-pieces='neon'] {
+[data-pieces='neon'] {
   --pw: #c6ff3d;
   --pw-line: #0a0a0b;
   --pw-glow: rgba(198, 255, 61, 0.45);
@@ -122,7 +155,7 @@
 }
 
 /* ---------- punk board themes (each has a matching piece theme of the same name) ---------- */
-:root[data-board='sprey'] {
+[data-board='sprey'] {
   --light: #cfc8c4;
   --light-paint: repeating-linear-gradient(17deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 7px), #cfc8c4;
   --dark: #ff2e93;
@@ -136,7 +169,7 @@
   --zone-line: #c6ff3d;
   --board-grime: none;
 }
-:root[data-board='kulup'] {
+[data-board='kulup'] {
   --light: #191427;
   --light-paint:
     linear-gradient(rgba(255, 46, 147, 0.25), rgba(255, 46, 147, 0.25)) top / 100% 1px no-repeat,
@@ -154,7 +187,7 @@
   --zone-line: #ff2e93;
   --board-grime: none;
 }
-:root[data-board='fanzin'] {
+[data-board='fanzin'] {
   --light: #f4f2ec;
   --light-paint: #f4f2ec;
   --dark: #cfcac0;
@@ -168,7 +201,7 @@
   --zone-line: #ff2e93;
   --board-grime: none;
 }
-:root[data-board='ekose'] {
+[data-board='ekose'] {
   --light: #efe6d2;
   --light-paint:
     repeating-linear-gradient(90deg, rgba(181, 18, 27, 0.08) 0 3px, transparent 3px 14px),
@@ -188,7 +221,7 @@
   --zone-line: #f2d04a;
   --board-grime: none;
 }
-:root[data-board='deri'] {
+[data-board='deri'] {
   --light: #4a3a33;
   --light-paint: radial-gradient(ellipse at 30% 25%, rgba(255, 255, 255, 0.1), transparent 60%), #4a3a33;
   --dark: #1a1412;
@@ -206,7 +239,7 @@
   --zone-line: #e0263a;
   --board-grime: none;
 }
-:root[data-board='bant'] {
+[data-board='bant'] {
   --light: #d9d6cf;
   --light-paint: repeating-linear-gradient(120deg, rgba(0, 0, 0, 0.04) 0 2px, transparent 2px 6px), #d9d6cf;
   --dark: #2b2b2b;
@@ -220,7 +253,7 @@
   --zone-line: #ffd400;
   --board-grime: none;
 }
-:root[data-board='asit'] {
+[data-board='asit'] {
   --light: #c6ff3d;
   --light-paint: #c6ff3d;
   --dark: #0a0a0b;
@@ -234,7 +267,7 @@
   --zone-line: #ff2e93;
   --board-grime: none;
 }
-:root[data-board='plak'] {
+[data-board='plak'] {
   --light: #d62839;
   --light-paint:
     radial-gradient(circle at 50% 50%, #111 0 2px, transparent 3px),
@@ -252,7 +285,7 @@
   --zone-line: #f6f1e7;
   --board-grime: none;
 }
-:root[data-board='tebesir'] {
+[data-board='tebesir'] {
   --light: #1e2924;
   --light-paint:
     linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)) top / 100% 1px no-repeat,
@@ -271,7 +304,7 @@
   --zone-line: #ff7ab8;
   --board-grime: none;
 }
-:root[data-board='koli'] {
+[data-board='koli'] {
   --light: #d6b283;
   --light-paint: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 9px), #d6b283;
   --dark: #7d7f83;
@@ -290,7 +323,7 @@
 }
 
 /* ---------- punk piece themes ---------- */
-:root[data-pieces='sprey'] {
+[data-pieces='sprey'] {
   --pw: #f6f2ec;
   --pw-line: #111;
   --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 3px 3px 0 #111;
@@ -298,7 +331,7 @@
   --pb-line: #f6f2ec;
   --pb-shadow: -1px -1px 0 #f6f2ec, 1px -1px 0 #f6f2ec, -1px 1px 0 #f6f2ec, 1px 1px 0 #f6f2ec, 3px 3px 0 #c6ff3d;
 }
-:root[data-pieces='kulup'] {
+[data-pieces='kulup'] {
   --pw: #e9ffc2;
   --pw-line: #c6ff3d;
   --pw-shadow: 0 0 4px #c6ff3d, 0 0 12px #c6ff3d, 0 0 24px rgba(198, 255, 61, 0.6);
@@ -306,7 +339,7 @@
   --pb-line: #ff2e93;
   --pb-shadow: 0 0 4px #ff2e93, 0 0 12px #ff2e93, 0 0 24px rgba(255, 46, 147, 0.6);
 }
-:root[data-pieces='fanzin'] {
+[data-pieces='fanzin'] {
   --pw: #fff;
   --pw-line: #111;
   --pw-shadow: -2px -2px 0 #111, 2px -2px 0 #111, -2px 2px 0 #111, 2px 2px 0 #111, 3px 3px 0 rgba(0, 0, 0, 0.35);
@@ -314,7 +347,7 @@
   --pb-line: #fff;
   --pb-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
-:root[data-pieces='ekose'] {
+[data-pieces='ekose'] {
   --pw: #f6eedc;
   --pw-line: #111;
   --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 3px 0 #111;
@@ -323,7 +356,7 @@
   --pb-shadow:
     -1px -1px 0 #f2d04a, 1px -1px 0 #f2d04a, -1px 1px 0 #f2d04a, 1px 1px 0 #f2d04a, 2px 3px 0 rgba(0, 0, 0, 0.5);
 }
-:root[data-pieces='deri'] {
+[data-pieces='deri'] {
   --pw: #d9d9d9;
   --pw-line: #2a2a2a;
   --pw-shadow:
@@ -332,7 +365,7 @@
   --pb-line: #e0263a;
   --pb-shadow: -1px -1px 0 #e0263a, 1px -1px 0 #e0263a, -1px 1px 0 #e0263a, 1px 1px 0 #e0263a, 0 3px 0 #000;
 }
-:root[data-pieces='bant'] {
+[data-pieces='bant'] {
   --pw: #ffd400;
   --pw-line: #111;
   --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 2px 0 #111;
@@ -341,7 +374,7 @@
   --pb-shadow:
     -1px -1px 0 #ffd400, 1px -1px 0 #ffd400, -1px 1px 0 #ffd400, 1px 1px 0 #ffd400, 2px 2px 0 rgba(0, 0, 0, 0.4);
 }
-:root[data-pieces='asit'] {
+[data-pieces='asit'] {
   --pw: #ff2e93;
   --pw-line: #0a0a0b;
   --pw-shadow: -2px -2px 0 #0a0a0b, 2px -2px 0 #0a0a0b, -2px 2px 0 #0a0a0b, 2px 2px 0 #0a0a0b, 3px 3px 0 #0a0a0b;
@@ -349,7 +382,7 @@
   --pb-line: #c6ff3d;
   --pb-shadow: -1px -1px 0 #c6ff3d, 1px -1px 0 #c6ff3d, -1px 1px 0 #c6ff3d, 1px 1px 0 #c6ff3d, 3px 3px 0 #ff2e93;
 }
-:root[data-pieces='plak'] {
+[data-pieces='plak'] {
   --pw: #f6f1e7;
   --pw-line: #111;
   --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 3px 0 rgba(0, 0, 0, 0.6);
@@ -358,7 +391,7 @@
   --pb-shadow:
     -1px -1px 0 #f6f1e7, 1px -1px 0 #f6f1e7, -1px 1px 0 #f6f1e7, 1px 1px 0 #f6f1e7, 2px 3px 0 rgba(0, 0, 0, 0.6);
 }
-:root[data-pieces='tebesir'] {
+[data-pieces='tebesir'] {
   --pw: rgba(255, 255, 255, 0.92);
   --pw-line: rgba(255, 255, 255, 0.5);
   --pw-shadow: 0 0 2px rgba(255, 255, 255, 0.6), 1px 1px 0 rgba(255, 255, 255, 0.3);
@@ -366,7 +399,7 @@
   --pb-line: rgba(255, 122, 184, 0.5);
   --pb-shadow: 0 0 2px rgba(255, 122, 184, 0.7), 1px 1px 0 rgba(255, 122, 184, 0.35);
 }
-:root[data-pieces='koli'] {
+[data-pieces='koli'] {
   --pw: #f7f3ea;
   --pw-line: #3a2a1a;
   --pw-shadow:
@@ -1573,6 +1606,84 @@ button.primary:hover:not(:disabled) {
   color: var(--pb);
   text-shadow: var(--pb-shadow);
 }
+/* Drawn piece sets (src/ui/pieceSets.ts): colours come from the piece theme. */
+.set {
+  width: 88%;
+  height: 88%;
+  display: block;
+}
+.set svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.piece.white .set {
+  fill: var(--pw);
+  stroke: var(--pw-line);
+  --line: var(--pw-line);
+  --accent: var(--pw-accent);
+}
+.piece.black .set {
+  fill: var(--pb);
+  stroke: var(--pb-line);
+  --line: var(--pb-line);
+  --accent: var(--pb-accent);
+}
+.piece .set-kirik svg {
+  stroke-linejoin: miter;
+}
+/* Neon tubes: lines only, glowing in the accent colour. */
+.piece .set-tup svg {
+  fill: none;
+  stroke-width: 4.5;
+}
+.piece.white .set-tup {
+  stroke: var(--pw);
+  filter: drop-shadow(0 0 2px var(--pw-accent)) drop-shadow(0 0 6px var(--pw-accent));
+}
+.piece.black .set-tup {
+  stroke: var(--pb-line);
+  filter: drop-shadow(0 0 2px var(--pb-accent)) drop-shadow(0 0 6px var(--pb-accent));
+}
+/* Pixels: no stroke (it would draw between the pixels); the outline is a shadow. */
+.piece .set-piksel svg {
+  stroke: none;
+  shape-rendering: crispEdges;
+}
+.piece.white .set-piksel {
+  filter: drop-shadow(2px 0 0 var(--pw-line)) drop-shadow(-2px 0 0 var(--pw-line)) drop-shadow(0 2px 0 var(--pw-line))
+    drop-shadow(0 -2px 0 var(--pw-line));
+}
+.piece.black .set-piksel {
+  filter: drop-shadow(2px 0 0 var(--pb-line)) drop-shadow(-2px 0 0 var(--pb-line)) drop-shadow(0 2px 0 var(--pb-line))
+    drop-shadow(0 -2px 0 var(--pb-line));
+}
+/* Brush: each stroke twice, a wide outline under the colour. */
+.piece .set-firca svg {
+  fill: none;
+}
+.piece .set-firca .o {
+  stroke-width: 16;
+}
+.piece .set-firca .m {
+  stroke-width: 9;
+}
+.piece.white .set-firca .o {
+  stroke: var(--pw-line);
+}
+.piece.white .set-firca .m {
+  stroke: var(--pw);
+}
+.piece.black .set-firca .o {
+  stroke: var(--pb-line);
+}
+.piece.black .set-firca .m {
+  stroke: var(--pb);
+}
 .svg {
   width: 84%;
   height: 84%;
@@ -1866,6 +1977,134 @@ button.primary:hover:not(:disabled) {
 .theme-preview .square {
   width: 64px;
   height: 64px;
+}
+
+/* Settings menu: one row per look, each opening a page of preview tiles. */
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+.settings-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-link:hover,
+.settings-link:focus-visible {
+  background: var(--panel-2);
+}
+.settings-link-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-link-label {
+  font: 400 20px/1 var(--display);
+  letter-spacing: 0.06em;
+}
+.settings-link-value {
+  font-size: 13px;
+  color: var(--muted);
+}
+.chevron {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.settings-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-back {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--lime);
+}
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+  max-height: min(56vh, 480px);
+  overflow-y: auto;
+  padding: 4px;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: var(--bg);
+}
+.tile:hover {
+  border-color: var(--border);
+}
+.tile.on {
+  border-color: var(--lime);
+  background: var(--panel-2);
+}
+.tile input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.tile:has(input:focus-visible) {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+.tile-name {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.tile.on .tile-name {
+  color: var(--fg);
+  font-weight: 700;
+}
+/* Two squares side by side; --board sizes a font glyph to fit. */
+.tile-squares {
+  --board: 352px;
+  display: flex;
+}
+.tile-squares .square {
+  width: 44px;
+  height: 44px;
+}
+.tile-squares.small {
+  --board: 288px;
+}
+.tile-squares.small .square {
+  width: 36px;
+  height: 36px;
+}
+.tile-squares .piece {
+  cursor: inherit;
 }
 
 /* Rule cards */
