@@ -8,7 +8,6 @@ import {
   isInCheck,
   listVariants,
   makeSquare,
-  moveToSan,
   opposite,
   parseFen,
   rankOf,
@@ -23,6 +22,7 @@ import { EvalBar } from './GameViewer.tsx';
 import { MoveTreeView } from './analysis/MoveTreeView.tsx';
 import { TreeNav, useTreeKeys } from './analysis/TreeNav.tsx';
 import { useLiveAnalysis } from './analysis/live.ts';
+import { EngineLine } from './analysis/EngineLine.tsx';
 import { addMove, statesTo, treeOf } from './analysis/tree.ts';
 import type { MoveTree } from './analysis/tree.ts';
 import { PieceView } from './PieceView.tsx';
@@ -216,6 +216,15 @@ export function AnalysisPage({
     setTree(r.tree);
     setCurrent(r.id);
   };
+  /** Plays moves from the shown position into the tree (an engine line clicked up to a move). */
+  const playLine = (moves: readonly Move[]) => {
+    if (!tree) return;
+    let t = tree;
+    let at = current;
+    for (const m of moves) ({ tree: t, id: at } = addMove(t, variant, at, m));
+    setTree(t);
+    setCurrent(at);
+  };
   const onMove = (candidates: Move[]) => (candidates.length > 1 ? setPromotion(candidates) : play(candidates[0]));
   const onPromote = (type: PieceType) => {
     const move = promotion?.find((m) => m.promotion === type);
@@ -234,14 +243,6 @@ export function AnalysisPage({
   };
 
   const shownPos = state ? state.position : editPos;
-  const bestSan = (() => {
-    if (!state || !live.best) return '';
-    try {
-      return moveToSan(variant, state.position, live.best);
-    } catch {
-      return '';
-    }
-  })();
   const status = (() => {
     if (!state) return '';
     const r = state.result;
@@ -476,7 +477,13 @@ export function AnalysisPage({
                 <div className="viewer-eval">
                   <span className="viewer-score">{live.score === null ? '…' : formatScore(live.score)}</span>
                   <span className="viewer-best">
-                    {bestSan ? t('analysis.best', { san: bestSan }) : live.thinking ? t('analysisPage.thinking') : ''}
+                    {state && live.line.length ? (
+                      <EngineLine variant={variant} state={state} line={live.line} onPlay={playLine} />
+                    ) : live.thinking ? (
+                      t('analysisPage.thinking')
+                    ) : (
+                      ''
+                    )}
                   </span>
                 </div>
               )}

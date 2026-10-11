@@ -1,17 +1,16 @@
 // Generates the app icons (PNG) without image libraries: shapes are computed
 // per pixel with 4x4 supersampling and written with Node's zlib.
 //   npm run icons   ->  public/icons/*.png
-// Design: a 4x4 board in the app's colours with a white pawn in the middle.
+// Design: the logo's crown, drawn as a pink outline on the dark ground, with a lime paint dot.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
 type RGBA = [number, number, number, number];
 
-const LIGHT: RGBA = [238, 218, 181, 255];
-const DARK: RGBA = [181, 136, 99, 255];
-const PAWN: RGBA = [250, 250, 250, 255];
-const INK: RGBA = [34, 34, 34, 255];
+const GROUND: RGBA = [10, 10, 11, 255];
+const PINK: RGBA = [255, 46, 147, 255];
+const LIME: RGBA = [198, 255, 61, 255];
 
 // --- PNG writer -------------------------------------------------------------
 
@@ -54,16 +53,46 @@ function png(size: number, pixels: Uint8Array): Buffer {
 
 // --- drawing (coordinates in 0..1) ------------------------------------------
 
-/** Signed-ish shape tests for the pawn: head circle, body (trapezoid), base. */
-function inPawn(x: number, y: number, grow: number): boolean {
-  const cx = 0.5;
-  const head = Math.hypot(x - cx, y - 0.34) <= 0.11 + grow;
-  // Body: widens from 0.07 (top, y=0.42) to 0.17 (bottom, y=0.66).
-  const t = (y - 0.42) / 0.24;
-  const half = 0.07 + 0.1 * t;
-  const body = y >= 0.42 - grow && y <= 0.66 + grow && Math.abs(x - cx) <= half + grow;
-  const base = y >= 0.64 - grow && y <= 0.74 + grow && Math.abs(x - cx) <= 0.22 + grow;
-  return head || body || base;
+/** The crown outline (the logo's path, 48x40 units) as line segments. */
+const CROWN: [number, number][] = [
+  [6, 30],
+  [4, 8],
+  [15, 19],
+  [24, 4],
+  [33, 19],
+  [44, 8],
+  [42, 30],
+];
+const SEGMENTS: [number, number, number, number][] = [
+  ...CROWN.map((p, i) => {
+    const q = CROWN[(i + 1) % CROWN.length];
+    return [p[0], p[1], q[0], q[1]] as [number, number, number, number];
+  }),
+  [8, 36, 40, 36], // the base line
+];
+
+function distToSegment(x: number, y: number, [ax, ay, bx, by]: [number, number, number, number]): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+}
+
+/** Is (x, y) in 0..1 icon space on the crown's stroke? The crown fills the middle 76% of the width. */
+function onCrown(x: number, y: number): boolean {
+  const scale = 48 / 0.76;
+  const cx = (x - 0.12) * scale;
+  const cy = (y - 0.5) * scale + 20;
+  return SEGMENTS.some((seg) => distToSegment(cx, cy, seg) <= 2.4);
+}
+
+/** The lime paint dot at the lower right (a big drop and two small ones). */
+function onDot(x: number, y: number): boolean {
+  return (
+    Math.hypot(x - 0.8, y - 0.8) <= 0.05 ||
+    Math.hypot(x - 0.88, y - 0.7) <= 0.018 ||
+    Math.hypot(x - 0.72, y - 0.88) <= 0.014
+  );
 }
 
 /**
@@ -84,12 +113,12 @@ function draw(size: number, inset: number, round: number): Uint8Array {
           const dx = Math.max(Math.abs(u - 0.5) - (0.5 - round), 0);
           const dy = Math.max(Math.abs(v - 0.5) - (0.5 - round), 0);
           if (round > 0 && Math.hypot(dx, dy) > round) continue;
-          // Pawn space: scaled into the safe zone.
+          // Drawing space: scaled into the safe zone.
           const pu = 0.5 + (u - 0.5) / (1 - 2 * inset);
           const pv = 0.5 + (v - 0.5) / (1 - 2 * inset);
-          let c: RGBA = (Math.floor(u * 4) + Math.floor(v * 4)) % 2 === 0 ? LIGHT : DARK;
-          if (inPawn(pu, pv, 0.022)) c = INK;
-          if (inPawn(pu, pv, 0)) c = PAWN;
+          let c: RGBA = GROUND;
+          if (onDot(pu, pv)) c = LIME;
+          if (onCrown(pu, pv)) c = PINK;
           for (let k = 0; k < 4; k++) acc[k] += c[k];
         }
       }

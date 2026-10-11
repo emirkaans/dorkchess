@@ -124,4 +124,18 @@ describe('oyun izleyici ve analiz', () => {
     expect(main()).toEqual(['e4', 'e5', 'f4', 'exf4']);
     rect.mockRestore();
   });
+
+  it('canlı izlenen oyun: yeni hamleler eklenir, son hamledeyken tahta onları izler', () => {
+    const v = getVariant('standard');
+    const { rerender } = render(<GameViewer variant={v} states={statesOf('e4', 'e5')} />);
+    expect(screen.getByText('2/2')).toBeTruthy();
+    rerender(<GameViewer variant={v} states={statesOf('e4', 'e5', 'Nf3', 'Nc6')} />);
+    expect([...document.querySelectorAll('.tree-row .mv')].map((b) => b.textContent)).toEqual([
+      'e4',
+      'e5',
+      'Nf3',
+      'Nc6',
+    ]);
+    expect(screen.getByText('4/4')).toBeTruthy();
+  });
 });

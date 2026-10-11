@@ -38,7 +38,9 @@ import {
   useGameFeedback,
   useGameUpload,
 } from './game/hooks.ts';
-import { botName, newSession, outcomeText, resultCode } from './game/session.ts';
+import { botName, newSession, outcomeText, restoreSession, resultCode, saveSession } from './game/session.ts';
+import type { SavedSession } from './game/session.ts';
+import { loadJSON, saveJSON } from '../storage/local.ts';
 import { errorText } from '../i18n/index.ts';
 import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
@@ -55,6 +57,9 @@ import { isClassic, isRuleCardHidden, loadSettings, saveSettings } from './setti
 import type { GameSettings } from './settings.ts';
 import { playSound } from './sound.ts';
 import type { SoundKind } from './sound.ts';
+
+/** Storage key of the running local game (restored after a reload). */
+const CURRENT_GAME = 'current-game';
 
 /** Variant of a list of game states (all states of one game share it). */
 const variantOf = (states: readonly GameState[]) => getVariant(states[0].variantId);
@@ -183,21 +188,23 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     window.scrollTo(0, 0);
   };
   /** A stored or shared game (history record or server copy) on the review page. */
-  const openRecord = (id: string, g: SavedGame, back: Page | 'history', watch = false) => {
+  /** Review page contents for a stored or shared game. */
+  const reviewOfRecord = (id: string, g: SavedGame, watch: boolean): Omit<Review, 'key'> => {
     const v = getVariant(g.variantId);
     const texts = recordTexts(g, t);
-    openReview(
-      {
-        variantId: v.id,
-        states: replay(g),
-        subtitle: `${vt(v).name} · ${texts.white} – ${texts.black} · ${g.result}`,
-        meta: { white: texts.white, black: texts.black, result: g.result, termination: texts.termination },
-        gameId: id,
-        watch,
-      },
-      back,
-    );
+    return {
+      variantId: v.id,
+      states: replay(g),
+      subtitle: `${vt(v).name} · ${texts.white} – ${texts.black} · ${g.result === '*' ? t('review.ongoing') : g.result}`,
+      meta: { white: texts.white, black: texts.black, result: g.result, termination: texts.termination },
+      gameId: id,
+      watch,
+      // A game still being played (someone else's link): followed live.
+      live: watch && g.result === '*',
+    };
   };
+  const openRecord = (id: string, g: SavedGame, back: Page | 'history', watch = false) =>
+    openReview(reviewOfRecord(id, g, watch), back);
   /** A game from the history; its server copy is refreshed so the link works for others too. */
   const openSaved = (g: SavedGame) => {
     setShowHistory(false);
@@ -236,6 +243,19 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       if (id === session.gameId && session.key > 1) {
         if (r.kind === 'game' || !view.finalOutcome) return setPage('game');
         return openReview(postGameReview(), 'game');
+      }
+      // The game this browser was playing before a reload: carry on with it.
+      const kept = loadJSON<SavedSession | null>(CURRENT_GAME, null);
+      if (kept?.gameId === id) {
+        const restored = restoreSession(kept, session.key + 1, Date.now());
+        if (restored) {
+          clients.bot.stop();
+          dispatch({ type: 'start', session: restored });
+          setFlipped(restored.players.w.kind === 'bot' && restored.players.b.kind === 'human');
+          setPromotion(null);
+          if (r.kind === 'review') setPendingReview(id);
+          return setPage('game');
+        }
       }
       setPage('loading');
       const saved = loadGames().find((g) => g.id === id);
@@ -302,6 +322,46 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       window.removeEventListener('popstate', onPop);
     };
   }, []);
+
+  // Watching a game that is still going on: new moves come in every few seconds.
+  const liveId = page === 'review' && review?.review.live ? review.review.gameId : undefined;
+  const liveMoves = review?.review.states.length ?? 0;
+  const reviewOfRecordRef = useRef(reviewOfRecord);
+  useEffect(() => {
+    reviewOfRecordRef.current = reviewOfRecord;
+  });
+  useEffect(() => {
+    if (!liveId) return;
+    const timer = setInterval(async () => {
+      const info = await fetchGameInfo(liveId);
+      const rec = info?.record;
+      if (!rec || (rec.moves.length + 1 === liveMoves && rec.result === '*')) return;
+      const next = reviewOfRecordRef.current(liveId, { ...rec, id: liveId }, true);
+      setReview((cur) =>
+        cur && cur.review.gameId === liveId ? { ...cur, review: { ...next, key: cur.review.key } } : cur,
+      );
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [liveId, liveMoves]);
+
+  // The running game is kept in the browser, so a reload (/<gameId>) carries on with it.
+  useEffect(() => {
+    const kept = saveSession(session, Date.now());
+    if (kept) saveJSON(CURRENT_GAME, kept);
+  }, [session]);
+  // A restored game whose analysis address was opened: show the review once the game is back.
+  const [pendingReview, setPendingReview] = useState<string | null>(null);
+  const showReviewRef = useRef(() => {});
+  useEffect(() => {
+    showReviewRef.current = () => openReview(postGameReview(), 'game');
+  });
+  const finished = !!view.finalOutcome;
+  useEffect(() => {
+    if (pendingReview && pendingReview === session.gameId && finished) {
+      setPendingReview(null);
+      showReviewRef.current();
+    }
+  }, [pendingReview, session.gameId, finished]);
 
   // The address bar follows the page: every page and every game has its own address.
   useEffect(() => {

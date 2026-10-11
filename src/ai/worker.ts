@@ -34,7 +34,7 @@ ctx.onmessage = ({ data: msg }) => {
       analyse: msg.analyse,
       onInfo: (info) => ctx.postMessage({ t: 'info', id, depth: info.depth, score: info.score, pv: info.pv }),
     });
-    ctx.postMessage({ t: 'bestmove', id, move: r.move, score: r.score, depth: r.depth, nodes: r.nodes });
+    ctx.postMessage({ t: 'bestmove', id, move: r.move, score: r.score, depth: r.depth, nodes: r.nodes, pv: r.pv });
   } catch (e) {
     ctx.postMessage({ t: 'error', id, message: e instanceof Error ? e.message : String(e) });
   }

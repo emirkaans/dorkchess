@@ -23,7 +23,7 @@ export const TT_SIZE = 2 ** 20;
 export interface SearchInfo {
   readonly depth: number;
   readonly score: number;
-  readonly pv: readonly Move[];
+  readonly pv: readonly LineMove[];
   readonly nodes: number;
 }
 
@@ -61,6 +61,15 @@ export interface SearchResult {
   readonly scores: readonly ScoredMove[];
   readonly depth: number;
   readonly nodes: number;
+  /** Principal variation: the best line the search found, starting with the best move. */
+  readonly pv: readonly LineMove[];
+}
+
+/** A move of a reported line: squares and promotion (later moves are legal in later positions only). */
+export interface LineMove {
+  readonly from: number;
+  readonly to: number;
+  readonly promotion?: string;
 }
 
 /** Monotonic clock in ms; `performance` exists in browsers, workers and Node, but isn't in the plain ES lib types. */
@@ -164,6 +173,8 @@ class Searcher {
   private readonly pawnType: number;
 
   private readonly params: SearchParams;
+  /** Turns a fast-board move into a line move (set by search(); used for the reported line). */
+  moveOf: ((m: number) => LineMove) | null = null;
 
   constructor(v: VariantDefinition, root: Position, recent: readonly Position[], params: SearchParams) {
     this.params = params;
@@ -633,6 +644,35 @@ class Searcher {
       .map((x) => x.s);
   }
 
+  /**
+   * Principal variation: the best root move, then the move the transposition
+   * table holds for each following position (stops at a missing, illegal or
+   * repeated entry). Without a table only the best move is known.
+   */
+  principalLine(first: number, maxLen = 16): number[] {
+    const b = this.b;
+    const tt = this.tt;
+    const line: number[] = [];
+    const seen = new Set<string>();
+    let m = first;
+    while (m !== 0 && line.length < maxLen && b.legalMoves().includes(m) && b.make(m)) {
+      line.push(m);
+      const hi = b.keyHi();
+      const lo = b.keyLo();
+      const key = `${lo}:${hi}`;
+      if (!tt || seen.has(key)) break;
+      seen.add(key);
+      const i = lo & tt.mask;
+      m = tt.flags[i] && tt.keys[i] === hi ? tt.moves[i] : 0;
+    }
+    for (let k = 0; k < line.length; k++) b.unmake();
+    return line;
+  }
+
+  private reportedLine(first: number): LineMove[] {
+    return this.moveOf ? this.principalLine(first).map(this.moveOf) : [];
+  }
+
   run(): { scores: RootScore[]; depth: number } {
     const rootMoves = this.b.legalMoves();
     if (rootMoves.length === 0) throw new Error('search: no legal moves');
@@ -654,7 +694,7 @@ class Searcher {
       }
       depth = d;
       order = scores.map((s) => s.move);
-      this.params.onInfo?.({ depth, score: scores[0].score, pv: [], nodes: this.nodes });
+      this.params.onInfo?.({ depth, score: scores[0].score, pv: this.reportedLine(scores[0].move), nodes: this.nodes });
       if (Math.abs(scores[0].score) > MATE_BOUND || (rootMoves.length === 1 && !this.params.analyse)) break;
       // Soft limit: an iteration started late would most likely be aborted unfinished.
       if (this.elapsed() > this.params.timeLimitMs * SOFT_LIMIT || this.params.shouldStop?.()) break;
@@ -685,8 +725,14 @@ export function staticExchange(v: VariantDefinition, pos: Position, move: Move):
  */
 export function search(v: VariantDefinition, state: GameState, params: SearchParams): SearchResult {
   const s = new Searcher(v, state.position, recentPositions(state), params);
-  const { scores, depth } = s.run();
   const legal = legalMoves(v, state.position);
+  // Moves of the line after the first are legal in later positions, not at the root: look them up there.
+  s.moveOf = (m) => {
+    const promo = movePromo(m);
+    const promotion = promo >= 0 ? s.b.types[promo].letter : undefined;
+    return promotion ? { from: moveFrom(m), to: moveTo(m), promotion } : { from: moveFrom(m), to: moveTo(m) };
+  };
+  const { scores, depth } = s.run();
   const toMove = (m: number): Move => {
     const promo = movePromo(m);
     const promotion = promo >= 0 ? s.b.types[promo].letter : undefined;
@@ -694,7 +740,12 @@ export function search(v: VariantDefinition, state: GameState, params: SearchPar
     if (!found) throw new Error(`search: fast move ${moveFrom(m)}-${moveTo(m)} is not legal in the engine`);
     return found;
   };
-  return { scores: scores.map((x) => ({ move: toMove(x.move), score: x.score })), depth, nodes: s.nodes };
+  return {
+    scores: scores.map((x) => ({ move: toMove(x.move), score: x.score })),
+    depth,
+    nodes: s.nodes,
+    pv: scores.length ? s.principalLine(scores[0].move).map(s.moveOf!) : [],
+  };
 }
 
 export interface BotMove {
@@ -703,6 +754,8 @@ export interface BotMove {
   readonly score: number;
   readonly depth: number;
   readonly nodes: number;
+  /** The engine's best line (starts with its best move, which a weaker level may not have chosen). */
+  readonly pv?: readonly LineMove[];
 }
 
 export interface ChooseOptions {
@@ -722,7 +775,7 @@ export interface ChooseOptions {
 export function chooseMove(v: VariantDefinition, state: GameState, level: number, opts: ChooseOptions = {}): BotMove {
   const cfg = levelConfig(level);
   const rng = opts.rng ?? createRng(opts.seed ?? randomSeed());
-  const { scores, depth, nodes } = search(v, state, {
+  const { scores, depth, nodes, pv } = search(v, state, {
     maxDepth: cfg.maxDepth,
     quiescence: cfg.quiescence,
     transpositionTable: cfg.transpositionTable,
@@ -764,5 +817,5 @@ export function chooseMove(v: VariantDefinition, state: GameState, level: number
       chosen = rng.pick(scores.filter((s) => s.score === best));
       break;
   }
-  return { move: chosen.move, score: chosen.score, depth, nodes };
+  return { move: chosen.move, score: chosen.score, depth, nodes, pv };
 }

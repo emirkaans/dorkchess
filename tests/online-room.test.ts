@@ -14,6 +14,7 @@ import {
   joinRoom,
   nextDeadline,
   playMove,
+  rematch,
   resign,
   seatOf,
   setConnected,
@@ -133,5 +134,21 @@ describe('online oda', () => {
     expect(room.phase).toBe('playing');
     expect(room.answers).toEqual({ w: 'd', b: 'd' });
     expect(gameOf(room)!.moves).toEqual([]);
+  });
+
+  it('rövanş: bir taraf ister, öteki kabul edince renkler değişmiş yeni oda kurulur', () => {
+    let room = resign(playMove(newGame(), 'w', mv('e2', 'e4'), 0, 0), 'b', 100);
+    expect(rematch(room, 'w', 'offer', 'Next1234').next).toBeNull();
+    room = rematch(room, 'w', 'offer', 'Next1234').room;
+    expect(viewOf(room, 'b', { w: true, b: true }, 0).rematchOffer).toBe('w');
+    const r = rematch(room, 'b', 'accept', 'Next1234');
+    expect(r.room.rematchId).toBe('Next1234');
+    expect(r.next).toMatchObject({ id: 'Next1234', phase: 'playing', moves: [] });
+    // Same secrets, colours swapped.
+    expect(seatOf(r.next!, 'tw')).toBe('b');
+    expect(seatOf(r.next!, 'tb')).toBe('w');
+    // Only once, and only after the game.
+    expect(rematch(r.room, 'w', 'offer', 'Other123').next).toBeNull();
+    expect(rematch(newGame(), 'w', 'offer', 'X1234567').room.rematchOffer).toBeUndefined();
   });
 });

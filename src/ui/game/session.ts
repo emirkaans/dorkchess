@@ -5,7 +5,7 @@
 import { createClock, isTimed, stopClock, timeControl } from '../../clock/clock.ts';
 import type { ClockState } from '../../clock/clock.ts';
 import { randomGameId } from '../../online/record.ts';
-import { createGame, getVariant, opposite, setupStartPosition } from '../../engine/index.ts';
+import { createGame, getVariant, opposite, playSan, setupStartPosition, toFen } from '../../engine/index.ts';
 import type { Color, GameEndReason, GameState, SetupQuestion, Square, VariantDefinition } from '../../engine/index.ts';
 import type { MessageKey, Translate } from '../../i18n/index.ts';
 import type { ResultCode } from '../../storage/games.ts';
@@ -185,3 +185,74 @@ export function outcomeText(o: Outcome, t: Translate): string {
 }
 
 export const resultCode = (o: Outcome): ResultCode => (o.winner === 'w' ? '1-0' : o.winner === 'b' ? '0-1' : '1/2-1/2');
+
+// ---------------------------------------------------------------------------
+// Keeping the running game across a page reload
+
+/** What is kept of a local game so a reload can carry on with it. */
+export interface SavedSession {
+  readonly gameId: string;
+  readonly settings: GameSettings;
+  readonly players: Readonly<Record<Color, Player>>;
+  readonly startFen: string;
+  /** Moves in SAN, up to the end of the timeline. */
+  readonly moves: readonly string[];
+  readonly outcome: Outcome | null;
+  readonly clock: ClockState;
+  /** When the clock above was read (the running side's time is counted up to here). */
+  readonly savedAt: number;
+}
+
+/** A started game, ready to store (null before the first move or while setup questions are asked). */
+export function saveSession(s: GameSession, now: number): SavedSession | null {
+  const states = s.timeline.states;
+  if (s.setup || states.length < 2) return null;
+  const v = getVariant(s.settings.variantId);
+  return {
+    gameId: s.gameId,
+    settings: s.settings,
+    players: s.players,
+    startFen: toFen(v, states[0].position),
+    moves: states[states.length - 1].moves.map((m) => m.san),
+    outcome: s.outcome,
+    clock: s.clock,
+    savedAt: now,
+  };
+}
+
+/**
+ * The game again after a reload: same id, players and moves; the clock goes on
+ * from the time left when it was saved (the reload itself costs nobody time).
+ */
+export function restoreSession(saved: SavedSession, key: number, now: number): GameSession | null {
+  try {
+    const v = getVariant(saved.settings.variantId);
+    const states = [createGame(v, saved.startFen)];
+    for (const san of saved.moves) states.push(playSan(v, states[states.length - 1], san));
+    const c = saved.clock;
+    const running = c.running && !c.stopped ? c.running : null;
+    const remaining = running
+      ? { ...c.remaining, [running]: Math.max(0, c.remaining[running] - (saved.savedAt - c.since)) }
+      : c.remaining;
+    // JSON has no Infinity: untimed games come back with null times.
+    const fix = (ms: number | null) => (ms === null ? Infinity : ms);
+    const clock: ClockState = {
+      ...c,
+      control: timeControl(saved.settings.timeControl),
+      remaining: { w: fix(remaining.w), b: fix(remaining.b) },
+      since: now,
+    };
+    const base = newSession(saved.settings, key, Math.random, saved.startFen);
+    return {
+      ...base,
+      gameId: saved.gameId,
+      players: saved.players,
+      timeline: { states, cursor: states.length - 1 },
+      outcome: saved.outcome,
+      clock,
+      clockAt: states.map(() => clock),
+    };
+  } catch {
+    return null;
+  }
+}

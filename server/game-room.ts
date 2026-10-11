@@ -12,6 +12,7 @@ import {
   createRoom,
   draw,
   joinRoom,
+  rematch,
   nextDeadline,
   playMove,
   resign,
@@ -21,8 +22,9 @@ import {
   viewOf,
 } from '../src/online/room.ts';
 import type { Room } from '../src/online/room.ts';
-import { recordOfRoom, validateRecord } from '../src/online/record.ts';
+import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record.ts';
 import type { GameInfo, GameRecord, RecordUpload } from '../src/online/record.ts';
+import { previewVersion, renderPreview } from './og.ts';
 
 export interface Env {
   readonly GAME: DurableObjectNamespace<GameRoom>;
@@ -96,12 +98,22 @@ export class GameRoom extends DurableObject<Env> {
       if (url.pathname === '/join' && request.method === 'POST') return await this.join(request);
       if (url.pathname === '/ws') return await this.openSocket(request);
       if (url.pathname === '/info' && request.method === 'GET') return await this.info();
+      if (url.pathname === '/og' && request.method === 'GET') return await this.preview();
+      if (url.pathname === '/adopt' && request.method === 'POST') return await this.adopt(request);
       if (url.pathname === '/record' && request.method === 'PUT') return await this.putRecord(request);
     } catch (e) {
       if (e instanceof RoomError) return json({ error: e.code }, e.code === 'not-found' ? 404 : 400);
       throw e;
     }
     return json({ error: 'not-found' }, 404);
+  }
+
+  /** Takes over a room prepared by another game (a rematch); only for an empty id. */
+  private async adopt(request: Request): Promise<Response> {
+    if ((await this.load()) || (await this.ctx.storage.get('record'))) return json({ error: 'bad-request' }, 409);
+    const room = (await request.json()) as Room;
+    await this.save(room);
+    return json({ ok: true });
   }
 
   /** The game behind a link: an online room, or a local game uploaded by its player. */
@@ -111,6 +123,34 @@ export class GameRoom extends DurableObject<Env> {
     const stored = await this.ctx.storage.get<{ record: GameRecord }>('record');
     if (stored) return json({ kind: 'local', record: stored.record } satisfies GameInfo);
     return json({ error: 'not-found' }, 404);
+  }
+
+  /** The game's record: an online room's moves, or the stored local game. */
+  private async record(): Promise<GameRecord | null> {
+    const room = await this.load();
+    if (room) return recordOfRoom(room);
+    return (await this.ctx.storage.get<{ record: GameRecord }>('record'))?.record ?? null;
+  }
+
+  /**
+   * The link-preview picture of the current position. Drawn here (a Durable
+   * Object may use more CPU than a plain request) and kept until the game changes.
+   */
+  private async preview(): Promise<Response> {
+    const record = await this.record();
+    if (!record) return json({ error: 'not-found' }, 404);
+    const version = previewVersion(record);
+    let cached = await this.ctx.storage.get<{ version: string; png: Uint8Array }>('og');
+    if (!cached || cached.version !== version) {
+      cached = { version, png: await renderPreview(record) };
+      await this.ctx.storage.put('og', cached);
+    }
+    return new Response(cached.png, {
+      headers: {
+        'content-type': 'image/png',
+        'cache-control': record.result === '*' ? 'public, max-age=60' : 'public, max-age=86400',
+      },
+    });
   }
 
   /** Stores (or updates) a local game; only the browser that first stored it may update it. */
@@ -197,6 +237,19 @@ export class GameRoom extends DurableObject<Env> {
         case 'draw':
           next = draw(room, color, msg.action, now);
           break;
+        case 'rematch': {
+          const r = rematch(room, color, msg.action, randomGameId());
+          if (r.next) {
+            const stub = this.env.GAME.get(this.env.GAME.idFromName(r.next.id));
+            const res = await stub.fetch(`https://room/adopt?id=${r.next.id}`, {
+              method: 'POST',
+              body: JSON.stringify(r.next),
+            });
+            if (!res.ok) return this.send(ws, { t: 'error', code: 'bad-request' });
+          }
+          next = r.room;
+          break;
+        }
         default:
           return this.send(ws, { t: 'error', code: 'bad-request' });
       }

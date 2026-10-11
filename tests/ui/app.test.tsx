@@ -207,6 +207,28 @@ describe('uygulama: bilgisayara karşı', () => {
     expect(status()).toBe('Sıra: Beyaz');
   });
 
+  it('sayfa yenilenince bot oyunu kaldığı yerden devam eder', async () => {
+    startGame({ mode: 'bot', botLevel: 3, timeControl: '5+0' });
+    move('e2', 'e4');
+    await botPlays('e7', 'e5');
+    move('g1', 'f3');
+    const address = location.pathname;
+    // Reload: a new app at the same address.
+    cleanup();
+    bot.pending.length = 0;
+    history.replaceState(null, '', address);
+    render(<App />);
+    expect(location.pathname).toBe(address);
+    expect(moves()).toEqual(['e4', 'e5', 'Nf3']);
+    expect(document.querySelector('.review-page')).toBeNull();
+    // The bot is to move and is asked again; the game goes on.
+    await act(async () => {});
+    expect(bot.pending).toHaveLength(1);
+    await botPlays('b8', 'c6');
+    move('f1', 'c4');
+    expect(moves()).toEqual(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']);
+  });
+
   it('mat sesi geri alıp yeniden mat olunca tekrar çalar', async () => {
     sounds.length = 0;
     startGame({ mode: 'bot', botLevel: 3 });
@@ -461,7 +483,7 @@ describe('analiz tahtası', () => {
       parseSquare('a8'),
     )!;
     await act(async () => bot.pending[0].resolve({ move: best, score: 30000, depth: 3, nodes: 1 }));
-    expect(document.querySelector('.viewer-best')?.textContent).toBe('En iyi: Ra8#');
+    expect(document.querySelector('.viewer-best')?.textContent).toBe('1.Ra8#'); // the engine's line
 
     // The analysis board is the only board on the page.
     const analysisBoard = document.querySelector('.analysis-page .board') as HTMLElement;

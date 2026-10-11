@@ -11,6 +11,8 @@ import { PromotionDialog } from './PromotionDialog.tsx';
 import { MoveTreeView } from './analysis/MoveTreeView.tsx';
 import { TreeNav, useTreeKeys } from './analysis/TreeNav.tsx';
 import { useLiveAnalysis } from './analysis/live.ts';
+import { EngineLine } from './analysis/EngineLine.tsx';
+import type { LineMove } from '../ai/search.ts';
 import { addMove, pathTo, statesTo, treeOf } from './analysis/tree.ts';
 import { SharePanel } from './ShareTools.tsx';
 import type { PgnMeta } from './ShareTools.tsx';
@@ -24,6 +26,8 @@ interface Analysis {
   readonly evals: readonly (WhiteScore | null)[];
   /** Engine's best move per position (to show where the game went wrong). */
   readonly best: readonly (Move | null)[];
+  /** Engine's best line per position. */
+  readonly lines: readonly (readonly LineMove[] | null)[];
   readonly running: boolean;
 }
 
@@ -32,10 +36,24 @@ interface Analysis {
  * (ANALYSIS_MS each). Stops when the component unmounts or `stop` is called.
  */
 function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
-  const empty = (): Analysis => ({ evals: states.map(() => null), best: states.map(() => null), running: false });
+  const empty = (): Analysis => ({
+    evals: states.map(() => null),
+    best: states.map(() => null),
+    lines: states.map(() => null),
+    running: false,
+  });
   const [analysis, setAnalysis] = useState<Analysis>(empty);
   const [client] = useState(() => new BotClient());
   const run = useRef(0);
+  // A followed game grows: its new positions start unanalysed.
+  const size = states.length;
+  useEffect(() => {
+    setAnalysis((a) => {
+      if (a.evals.length >= size) return a;
+      const pad = <T,>(xs: readonly (T | null)[]) => [...xs, ...Array<T | null>(size - xs.length).fill(null)];
+      return { ...a, evals: pad(a.evals), best: pad(a.best), lines: pad(a.lines) };
+    });
+  }, [size]);
   useEffect(() => () => client.dispose(), [client]);
 
   const start = async () => {
@@ -46,6 +64,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
       const terminal = terminalScore(state);
       let score: WhiteScore | null = terminal;
       let best: Move | null = null;
+      let line: readonly LineMove[] | null = null;
       if (terminal === null) {
         try {
           const r = await client.think({
@@ -58,6 +77,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
           });
           score = toWhite(r.score, state.position.turn);
           best = r.move;
+          line = r.pv ?? [r.move];
         } catch (e) {
           if (e instanceof BotCancelled) return;
           throw e;
@@ -68,6 +88,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
         ...a,
         evals: a.evals.map((x, k) => (k === i ? score : x)),
         best: a.best.map((x, k) => (k === i ? best : x)),
+        lines: a.lines.map((x, k) => (k === i ? line : x)),
       }));
     }
     if (run.current === token) setAnalysis((a) => ({ ...a, running: false }));
@@ -129,31 +150,50 @@ export function GameViewer({
   const { t } = useI18n();
   const [tree, setTree] = useState(() => treeOf(states));
   const [current, setCurrent] = useState(states.length - 1);
+  // Moves of the game in the tree (node ids 0..gameLength-1). A followed game can grow:
+  // the new moves are added, and the board follows them if it showed the last one.
+  const [gameLength, setGameLength] = useState(states.length);
+  const [newMoves, setNewMoves] = useState(false);
+  if (states.length !== gameLength) {
+    if (tree.nextId === gameLength) {
+      setTree(treeOf(states));
+      if (current === gameLength - 1) setCurrent(states.length - 1);
+      setGameLength(states.length);
+      setNewMoves(false);
+    } else if (!newMoves) setNewMoves(true);
+  }
+  const refreshGame = () => {
+    setTree(treeOf(states));
+    setCurrent(states.length - 1);
+    setGameLength(states.length);
+    setNewMoves(false);
+  };
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
   const { analysis, start, stop } = useAnalysis(variant, states);
   const state = tree.nodes[current].state;
   // Nodes 0..states.length-1 are the game itself (see treeOf); later ids are tried moves.
-  const inGame = current < states.length;
+  const inGame = current < gameLength;
   const turns = useMemo(() => states.map((s) => s.position.turn), [states]);
   const marks = useMemo(() => {
     const m = new Map<number, string>();
     classifyMoves(analysis.evals, turns).forEach((mark, i) => {
-      if (mark) m.set(i + 1, mark);
+      if (mark && i + 1 < gameLength) m.set(i + 1, mark);
     });
     return m;
-  }, [analysis.evals, turns]);
+  }, [analysis.evals, turns, gameLength]);
   const analysed = analysis.evals.filter((e) => e !== null).length;
   const live = useLiveAnalysis(variant, inGame ? null : state, true);
   const score = inGame ? analysis.evals[current] : live.score;
   const best = inGame ? analysis.best[current] : live.best;
+  const line = inGame ? analysis.lines[current] : live.line;
   const showEval = analysed > 0 || analysis.running || !inGame;
   // The game position the shown one comes from (for the graph's cursor).
   const gameIndex = useMemo(() => {
     let i = 0;
-    for (const id of pathTo(tree, current)) if (id < states.length) i = id;
+    for (const id of pathTo(tree, current)) if (id < gameLength) i = id;
     return i;
-  }, [tree, current, states.length]);
+  }, [tree, current, gameLength]);
 
   const startRef = useRef(start);
   useEffect(() => {
@@ -193,7 +233,17 @@ export function GameViewer({
     if (move) play(move);
   };
 
-  const san = bestSan(variant, state, best ?? null);
+  /** Plays moves from the shown position into the tree (an engine line clicked up to a move). */
+  const playLine = (moves: readonly Move[]) => {
+    let t = tree;
+    let at = current;
+    for (const m of moves) ({ tree: t, id: at } = addMove(t, variant, at, m));
+    setTree(t);
+    setCurrent(at);
+  };
+  // A marked move of the game: what it was and what the engine preferred in its place.
+  const mark = inGame && current > 0 ? marks.get(current) : undefined;
+  const markBest = mark ? bestSan(variant, states[current - 1], analysis.best[current - 1] ?? null) : '';
   const shownLine = statesTo(tree, current);
 
   return (
@@ -211,6 +261,9 @@ export function GameViewer({
             disabled={!!state.result || promotion !== null}
             onMove={onMove}
           />
+          {mark && state.moves.at(-1) && (
+            <MoveMarkBadge square={state.moves.at(-1)!.move.to} flipped={flipped} mark={mark} />
+          )}
           {promotion && (
             <PromotionDialog
               variant={variant}
@@ -232,9 +285,21 @@ export function GameViewer({
             <div className="viewer-eval">
               <span className="viewer-score">{score == null ? '…' : formatScore(score)}</span>
               <span className="viewer-best">
-                {score == null ? t('analysis.notYet') : san ? t('analysis.best', { san }) : ''}
+                {score == null ? (
+                  t('analysis.notYet')
+                ) : line?.length ? (
+                  <EngineLine variant={variant} state={state} line={line} onPlay={playLine} />
+                ) : (
+                  ''
+                )}
               </span>
             </div>
+          )}
+          {mark && (
+            <p className={`mark-note ${mark}`}>
+              {t(`mark.${mark as 'blunder' | 'mistake' | 'inaccuracy'}`)}
+              {markBest && ` ${t('mark.best', { san: markBest })}`}
+            </p>
           )}
           {analysis.running ? (
             <button className="viewer-progress" onClick={stop}>
@@ -252,6 +317,11 @@ export function GameViewer({
           )}
         </div>
 
+        {newMoves && (
+          <button className="viewer-new-moves" onClick={refreshGame}>
+            {t('review.newMoves')}
+          </button>
+        )}
         <div className="viewer-moves" ref={movesRef}>
           <MoveTreeView tree={tree} current={current} onSelect={setCurrent} marks={marks} />
         </div>
@@ -282,6 +352,25 @@ export function GameViewer({
         {children && <div className="viewer-actions">{children}</div>}
       </div>
     </div>
+  );
+}
+
+const MARK_SYMBOL: Record<string, string> = { blunder: '??', mistake: '?', inaccuracy: '?!' };
+
+/** The analysis mark (?!, ?, ??) on the square a marked move went to, as on lichess. */
+function MoveMarkBadge({ square, flipped, mark }: { square: number; flipped: boolean; mark: string }) {
+  const file = square % 8;
+  const rank = Math.floor(square / 8);
+  const col = flipped ? 7 - file : file;
+  const row = flipped ? rank : 7 - rank;
+  return (
+    <span
+      className={`move-mark ${mark}`}
+      style={{ left: `${(col + 1) * 12.5}%`, top: `${row * 12.5}%` }}
+      aria-hidden="true"
+    >
+      {MARK_SYMBOL[mark]}
+    </span>
   );
 }
 

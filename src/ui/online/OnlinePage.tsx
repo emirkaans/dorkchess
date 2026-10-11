@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
-import { TIME_CONTROLS, timeControl } from '../../clock/clock.ts';
+import { LOW_TIME_MS, TIME_CONTROLS, remainingMs, timeControl } from '../../clock/clock.ts';
 import type { ClockState } from '../../clock/clock.ts';
-import { createGame, findMove, getVariant, isInCheck, listVariants, makeMove, opposite } from '../../engine/index.ts';
+import {
+  createGame,
+  findMove,
+  getVariant,
+  isInCheck,
+  legalMoves,
+  listVariants,
+  makeMove,
+  opposite,
+} from '../../engine/index.ts';
 import type { Color, GameState, Move, PieceType, VariantDefinition } from '../../engine/index.ts';
 import type { GameView, OnlineOutcome } from '../../online/protocol.ts';
 import { Board } from '../Board.tsx';
+import type { Premove } from '../Board.tsx';
 import { BoardResizer } from '../BoardResizer.tsx';
 import { MoveList } from '../MoveList.tsx';
 import { GameOverOverlay } from '../GameOverOverlay.tsx';
@@ -28,6 +38,7 @@ import {
   loadName,
   loadTicket,
   saveName,
+  saveTicket,
   useOnlineGame,
 } from './connection.ts';
 
@@ -179,6 +190,7 @@ function clockOf(view: GameView, offset: number): ClockState {
 
 function OnlineGame({
   gameId,
+  onOpenGame,
   onLobby,
   prefs,
   setPrefs,
@@ -262,6 +274,63 @@ function OnlineGame({
     if (myQuestions.every((q) => q.id in next)) send({ t: 'setup', answers: next });
   };
 
+  /** Sends a move (shown at once, confirmed by the server's next view). */
+  const sendMove = (move: Move) => {
+    if (!view) return;
+    const ply = view.moves.length;
+    setPending({ move, ply });
+    setCursor(null);
+    send({
+      t: 'move',
+      move: { from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) },
+      ply,
+    });
+  };
+
+  // Premove: queued while the opponent thinks, played as soon as it is our move (if still legal).
+  const [premove, setPremove] = useState<Premove | null>(null);
+  const myTurnNow = !!view && view.phase === 'playing' && !!you && state?.position.turn === you && !pending;
+  const sendRef = useRef(sendMove);
+  useEffect(() => {
+    sendRef.current = sendMove;
+  });
+  useEffect(() => {
+    if (!premove || !myTurnNow || !state) return;
+    setPremove(null);
+    const candidates = legalMoves(variant, state.position).filter(
+      (m) => m.from === premove.from && m.to === premove.to,
+    );
+    if (!candidates.length) return;
+    sendRef.current(candidates.find((m) => m.promotion === variant.promotionTypes[0]) ?? candidates[0]);
+  }, [premove, myTurnNow, state, variant]);
+  useEffect(() => {
+    if (view?.phase === 'over') setPremove(null);
+  }, [view?.phase]);
+
+  // Low time: one warning per move when our clock passes ten seconds.
+  const warnedAt = useRef(-1);
+  const lowWatch = !!view && view.phase === 'playing' && !!you && view.clock.running === you && prefs.sound;
+  useEffect(() => {
+    if (!lowWatch || !view || !you) return;
+    const ply = view.moves.length;
+    const id = setInterval(() => {
+      if (warnedAt.current === ply) return;
+      if (remainingMs(clockOf(view, offset), you, Date.now()) < LOW_TIME_MS) {
+        warnedAt.current = ply;
+        playSound('lowtime');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [lowWatch, view, you, offset]);
+
+  // A rematch both players agreed to: the same seat secret works there, with the other colour.
+  const rematchId = view?.rematchId ?? null;
+  useEffect(() => {
+    if (!rematchId || !you || !ticket) return;
+    saveTicket({ gameId: rematchId, color: opposite(you), token: ticket.token });
+    onOpenGame(rematchId);
+  }, [rematchId, you, ticket, onOpenGame]);
+
   if (!view) {
     return (
       <main className="online-lobby">
@@ -282,16 +351,7 @@ function OnlineGame({
   const timed = clock.control.initialMs !== null;
   const control = timeControl(view.timeControlId);
 
-  const play = (move: Move) => {
-    const ply = view.moves.length;
-    setPending({ move, ply });
-    setCursor(null);
-    send({
-      t: 'move',
-      move: { from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) },
-      ply,
-    });
-  };
+  const play = sendMove;
   const onMove = (candidates: Move[]) => (candidates.length > 1 ? setPromotion(candidates) : play(candidates[0]));
   const onPromote = (type: PieceType) => {
     const move = promotion?.find((m) => m.promotion === type);
@@ -382,6 +442,10 @@ function OnlineGame({
                 bandRanks={variant.highlight?.ranks ?? []}
                 disabled={!yourTurn || !atEnd || promotion !== null}
                 onMove={onMove}
+                premoveColor={playing && you && !yourTurn && atEnd && promotion === null ? you : null}
+                premove={premove}
+                onPremove={setPremove}
+                onCancelPremove={() => setPremove(null)}
               />
               {view.outcome && atEnd && (
                 <GameOverOverlay
@@ -524,6 +588,33 @@ function OnlineGame({
             }
           >
             {t('analysis.button')}
+          </button>
+        )}
+        {view.phase === 'over' && you && opponent && !view.rematchId && (
+          <div className="controls rematch">
+            {view.rematchOffer === opposite(you) ? (
+              <>
+                <button className="control lime" onClick={() => send({ t: 'rematch', action: 'accept' })}>
+                  {t('online.rematchAccept')}
+                </button>
+                <button className="control" onClick={() => send({ t: 'rematch', action: 'decline' })}>
+                  {t('online.drawDecline')}
+                </button>
+              </>
+            ) : (
+              <button
+                className="control"
+                disabled={view.rematchOffer === you}
+                onClick={() => send({ t: 'rematch', action: 'offer' })}
+              >
+                {view.rematchOffer === you ? t('online.rematchOffered') : t('online.rematch')}
+              </button>
+            )}
+          </div>
+        )}
+        {view.rematchId && !you && (
+          <button className="primary new-game-button" onClick={() => onOpenGame(view.rematchId!)}>
+            {t('online.watchRematch')}
           </button>
         )}
         {(view.phase === 'over' || !you) && (

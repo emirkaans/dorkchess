@@ -42,9 +42,10 @@ export function whiteShare(s: WhiteScore): number {
 const CLAMP = 1000;
 const clamp = (s: number) => Math.max(-CLAMP, Math.min(CLAMP, s));
 
-export type MoveMark = 'blunder' | 'mistake' | null;
+export type MoveMark = 'blunder' | 'mistake' | 'inaccuracy' | null;
 
-/** Losses (centipawns, mover's view) above these mark a move as a mistake / blunder. */
+/** Losses (centipawns, mover's view) above these mark a move as an inaccuracy / mistake / blunder. */
+export const INACCURACY = 50;
 export const MISTAKE = 100;
 export const BLUNDER = 200;
 
@@ -63,7 +64,7 @@ export function classifyMoves(evals: readonly (WhiteScore | null)[], turns: read
       continue;
     }
     const drop = turns[i] === 'w' ? clamp(before) - clamp(after) : clamp(after) - clamp(before);
-    marks.push(drop > BLUNDER ? 'blunder' : drop > MISTAKE ? 'mistake' : null);
+    marks.push(drop > BLUNDER ? 'blunder' : drop > MISTAKE ? 'mistake' : drop > INACCURACY ? 'inaccuracy' : null);
   }
   return marks;
 }

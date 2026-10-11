@@ -12,7 +12,7 @@ interface Props {
   marks?: ReadonlyMap<number, string>;
 }
 
-const MARK_TEXT: Record<string, string> = { blunder: '??', mistake: '?' };
+const MARK_TEXT: Record<string, string> = { blunder: '??', mistake: '?', inaccuracy: '?!' };
 
 /**
  * Moves as on lichess: the main line in two columns (move number, White,

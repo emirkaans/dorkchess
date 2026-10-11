@@ -2545,6 +2545,76 @@ button.primary:hover:not(:disabled) {
   font-size: 14px;
 }
 
+/* ---------- engine line and move marks ---------- */
+
+.viewer-best {
+  line-height: 1.8;
+}
+.engine-line .mv.var {
+  color: var(--fg);
+}
+.engine-line .mv.var:hover:not(:disabled) {
+  color: var(--pink);
+}
+.mv.inaccuracy {
+  color: #56b4e9;
+  font-weight: 700;
+}
+.mv.mistake {
+  font-weight: 700;
+}
+.viewer-moves .mv.current.inaccuracy {
+  color: var(--on-pink);
+}
+.mark-note {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.mark-note.inaccuracy {
+  color: #56b4e9;
+}
+.mark-note.mistake {
+  color: #f0b429;
+}
+.mark-note.blunder {
+  color: var(--pink);
+}
+
+.move-mark {
+  position: absolute;
+  z-index: 12;
+  transform: translate(-60%, -40%);
+  min-width: calc(var(--board) / 8 * 0.42);
+  height: calc(var(--board) / 8 * 0.42);
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid #0a0a0b;
+  font: 700 calc(var(--board) / 8 * 0.24) / 1 var(--ui);
+  color: #0a0a0b;
+  pointer-events: none;
+}
+.move-mark.inaccuracy {
+  background: #56b4e9;
+}
+.move-mark.mistake {
+  background: #f0b429;
+}
+.move-mark.blunder {
+  background: var(--pink);
+}
+
+.viewer-new-moves {
+  flex: none;
+  min-height: 40px;
+  border-radius: 4px;
+  border-color: var(--lime);
+  color: var(--lime);
+  font-size: 13px;
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 1100px) {
@@ -2890,5 +2960,44 @@ a:focus-visible {
   .layout .new-game-button,
   .layout .analyse-button {
     min-height: 50px;
+  }
+
+  /* Analysis (game review and analysis board): board edge to edge with a thin bar, panel below. */
+  .review-page {
+    padding: 0 0 24px;
+  }
+  .review-page .viewer,
+  .analysis-page {
+    --bar: 14px;
+    --board: calc(100vw - var(--bar) - 4px);
+  }
+  .review-page .viewer {
+    gap: 12px;
+  }
+  .review-page .viewer-board,
+  .analysis-board {
+    gap: 4px;
+    align-self: flex-start;
+  }
+  .review-page .viewer-side,
+  .analysis-side {
+    padding: 0 12px;
+    max-width: none;
+  }
+  .analysis-page {
+    padding: 0 0 28px;
+    gap: 12px;
+  }
+  .review-page .eval-bar,
+  .analysis-page .eval-bar {
+    border-radius: 0;
+  }
+  .review-page .eval-text,
+  .analysis-page .eval-text {
+    font-size: 8px;
+  }
+  .review-page .viewer-score,
+  .analysis-page .viewer-score {
+    font-size: 28px;
   }
 }

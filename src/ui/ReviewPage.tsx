@@ -18,6 +18,8 @@ export interface Review {
   readonly gameId?: string;
   /** Opened from a game link (/<id>): shown without starting the analysis. */
   readonly watch?: boolean;
+  /** Still being played: the page follows new moves. */
+  readonly live?: boolean;
 }
 
 interface Props {

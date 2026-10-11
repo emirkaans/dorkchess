@@ -209,3 +209,21 @@ describe('analiz: tek yasal hamle', () => {
     expect(r.score).toBeLessThan(-10_000);
   });
 });
+
+describe('analiz: motorun hattı', () => {
+  it('en iyi hamleyle başlayan hattı verir (Ke7 sonrası: Bg5+ Nf6 Nf5#)', async () => {
+    const { playSan, findMove } = await import('../../src/engine/game.ts');
+    const { moveToSan } = await import('../../src/engine/notation.ts');
+    const v = getVariant('standard');
+    const line = 'e4 e5 Nf3 d6 Bc4 Nf6 d3 a6 Nc3 b5 Bb3 b4 Ne2 Bg4 Ng3 Nh5 Nxe5 Bxd1 Bxf7+ Ke7';
+    let state = playSan(v, createGame(v), ...line.split(' '));
+    const r = chooseMove(v, state, 4, { timeLimitMs: 1000, seed: 1, analyse: true });
+    const sans: string[] = [];
+    for (const m of r.pv ?? []) {
+      const move = findMove(v, state, m.from, m.to, m.promotion)!;
+      sans.push(moveToSan(v, state.position, move));
+      state = makeMove(v, state, move);
+    }
+    expect(sans).toEqual(['Bg5+', 'Nf6', 'Nf5#']);
+  });
+});

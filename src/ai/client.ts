@@ -4,7 +4,7 @@ import type { GameState } from '../engine/index.ts';
 import { MIN_THINK_MS } from './levels.ts';
 import type { WorkerRequest, WorkerResponse } from './protocol.ts';
 import { recentPositions } from './search.ts';
-import type { BotMove } from './search.ts';
+import type { BotMove, LineMove } from './search.ts';
 
 export interface ThinkOptions {
   readonly variantId: string;
@@ -14,7 +14,7 @@ export interface ThinkOptions {
   readonly seed?: number;
   /** The answer is held back until at least this long after the request (default MIN_THINK_MS). */
   readonly minThinkMs?: number;
-  readonly onInfo?: (info: { depth: number; score: number }) => void;
+  readonly onInfo?: (info: { depth: number; score: number; pv: readonly LineMove[] }) => void;
   /** Analysis instead of a bot move: positions with a single legal move are searched fully. */
   readonly analyse?: boolean;
 }
@@ -99,7 +99,7 @@ export class BotClient {
     const p = this.pending;
     if (!p || msg.id !== p.id) return; // stale answer
     if (msg.t === 'info') {
-      p.onInfo?.({ depth: msg.depth, score: msg.score });
+      p.onInfo?.({ depth: msg.depth, score: msg.score, pv: msg.pv });
       return;
     }
     if (msg.t === 'error') {
@@ -107,7 +107,7 @@ export class BotClient {
       p.reject(new Error(msg.message));
       return;
     }
-    const result: BotMove = { move: msg.move, score: msg.score, depth: msg.depth, nodes: msg.nodes };
+    const result: BotMove = { move: msg.move, score: msg.score, depth: msg.depth, nodes: msg.nodes, pv: msg.pv };
     const wait = p.minThinkMs - (Date.now() - p.started);
     if (wait <= 0) {
       this.pending = null;

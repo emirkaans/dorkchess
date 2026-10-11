@@ -44,6 +44,9 @@ export interface Room {
   readonly clock: ClockState;
   readonly outcome: OnlineOutcome | null;
   readonly drawOffer: Color | null;
+  /** After the game: the side that asked for a rematch, and the new game's id once both agreed. */
+  readonly rematchOffer?: Color | null;
+  readonly rematchId?: string | null;
   /** Deadline per disconnected player (playing phase only). */
   readonly gone: Readonly<Partial<Record<Color, number>>>;
 }
@@ -194,6 +197,45 @@ export function resign(room: Room, color: Color, now: number): Room {
   return finish(room, { reason: 'resign', winner: opposite(color) }, now);
 }
 
+/**
+ * After the game, a rematch: the first request is an offer; the opponent's
+ * request (or accept) agrees, and `newId` names the new game. Returns the old
+ * room and, once agreed, the new one (same players, colours swapped).
+ */
+export function rematch(
+  room: Room,
+  color: Color,
+  action: 'offer' | 'accept' | 'decline',
+  newId: string,
+): { room: Room; next: Room | null } {
+  if (room.phase !== 'over' || room.rematchId) return { room, next: null };
+  if (action === 'decline') {
+    return { room: room.rematchOffer === opposite(color) ? { ...room, rematchOffer: null } : room, next: null };
+  }
+  if (room.rematchOffer !== opposite(color)) {
+    return { room: action === 'offer' ? { ...room, rematchOffer: color } : room, next: null };
+  }
+  const w = room.seats.b;
+  const b = room.seats.w;
+  if (!w || !b) return { room, next: null };
+  const hasSetup = setupQuestions(getVariant(room.variantId)).length > 0;
+  const fresh: Room = {
+    id: newId,
+    variantId: room.variantId,
+    timeControlId: room.timeControlId,
+    seats: { w, b },
+    phase: hasSetup ? 'setup' : 'waiting',
+    answers: {},
+    startFen: null,
+    moves: [],
+    clock: createClock(timeControl(room.timeControlId)),
+    outcome: null,
+    drawOffer: null,
+    gone: {},
+  };
+  return { room: { ...room, rematchOffer: null, rematchId: newId }, next: hasSetup ? fresh : start(fresh) };
+}
+
 /** Offer (or accept, if the opponent offered) a draw; decline clears the opponent's offer. */
 export function draw(room: Room, color: Color, action: 'offer' | 'accept' | 'decline', now: number): Room {
   if (room.phase !== 'playing') return fail('bad-request');
@@ -249,6 +291,8 @@ export function viewOf(
     },
     outcome: room.outcome,
     drawOffer: room.drawOffer,
+    rematchOffer: room.rematchOffer ?? null,
+    rematchId: room.rematchId ?? null,
     now,
   };
 }

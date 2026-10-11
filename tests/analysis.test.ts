@@ -37,8 +37,8 @@ describe('analiz yardımcıları', () => {
 
   it('hatalar: oynayan tarafın kaybına göre (2+ piyon hata, 1+ piyon yanlışlık)', () => {
     // Konum puanları (beyazın bakışı); hamleler sırayla beyaz, siyah, beyaz, ...
-    const evals = [20, 30, 260, 250, 400, null, 0];
-    const turns = ['w', 'b', 'w', 'b', 'w', 'b', 'w'] as const;
+    const evals = [20, 30, 260, 250, 400, null, 0, -70];
+    const turns = ['w', 'b', 'w', 'b', 'w', 'b', 'w', 'b'] as const;
     expect(classifyMoves(evals, [...turns])).toEqual([
       null, // beyaz: 20 -> 30, kazanç
       'blunder', // siyah: 30 -> 260, siyah 2,3 piyon kaybetti
@@ -46,6 +46,7 @@ describe('analiz yardımcıları', () => {
       'mistake', // siyah: 250 -> 400, siyah 1,5 piyon kaybetti
       null, // sonraki konum analiz edilmedi
       null,
+      'inaccuracy', // beyaz: 0 -> -70, beyaz 0,7 piyon kaybetti
     ]);
   });
 

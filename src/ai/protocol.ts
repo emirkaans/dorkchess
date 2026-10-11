@@ -1,6 +1,7 @@
 // Message contract between the UI (client.ts) and the search worker (worker.ts).
 
 import type { Move, Position } from '../engine/index.ts';
+import type { LineMove } from './search.ts';
 
 /** What the search needs from a game: the position, its history keys and the positions since the last irreversible move. */
 export interface SerializedState {
@@ -32,12 +33,13 @@ export type WorkerResponse =
       readonly score: number;
       readonly depth: number;
       readonly nodes: number;
+      readonly pv?: readonly LineMove[];
     }
   | {
       readonly t: 'info';
       readonly id: number;
       readonly depth: number;
       readonly score: number;
-      readonly pv: readonly Move[];
+      readonly pv: readonly LineMove[];
     }
   | { readonly t: 'error'; readonly id: number; readonly message: string };

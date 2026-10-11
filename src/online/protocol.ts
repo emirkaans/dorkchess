@@ -78,6 +78,9 @@ export interface GameView {
   readonly outcome: OnlineOutcome | null;
   /** Side that offers a draw right now. */
   readonly drawOffer: Color | null;
+  /** After the game: the side asking for a rematch, and the new game's id once agreed. */
+  readonly rematchOffer: Color | null;
+  readonly rematchId: string | null;
   /** Server time when this view was made (clients use it to sync their clocks). */
   readonly now: number;
 }
@@ -88,6 +91,7 @@ export type ClientMessage =
   | { readonly t: 'setup'; readonly answers: Readonly<Record<string, string>> }
   | { readonly t: 'resign' }
   | { readonly t: 'draw'; readonly action: 'offer' | 'accept' | 'decline' }
+  | { readonly t: 'rematch'; readonly action: 'offer' | 'accept' | 'decline' }
   | { readonly t: 'ping' };
 
 export type ErrorCode = 'illegal' | 'not-your-turn' | 'bad-request' | 'full' | 'not-found' | 'over';

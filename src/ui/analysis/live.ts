@@ -6,6 +6,7 @@ import type { WhiteScore } from '../../ai/analysis.ts';
 import { BotCancelled, BotClient } from '../../ai/client.ts';
 import { HINT } from '../../ai/levels.ts';
 import type { GameState, Move, VariantDefinition } from '../../engine/index.ts';
+import type { LineMove } from '../../ai/search.ts';
 
 /** Engine time per position on the analysis board. */
 export const LIVE_ANALYSIS_MS = 3000;
@@ -13,6 +14,8 @@ export const LIVE_ANALYSIS_MS = 3000;
 export interface Live {
   readonly score: WhiteScore | null;
   readonly best: Move | null;
+  /** The engine's best line from this position. */
+  readonly line: readonly LineMove[];
   readonly depth: number;
   readonly thinking: boolean;
 }
@@ -20,22 +23,22 @@ export interface Live {
 /** Engine on the shown position: restarts whenever it changes; stops when switched off. */
 export function useLiveAnalysis(variant: VariantDefinition, state: GameState | null, on: boolean): Live {
   const [client] = useState(() => new BotClient());
-  const [live, setLive] = useState<Live>({ score: null, best: null, depth: 0, thinking: false });
+  const [live, setLive] = useState<Live>({ score: null, best: null, line: [], depth: 0, thinking: false });
   useEffect(() => () => client.dispose(), [client]);
   useEffect(() => {
     if (!state || !on) {
       client.stop();
-      setLive({ score: null, best: null, depth: 0, thinking: false });
+      setLive({ score: null, best: null, line: [], depth: 0, thinking: false });
       return;
     }
     const terminal = terminalScore(state);
     if (terminal !== null) {
-      setLive({ score: terminal, best: null, depth: 0, thinking: false });
+      setLive({ score: terminal, best: null, line: [], depth: 0, thinking: false });
       return;
     }
     let current = true;
     const turn = state.position.turn;
-    setLive({ score: null, best: null, depth: 0, thinking: true });
+    setLive({ score: null, best: null, line: [], depth: 0, thinking: true });
     client
       .think({
         variantId: variant.id,
@@ -44,12 +47,19 @@ export function useLiveAnalysis(variant: VariantDefinition, state: GameState | n
         timeLimitMs: LIVE_ANALYSIS_MS,
         minThinkMs: 0,
         analyse: true,
-        onInfo: ({ depth, score }) => {
-          if (current) setLive((l) => ({ ...l, depth, score: toWhite(score, turn) }));
+        onInfo: ({ depth, score, pv }) => {
+          if (current) setLive((l) => ({ ...l, depth, score: toWhite(score, turn), line: pv }));
         },
       })
       .then((r) => {
-        if (current) setLive({ score: toWhite(r.score, turn), best: r.move, depth: r.depth, thinking: false });
+        if (current)
+          setLive({
+            score: toWhite(r.score, turn),
+            best: r.move,
+            line: r.pv ?? [r.move],
+            depth: r.depth,
+            thinking: false,
+          });
       })
       .catch((e) => {
         if (!(e instanceof BotCancelled) && current) setLive((l) => ({ ...l, thinking: false }));
