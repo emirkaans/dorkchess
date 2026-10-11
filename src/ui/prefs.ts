@@ -2,8 +2,23 @@ import { detectLocale, isLocale } from '../i18n/index.ts';
 import type { Locale } from '../i18n/index.ts';
 import { loadJSON, saveJSON } from '../storage/local.ts';
 
-export type BoardTheme = 'punk' | 'klasik' | 'koyu' | 'dork';
-export type PieceTheme = 'punk' | 'klasik' | 'neon';
+export type BoardTheme = 'punk' | 'klasik' | 'koyu' | 'dork' | PunkTheme;
+export type PieceTheme = 'punk' | 'klasik' | 'neon' | PunkTheme;
+
+/** Board and piece themes drawn together: each name is both a board and a piece theme. */
+export const PUNK_THEMES = [
+  'sprey',
+  'kulup',
+  'fanzin',
+  'ekose',
+  'deri',
+  'bant',
+  'asit',
+  'plak',
+  'tebesir',
+  'koli',
+] as const;
+type PunkTheme = (typeof PUNK_THEMES)[number];
 
 export interface Prefs {
   readonly boardTheme: BoardTheme;
@@ -14,8 +29,8 @@ export interface Prefs {
   readonly boardSize: number | null;
 }
 
-export const BOARD_THEMES: readonly BoardTheme[] = ['punk', 'klasik', 'koyu', 'dork'];
-export const PIECE_THEMES: readonly PieceTheme[] = ['punk', 'klasik', 'neon'];
+export const BOARD_THEMES: readonly BoardTheme[] = ['punk', 'klasik', 'koyu', 'dork', ...PUNK_THEMES];
+export const PIECE_THEMES: readonly PieceTheme[] = ['punk', 'klasik', 'neon', ...PUNK_THEMES];
 
 const DEFAULT_PREFS: Omit<Prefs, 'locale'> = { boardTheme: 'punk', pieceTheme: 'punk', sound: true, boardSize: null };
 const KEY = 'prefs';

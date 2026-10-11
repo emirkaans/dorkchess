@@ -56,6 +56,13 @@
   --pb: #18181b;
   --pb-line: #ff2e93;
   --pb-glow: rgba(255, 46, 147, 0.4);
+  /* The glyph outline (a piece theme may replace the whole shadow). */
+  --pw-shadow:
+    -1px -1px 0 var(--pw-line), 1px -1px 0 var(--pw-line), -1px 1px 0 var(--pw-line), 1px 1px 0 var(--pw-line),
+    0 0 8px var(--pw-glow);
+  --pb-shadow:
+    -1px -1px 0 var(--pb-line), 1px -1px 0 var(--pb-line), -1px 1px 0 var(--pb-line), 1px 1px 0 var(--pb-line),
+    0 0 8px var(--pb-glow);
 }
 
 /* ---------- board themes ---------- */
@@ -112,6 +119,262 @@
   --pb: #ff2e93;
   --pb-line: #0a0a0b;
   --pb-glow: rgba(255, 46, 147, 0.45);
+}
+
+/* ---------- punk board themes (each has a matching piece theme of the same name) ---------- */
+:root[data-board='sprey'] {
+  --light: #cfc8c4;
+  --light-paint: repeating-linear-gradient(17deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 7px), #cfc8c4;
+  --dark: #ff2e93;
+  --dark-paint: radial-gradient(circle at 50% 45%, #ff2e93 0 52%, #d81f7a 70%, #7d1347 100%);
+  --coord: #2a1f26;
+  --last: rgba(198, 255, 61, 0.45);
+  --selected: rgba(198, 255, 61, 0.65);
+  --hint: rgba(17, 17, 17, 0.55);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(198, 255, 61, 0.2);
+  --zone-line: #c6ff3d;
+  --board-grime: none;
+}
+:root[data-board='kulup'] {
+  --light: #191427;
+  --light-paint:
+    linear-gradient(rgba(255, 46, 147, 0.25), rgba(255, 46, 147, 0.25)) top / 100% 1px no-repeat,
+    linear-gradient(rgba(255, 46, 147, 0.25), rgba(255, 46, 147, 0.25)) left / 1px 100% no-repeat, #191427;
+  --dark: #0b0a12;
+  --dark-paint:
+    linear-gradient(rgba(255, 46, 147, 0.25), rgba(255, 46, 147, 0.25)) top / 100% 1px no-repeat,
+    linear-gradient(rgba(255, 46, 147, 0.25), rgba(255, 46, 147, 0.25)) left / 1px 100% no-repeat, #0b0a12;
+  --coord: #ff2e93;
+  --last: rgba(198, 255, 61, 0.18);
+  --selected: rgba(198, 255, 61, 0.32);
+  --hint: #c6ff3d;
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 46, 147, 0.16);
+  --zone-line: #ff2e93;
+  --board-grime: none;
+}
+:root[data-board='fanzin'] {
+  --light: #f4f2ec;
+  --light-paint: #f4f2ec;
+  --dark: #cfcac0;
+  --dark-paint: radial-gradient(#141414 42%, transparent 46%) 0 0 / 7px 7px, #cfcac0;
+  --coord: #111;
+  --last: rgba(255, 46, 147, 0.45);
+  --selected: rgba(255, 46, 147, 0.6);
+  --hint: rgba(17, 17, 17, 0.55);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 46, 147, 0.18);
+  --zone-line: #ff2e93;
+  --board-grime: none;
+}
+:root[data-board='ekose'] {
+  --light: #efe6d2;
+  --light-paint:
+    repeating-linear-gradient(90deg, rgba(181, 18, 27, 0.08) 0 3px, transparent 3px 14px),
+    repeating-linear-gradient(0deg, rgba(181, 18, 27, 0.08) 0 3px, transparent 3px 14px), #efe6d2;
+  --dark: #b5121b;
+  --dark-paint:
+    repeating-linear-gradient(90deg, #f2d04a 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.4) 0 5px, transparent 5px 14px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.4) 0 5px, transparent 5px 14px),
+    repeating-linear-gradient(0deg, rgba(14, 60, 30, 0.5) 0 2px, transparent 2px 7px), #b5121b;
+  --coord: #111;
+  --last: rgba(242, 208, 74, 0.5);
+  --selected: rgba(242, 208, 74, 0.7);
+  --hint: rgba(17, 17, 17, 0.55);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(242, 208, 74, 0.22);
+  --zone-line: #f2d04a;
+  --board-grime: none;
+}
+:root[data-board='deri'] {
+  --light: #4a3a33;
+  --light-paint: radial-gradient(ellipse at 30% 25%, rgba(255, 255, 255, 0.1), transparent 60%), #4a3a33;
+  --dark: #1a1412;
+  --dark-paint:
+    radial-gradient(circle at 12% 12%, #f2f2f2 0 2px, #7a7a7a 3px, transparent 4.5px),
+    radial-gradient(circle at 88% 12%, #f2f2f2 0 2px, #7a7a7a 3px, transparent 4.5px),
+    radial-gradient(circle at 12% 88%, #f2f2f2 0 2px, #7a7a7a 3px, transparent 4.5px),
+    radial-gradient(circle at 88% 88%, #f2f2f2 0 2px, #7a7a7a 3px, transparent 4.5px), #1a1412;
+  --coord: #c9b6a8;
+  --last: rgba(224, 38, 58, 0.4);
+  --selected: rgba(224, 38, 58, 0.6);
+  --hint: rgba(240, 240, 240, 0.5);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(224, 38, 58, 0.18);
+  --zone-line: #e0263a;
+  --board-grime: none;
+}
+:root[data-board='bant'] {
+  --light: #d9d6cf;
+  --light-paint: repeating-linear-gradient(120deg, rgba(0, 0, 0, 0.04) 0 2px, transparent 2px 6px), #d9d6cf;
+  --dark: #2b2b2b;
+  --dark-paint: #2b2b2b;
+  --coord: #8c8a84;
+  --last: rgba(255, 212, 0, 0.45);
+  --selected: rgba(255, 212, 0, 0.65);
+  --hint: rgba(230, 180, 0, 0.9);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 212, 0, 0.2);
+  --zone-line: #ffd400;
+  --board-grime: none;
+}
+:root[data-board='asit'] {
+  --light: #c6ff3d;
+  --light-paint: #c6ff3d;
+  --dark: #0a0a0b;
+  --dark-paint: #0a0a0b;
+  --coord: #ff2e93;
+  --last: rgba(255, 46, 147, 0.45);
+  --selected: rgba(255, 46, 147, 0.65);
+  --hint: #ff2e93;
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 46, 147, 0.2);
+  --zone-line: #ff2e93;
+  --board-grime: none;
+}
+:root[data-board='plak'] {
+  --light: #d62839;
+  --light-paint:
+    radial-gradient(circle at 50% 50%, #111 0 2px, transparent 3px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0 30%, transparent 31%), #d62839;
+  --dark: #161616;
+  --dark-paint:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 45%),
+    repeating-radial-gradient(circle at 50% 50%, #0f0f0f 0 2px, #1f1f1f 2px 3px);
+  --coord: #f6f1e7;
+  --last: rgba(246, 241, 231, 0.3);
+  --selected: rgba(246, 241, 231, 0.45);
+  --hint: #f6f1e7;
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(246, 241, 231, 0.15);
+  --zone-line: #f6f1e7;
+  --board-grime: none;
+}
+:root[data-board='tebesir'] {
+  --light: #1e2924;
+  --light-paint:
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)) top / 100% 1px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)) left / 1px 100% no-repeat, #1e2924;
+  --dark: #1e2924;
+  --dark-paint:
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)) top / 100% 1px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)) left / 1px 100% no-repeat,
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.2) 0 2px, transparent 2px 10px), #1e2924;
+  --coord: rgba(255, 255, 255, 0.6);
+  --last: rgba(255, 230, 120, 0.22);
+  --selected: rgba(255, 230, 120, 0.36);
+  --hint: rgba(255, 255, 255, 0.7);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 122, 184, 0.16);
+  --zone-line: #ff7ab8;
+  --board-grime: none;
+}
+:root[data-board='koli'] {
+  --light: #d6b283;
+  --light-paint: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 9px), #d6b283;
+  --dark: #7d7f83;
+  --dark-paint:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.08) 0 1px, transparent 1px 5px),
+    linear-gradient(180deg, #8f9195, #6c6e72);
+  --coord: #3a2a1a;
+  --last: rgba(255, 46, 147, 0.35);
+  --selected: rgba(255, 46, 147, 0.55);
+  --hint: rgba(58, 42, 26, 0.55);
+  --premove: rgba(20, 30, 85, 0.45);
+  --zone: rgba(255, 46, 147, 0.16);
+  --zone-line: #ff2e93;
+  --board-grime: none;
+}
+
+/* ---------- punk piece themes ---------- */
+:root[data-pieces='sprey'] {
+  --pw: #f6f2ec;
+  --pw-line: #111;
+  --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 3px 3px 0 #111;
+  --pb: #111;
+  --pb-line: #f6f2ec;
+  --pb-shadow: -1px -1px 0 #f6f2ec, 1px -1px 0 #f6f2ec, -1px 1px 0 #f6f2ec, 1px 1px 0 #f6f2ec, 3px 3px 0 #c6ff3d;
+}
+:root[data-pieces='kulup'] {
+  --pw: #e9ffc2;
+  --pw-line: #c6ff3d;
+  --pw-shadow: 0 0 4px #c6ff3d, 0 0 12px #c6ff3d, 0 0 24px rgba(198, 255, 61, 0.6);
+  --pb: #ffd0e6;
+  --pb-line: #ff2e93;
+  --pb-shadow: 0 0 4px #ff2e93, 0 0 12px #ff2e93, 0 0 24px rgba(255, 46, 147, 0.6);
+}
+:root[data-pieces='fanzin'] {
+  --pw: #fff;
+  --pw-line: #111;
+  --pw-shadow: -2px -2px 0 #111, 2px -2px 0 #111, -2px 2px 0 #111, 2px 2px 0 #111, 3px 3px 0 rgba(0, 0, 0, 0.35);
+  --pb: #111;
+  --pb-line: #fff;
+  --pb-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+:root[data-pieces='ekose'] {
+  --pw: #f6eedc;
+  --pw-line: #111;
+  --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 3px 0 #111;
+  --pb: #111;
+  --pb-line: #f2d04a;
+  --pb-shadow:
+    -1px -1px 0 #f2d04a, 1px -1px 0 #f2d04a, -1px 1px 0 #f2d04a, 1px 1px 0 #f2d04a, 2px 3px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-pieces='deri'] {
+  --pw: #d9d9d9;
+  --pw-line: #2a2a2a;
+  --pw-shadow:
+    -1px -1px 0 #2a2a2a, 1px -1px 0 #2a2a2a, -1px 1px 0 #2a2a2a, 1px 1px 0 #2a2a2a, 0 -1px 0 #fff, 0 3px 0 #000;
+  --pb: #0b0b0b;
+  --pb-line: #e0263a;
+  --pb-shadow: -1px -1px 0 #e0263a, 1px -1px 0 #e0263a, -1px 1px 0 #e0263a, 1px 1px 0 #e0263a, 0 3px 0 #000;
+}
+:root[data-pieces='bant'] {
+  --pw: #ffd400;
+  --pw-line: #111;
+  --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 2px 0 #111;
+  --pb: #111;
+  --pb-line: #ffd400;
+  --pb-shadow:
+    -1px -1px 0 #ffd400, 1px -1px 0 #ffd400, -1px 1px 0 #ffd400, 1px 1px 0 #ffd400, 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+:root[data-pieces='asit'] {
+  --pw: #ff2e93;
+  --pw-line: #0a0a0b;
+  --pw-shadow: -2px -2px 0 #0a0a0b, 2px -2px 0 #0a0a0b, -2px 2px 0 #0a0a0b, 2px 2px 0 #0a0a0b, 3px 3px 0 #0a0a0b;
+  --pb: #0a0a0b;
+  --pb-line: #c6ff3d;
+  --pb-shadow: -1px -1px 0 #c6ff3d, 1px -1px 0 #c6ff3d, -1px 1px 0 #c6ff3d, 1px 1px 0 #c6ff3d, 3px 3px 0 #ff2e93;
+}
+:root[data-pieces='plak'] {
+  --pw: #f6f1e7;
+  --pw-line: #111;
+  --pw-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 2px 3px 0 rgba(0, 0, 0, 0.6);
+  --pb: #111;
+  --pb-line: #f6f1e7;
+  --pb-shadow:
+    -1px -1px 0 #f6f1e7, 1px -1px 0 #f6f1e7, -1px 1px 0 #f6f1e7, 1px 1px 0 #f6f1e7, 2px 3px 0 rgba(0, 0, 0, 0.6);
+}
+:root[data-pieces='tebesir'] {
+  --pw: rgba(255, 255, 255, 0.92);
+  --pw-line: rgba(255, 255, 255, 0.5);
+  --pw-shadow: 0 0 2px rgba(255, 255, 255, 0.6), 1px 1px 0 rgba(255, 255, 255, 0.3);
+  --pb: #ff7ab8;
+  --pb-line: rgba(255, 122, 184, 0.5);
+  --pb-shadow: 0 0 2px rgba(255, 122, 184, 0.7), 1px 1px 0 rgba(255, 122, 184, 0.35);
+}
+:root[data-pieces='koli'] {
+  --pw: #f7f3ea;
+  --pw-line: #3a2a1a;
+  --pw-shadow:
+    -1px -1px 0 #3a2a1a, 1px -1px 0 #3a2a1a, -1px 1px 0 #3a2a1a, 1px 1px 0 #3a2a1a, 2px 3px 0 rgba(58, 42, 26, 0.6);
+  --pb: #1b1b1b;
+  --pb-line: #f7f3ea;
+  --pb-shadow:
+    -1px -1px 0 #f7f3ea, 1px -1px 0 #f7f3ea, -1px 1px 0 #f7f3ea, 1px 1px 0 #f7f3ea, 2px 3px 0 rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -1186,11 +1449,12 @@ button.primary:hover:not(:disabled) {
   align-items: center;
   justify-content: center;
 }
+/* A theme may paint a square with a pattern (--light-paint / --dark-paint); --light / --dark stay plain colours. */
 .square.light {
-  background: var(--light);
+  background: var(--light-paint, var(--light));
 }
 .square.dark {
-  background: var(--dark);
+  background: var(--dark-paint, var(--dark));
 }
 .square.last::before,
 .square.premove::before,
@@ -1303,21 +1567,11 @@ button.primary:hover:not(:disabled) {
 }
 .piece.white .glyph {
   color: var(--pw);
-  text-shadow:
-    -1px -1px 0 var(--pw-line),
-    1px -1px 0 var(--pw-line),
-    -1px 1px 0 var(--pw-line),
-    1px 1px 0 var(--pw-line),
-    0 0 8px var(--pw-glow);
+  text-shadow: var(--pw-shadow);
 }
 .piece.black .glyph {
   color: var(--pb);
-  text-shadow:
-    -1px -1px 0 var(--pb-line),
-    1px -1px 0 var(--pb-line),
-    -1px 1px 0 var(--pb-line),
-    1px 1px 0 var(--pb-line),
-    0 0 8px var(--pb-glow);
+  text-shadow: var(--pb-shadow);
 }
 .svg {
   width: 84%;
