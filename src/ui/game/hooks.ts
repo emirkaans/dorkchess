@@ -160,10 +160,12 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
   const finalOutcome = view.finalOutcome;
   const recorded = useRef(0);
   useEffect(() => {
-    if (!finalOutcome || recorded.current === key) return;
-    recorded.current = key;
+    if (!finalOutcome) return;
     const { session: s, view: v, sound: play } = latest.current;
-    play('end');
+    // Every ending sounds, also one reached again after a take-back; the game is stored once.
+    play(finalOutcome.reason === 'checkmate' ? 'mate' : 'end');
+    if (recorded.current === key) return;
+    recorded.current = key;
     if (v.endState.moves.length === 0) return;
     storeGame({
       id: newGameId(),

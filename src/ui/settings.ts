@@ -43,6 +43,9 @@ export function loadSettings(): GameSettings {
 export const saveSettings = (s: GameSettings) => saveJSON(KEY, s);
 
 // "Don't show the rule card again" per variant.
+/** Classic chess: the first registered variant. */
+export const isClassic = (variantId: string): boolean => variantId === listVariants()[0].id;
+
 const hiddenKey = (variantId: string) => `hideRules:${variantId}`;
 export const isRuleCardHidden = (variantId: string): boolean => loadJSON<boolean>(hiddenKey(variantId), false);
 export const setRuleCardHidden = (variantId: string, hidden: boolean) => saveJSON(hiddenKey(variantId), hidden);

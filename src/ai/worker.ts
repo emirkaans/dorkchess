@@ -31,6 +31,7 @@ ctx.onmessage = ({ data: msg }) => {
     const r = chooseMove(v, state, msg.level, {
       seed: msg.seed,
       timeLimitMs: msg.timeLimitMs,
+      analyse: msg.analyse,
       onInfo: (info) => ctx.postMessage({ t: 'info', id, depth: info.depth, score: info.score, pv: info.pv }),
     });
     ctx.postMessage({ t: 'bestmove', id, move: r.move, score: r.score, depth: r.depth, nodes: r.nodes });

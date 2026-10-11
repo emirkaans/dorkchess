@@ -7,6 +7,7 @@ import type { AnalysisSeed } from './AnalysisPage.tsx';
 import { Board } from './Board.tsx';
 import { BoardResizer } from './BoardResizer.tsx';
 import { GameControls, GameTools } from './GameControls.tsx';
+import { GameOverOverlay } from './GameOverOverlay.tsx';
 import { GameViewer } from './GameViewer.tsx';
 import { HistoryModal } from './HistoryModal.tsx';
 import { HomePage } from './HomePage.tsx';
@@ -33,7 +34,7 @@ import type { GameState } from '../engine/index.ts';
 import { TIME_CONTROLS } from '../clock/clock.ts';
 import { applyPrefs, loadPrefs, savePrefs } from './prefs.ts';
 import type { Prefs } from './prefs.ts';
-import { isRuleCardHidden, loadSettings, saveSettings } from './settings.ts';
+import { isClassic, isRuleCardHidden, loadSettings, saveSettings } from './settings.ts';
 import type { GameSettings } from './settings.ts';
 import { playSound } from './sound.ts';
 import type { SoundKind } from './sound.ts';
@@ -121,7 +122,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     setNewGame(null);
     setPage('game');
     setTab('moves');
-    setShowRules(!isRuleCardHidden(s.variantId));
+    // The rule card introduces a variant; classic chess needs none.
+    setShowRules(!isClassic(s.variantId) && !isRuleCardHidden(s.variantId));
   };
 
   const play = (move: Move) => dispatch({ type: 'move', move, key: session.key, now: now() });
@@ -133,7 +135,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   };
   const undoPair = () => {
     clients.bot.stop();
-    dispatch({ type: 'undoPair' });
+    dispatch({ type: 'undoPair', now: now() });
   };
   const resign = () => {
     clients.bot.stop();
@@ -322,8 +324,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                     disabled={boardDisabled}
                     premoveColor={premoveColor}
                     premove={session.premove}
-                    onPremove={(p) => dispatch({ type: 'premove', premove: p })}
-                    onCancelPremove={() => dispatch({ type: 'premove', premove: null })}
+                    onPremove={(p) => dispatch({ type: 'premove', premove: p, now: now() })}
+                    onCancelPremove={() => dispatch({ type: 'premove', premove: null, now: now() })}
                     onMove={onMove}
                   />
                   {setup && (
@@ -333,6 +335,17 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                       step={setup.step}
                       total={setup.questions.length}
                       onPick={(optionId) => dispatch({ type: 'setupAnswer', optionId })}
+                    />
+                  )}
+                  {view.finalOutcome && atEnd && (
+                    <GameOverOverlay
+                      mate={view.finalOutcome.reason === 'checkmate'}
+                      text={
+                        // Under "MATE!" only who won; other endings say what happened.
+                        view.finalOutcome.reason === 'checkmate' && view.finalOutcome.winner
+                          ? t('outcome.winner', { color: t(`color.${view.finalOutcome.winner}`) })
+                          : outcomeText(view.finalOutcome, t)
+                      }
                     />
                   )}
                   {promotion && (
@@ -407,8 +420,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
               watching={watching}
               over={!!outcome}
               setupPending={!!setup}
-              // With a clock, taking back moves and hints are off.
-              canUndo={vsBot && !timed && timeline.states.length > 1}
+              // Take-backs work in every game against the bot (also timed or finished); hints only untimed.
+              canUndo={vsBot && timeline.states.length > 1}
               hintEnabled={!timed && humanToMove && !outcome && !setup}
               hintBusy={assistant.hintBusy}
               run={session.run}

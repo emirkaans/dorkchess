@@ -1,16 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-import { formatScore, terminalScore, toWhite } from '../ai/analysis.ts';
-import type { WhiteScore } from '../ai/analysis.ts';
-import { BotCancelled, BotClient } from '../ai/client.ts';
-import { HINT } from '../ai/levels.ts';
+import { formatScore } from '../ai/analysis.ts';
 import {
   createGame,
   emptyBoard,
   getVariant,
   isInCheck,
   listVariants,
-  makeMove,
   makeSquare,
   moveToSan,
   opposite,
@@ -24,15 +20,16 @@ import type { Color, GameState, Move, Piece, PieceType, Position, Square, Varian
 import { errorText } from '../i18n/index.ts';
 import { Board } from './Board.tsx';
 import { EvalBar } from './GameViewer.tsx';
-import { MoveList } from './MoveList.tsx';
+import { MoveTreeView } from './analysis/MoveTreeView.tsx';
+import { TreeNav, useTreeKeys } from './analysis/TreeNav.tsx';
+import { useLiveAnalysis } from './analysis/live.ts';
+import { addMove, statesTo, treeOf } from './analysis/tree.ts';
+import type { MoveTree } from './analysis/tree.ts';
 import { PieceView } from './PieceView.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
 import { ImportDialog, SharePanel } from './ShareTools.tsx';
 import type { ImportedLine } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
-
-/** Engine time per position on the analysis board. */
-export const LIVE_ANALYSIS_MS = 3000;
 
 type Tool = { kind: 'move' } | { kind: 'erase' } | { kind: 'piece'; piece: Piece };
 
@@ -72,57 +69,6 @@ function problemOf(v: VariantDefinition, pos: Position): Problem | null {
   return null;
 }
 
-interface Live {
-  readonly score: WhiteScore | null;
-  readonly best: Move | null;
-  readonly depth: number;
-  readonly thinking: boolean;
-}
-
-/** Engine on the shown position: restarts whenever it changes; stops when switched off. */
-function useLiveAnalysis(variant: VariantDefinition, state: GameState | null, on: boolean): Live {
-  const [client] = useState(() => new BotClient());
-  const [live, setLive] = useState<Live>({ score: null, best: null, depth: 0, thinking: false });
-  useEffect(() => () => client.dispose(), [client]);
-  useEffect(() => {
-    if (!state || !on) {
-      client.stop();
-      setLive({ score: null, best: null, depth: 0, thinking: false });
-      return;
-    }
-    const terminal = terminalScore(state);
-    if (terminal !== null) {
-      setLive({ score: terminal, best: null, depth: 0, thinking: false });
-      return;
-    }
-    let current = true;
-    const turn = state.position.turn;
-    setLive({ score: null, best: null, depth: 0, thinking: true });
-    client
-      .think({
-        variantId: variant.id,
-        state,
-        level: HINT.level,
-        timeLimitMs: LIVE_ANALYSIS_MS,
-        minThinkMs: 0,
-        onInfo: ({ depth, score }) => {
-          if (current) setLive((l) => ({ ...l, depth, score: toWhite(score, turn) }));
-        },
-      })
-      .then((r) => {
-        if (current) setLive({ score: toWhite(r.score, turn), best: r.move, depth: r.depth, thinking: false });
-      })
-      .catch((e) => {
-        if (!(e instanceof BotCancelled) && current) setLive((l) => ({ ...l, thinking: false }));
-      });
-    return () => {
-      current = false;
-      client.stop();
-    };
-  }, [client, variant, state, on]);
-  return live;
-}
-
 /**
  * Analysis board with a board editor: set up any position (pieces, side to
  * move, castling, FEN), then play moves for both sides while the engine
@@ -159,17 +105,18 @@ export function AnalysisPage({
   const [fenError, setFenError] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
 
-  const [states, setStates] = useState<GameState[]>(() => (seed ? [...seed.states] : []));
-  const [cursor, setCursor] = useState(seed?.cursor ?? 0);
+  /** Moves and variations played on the board (null while editing a fresh position). */
+  const [tree, setTree] = useState<MoveTree | null>(() => (seed ? treeOf(seed.states) : null));
+  const [current, setCurrent] = useState(seed?.cursor ?? 0);
   const [importing, setImporting] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
   const [engineOn, setEngineOn] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const analysing = mode === 'analyse' && states.length > 0;
-  const state = analysing ? states[cursor] : null;
-  const last = states.length - 1;
+  const analysing = mode === 'analyse' && tree !== null;
+  const state = analysing ? tree.nodes[current].state : null;
   const live = useLiveAnalysis(variant, state, engineOn);
+  useTreeKeys(analysing ? tree : null, setCurrent);
 
   const pieceTypes = useMemo(() => Object.keys(variant.pieces) as PieceType[], [variant]);
   // The FEN shown (and analysed) drops castling rights the pieces no longer allow.
@@ -219,7 +166,7 @@ export function AnalysisPage({
     const v = getVariant(id);
     setVariantId(id);
     setMode('edit');
-    setStates([]);
+    setTree(null);
     setEditPos(parseFen(v, v.startPosition));
     setPickFrom(null);
     setFenDraft(null);
@@ -237,16 +184,16 @@ export function AnalysisPage({
   const startAnalysis = () => {
     if (problem) return;
     const game = createGame(variant, editFen);
-    setStates([game]);
-    setCursor(0);
+    setTree(treeOf([game]));
+    setCurrent(0);
     setMode('analyse');
     setPromotion(null);
   };
   /** A pasted PGN, FEN or link: a game opens in analysis mode at its last move. */
   const importLine = (line: ImportedLine) => {
     setVariantId(line.variantId);
-    setStates([...line.states]);
-    setCursor(line.states.length - 1);
+    setTree(treeOf(line.states));
+    setCurrent(line.states.length - 1);
     setEditPos(line.states[line.states.length - 1].position);
     setMode('analyse');
     setPromotion(null);
@@ -263,17 +210,11 @@ export function AnalysisPage({
   // ---------- analysis ----------
 
   const play = (move: Move) => {
-    if (!state) return;
-    const nextState = states[cursor + 1];
-    const played = nextState?.moves.at(-1)?.move;
-    // The same move as the one already in the line: just step forward.
-    if (played && played.from === move.from && played.to === move.to && played.promotion === move.promotion) {
-      setCursor(cursor + 1);
-      return;
-    }
-    const next = makeMove(variant, state, move);
-    setStates([...states.slice(0, cursor + 1), next]);
-    setCursor(cursor + 1);
+    if (!tree) return;
+    // The same move as one already there just follows it; another one opens a variation.
+    const r = addMove(tree, variant, current, move);
+    setTree(r.tree);
+    setCurrent(r.id);
   };
   const onMove = (candidates: Move[]) => (candidates.length > 1 ? setPromotion(candidates) : play(candidates[0]));
   const onPromote = (type: PieceType) => {
@@ -281,28 +222,6 @@ export function AnalysisPage({
     setPromotion(null);
     if (move) play(move);
   };
-
-  // Arrow keys step through the line while analysing.
-  useEffect(() => {
-    if (!analysing) return;
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      if (el?.closest('.board')) return; // the board uses arrow keys itself
-      const steps: Record<string, (c: number) => number> = {
-        ArrowLeft: (c) => c - 1,
-        ArrowRight: (c) => c + 1,
-        Home: () => 0,
-        End: () => last,
-      };
-      const step = steps[e.key];
-      if (!step) return;
-      e.preventDefault();
-      setCursor((c) => Math.max(0, Math.min(last, step(c))));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [analysing, last]);
 
   const copyFen = async (fen: string) => {
     try {
@@ -565,64 +484,22 @@ export function AnalysisPage({
             <div className={`status${state?.result ? ' alert' : ''}`}>{status}</div>
 
             <div className="viewer-moves">
-              <MoveList game={states[last]} cursor={cursor} onSelect={setCursor} />
+              {tree && <MoveTreeView tree={tree} current={current} onSelect={setCurrent} />}
             </div>
 
-            <div className="viewer-nav">
-              <button
-                onClick={() => setCursor(0)}
-                disabled={cursor === 0}
-                aria-label={t('nav.first')}
-                title={t('nav.first')}
-              >
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 5v14M18 5l-8 7 8 7" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setCursor((c) => Math.max(0, c - 1))}
-                disabled={cursor === 0}
-                aria-label={t('nav.back')}
-                title={t('nav.back')}
-              >
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 5l-7 7 7 7" />
-                </svg>
-              </button>
-              <span className="replay-pos">
-                {cursor}/{last}
-              </span>
-              <button
-                onClick={() => setCursor((c) => Math.min(last, c + 1))}
-                disabled={cursor === last}
-                aria-label={t('nav.forward')}
-                title={t('nav.forward')}
-              >
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setCursor(last)}
-                disabled={cursor === last}
-                aria-label={t('nav.last')}
-                title={t('nav.last')}
-              >
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18 5v14M6 5l8 7-8 7" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setFlipped((f) => !f)}
-                aria-label={t('controls.flip')}
-                title={t('controls.flip')}
-                aria-pressed={flipped}
-              >
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />
-                </svg>
-              </button>
-            </div>
+            {tree && (
+              <TreeNav
+                tree={tree}
+                current={current}
+                onSelect={setCurrent}
+                onTree={(next, id) => {
+                  setTree(next);
+                  setCurrent(id);
+                }}
+                flipped={flipped}
+                onFlip={() => setFlipped((f) => !f)}
+              />
+            )}
 
             {state && (
               <label className="analysis-field">
@@ -635,7 +512,13 @@ export function AnalysisPage({
                 </span>
               </label>
             )}
-            <SharePanel variant={variant} states={states} cursor={cursor} />
+            {tree && (
+              <SharePanel
+                variant={variant}
+                states={statesTo(tree, current)}
+                cursor={statesTo(tree, current).length - 1}
+              />
+            )}
 
             <button className="analysis-go" onClick={backToEditor}>
               {t('analysisPage.edit')}

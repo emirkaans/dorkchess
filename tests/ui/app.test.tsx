@@ -27,6 +27,10 @@ vi.mock('../../src/ai/client.ts', () => {
   return { BotClient, BotCancelled };
 });
 
+// --- sounds: recorded instead of played ---
+const sounds = vi.hoisted(() => [] as string[]);
+vi.mock('../../src/ui/sound.ts', () => ({ playSound: (kind: string) => sounds.push(kind) }));
+
 const { App } = await import('../../src/ui/App.tsx');
 const { findMove } = await import('../../src/engine/game.ts');
 const { getVariant } = await import('../../src/engine/variants/index.ts');
@@ -197,6 +201,20 @@ describe('uygulama: bilgisayara karşı', () => {
     expect(moves()).toEqual(['e4', 'e5']);
     expect(status()).toBe('Sıra: Beyaz');
   });
+
+  it('mat sesi geri alıp yeniden mat olunca tekrar çalar', async () => {
+    sounds.length = 0;
+    startGame({ mode: 'bot', botLevel: 3 });
+    move('f2', 'f3');
+    await botPlays('e7', 'e5');
+    move('g2', 'g4');
+    await botPlays('d8', 'h4');
+    expect(sounds.filter((k) => k === 'mate')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Geri al' }));
+    move('g2', 'g4');
+    await botPlays('d8', 'h4');
+    expect(sounds.filter((k) => k === 'mate')).toHaveLength(2);
+  });
 });
 
 describe('uygulama: saat', () => {
@@ -279,6 +297,27 @@ describe('uygulama: erişilebilirlik', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: /kuralları/ })).toBeNull();
     expect(document.activeElement).toBe(rulesButton);
+  });
+
+  it('mat: tahta kararır ve üstünde MAT! yazar; geriye gidince kalkar', () => {
+    startGame({ mode: 'hotseat' });
+    move('f2', 'f3');
+    move('e7', 'e5');
+    move('g2', 'g4');
+    expect(document.querySelector('.game-over')).toBeNull();
+    move('d8', 'h4');
+    expect(document.querySelector('.game-over.mate .game-over-title')?.textContent).toBe('MAT!');
+    fireEvent.click(screen.getByRole('button', { name: 'g4' }));
+    expect(document.querySelector('.game-over')).toBeNull();
+  });
+
+  it('kural kartı yeni oyunda yalnızca varyantlarda kendiliğinden açılır', () => {
+    localStorage.removeItem('dorkchess:hideRules:standard');
+    startGame({ mode: 'hotseat' });
+    expect(screen.queryByRole('dialog', { name: /kuralları/ })).toBeNull();
+    cleanup();
+    startGame({ mode: 'hotseat', variantId: 'burokrat' });
+    expect(screen.getByRole('dialog', { name: /kuralları/ })).toBeTruthy();
   });
 });
 

@@ -71,4 +71,57 @@ describe('oyun izleyici ve analiz', () => {
     fireEvent.click(screen.getByRole('button', { name: 'e5' }));
     expect(screen.getByText('2/2')).toBeTruthy();
   });
+
+  it('varyant: tahtada başka hamle yan dal açar, ana hat korunur; ana hat yapılır ve silinir', () => {
+    // happy-dom has no layout: give the board a size so pointer positions map to squares.
+    const BOARD = 400;
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const size = this.classList.contains('board') ? BOARD : 0;
+      return {
+        left: 0,
+        top: 0,
+        x: 0,
+        y: 0,
+        width: size,
+        height: size,
+        right: size,
+        bottom: size,
+        toJSON() {},
+      } as DOMRect;
+    });
+    Element.prototype.setPointerCapture ??= () => {};
+    const click = (sq: string) => {
+      const board = document.querySelector('.viewer .board')!;
+      const at = {
+        clientX: (sq.charCodeAt(0) - 97 + 0.5) * (BOARD / 8),
+        clientY: (7 - (sq.charCodeAt(1) - 49) + 0.5) * (BOARD / 8),
+      };
+      fireEvent.pointerDown(board, { ...at, button: 0, pointerId: 1 });
+      fireEvent.pointerUp(board, { ...at, button: 0, pointerId: 1 });
+    };
+    const main = () => [...document.querySelectorAll('.tree-row .mv')].map((b) => b.textContent);
+    const variations = () => [...document.querySelectorAll('.tree-var')].map((v) => v.textContent);
+
+    render(<GameViewer variant={getVariant('standard')} states={statesOf('e4', 'e5', 'Nf3')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'e5' }));
+    click('f2');
+    click('f4');
+    expect(main()).toEqual(['e4', 'e5', 'Nf3']);
+    expect(variations()).toEqual(['2.f4']);
+    expect(document.querySelector('.mv.current')?.textContent).toBe('f4');
+    // The variation goes on.
+    click('e5');
+    click('f4');
+    expect(variations()).toEqual(['2.f4exf4']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ana hat yap' }));
+    expect(main()).toEqual(['e4', 'e5', 'f4', 'exf4']);
+    expect(variations()).toEqual(['2.Nf3']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nf3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Buradan sonrasını sil' }));
+    expect(variations()).toEqual([]);
+    expect(main()).toEqual(['e4', 'e5', 'f4', 'exf4']);
+    rect.mockRestore();
+  });
 });

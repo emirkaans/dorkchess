@@ -1,7 +1,7 @@
 // All game-state changes as one pure reducer (no React, no timers: the current
 // time comes in with the actions that need it), so they can be unit-tested.
 
-import { flagged, pressClock, stopClock, timeoutWinner } from '../../clock/clock.ts';
+import { flagged, isTimed, pressClock, stopClock, timeoutWinner } from '../../clock/clock.ts';
 import { getVariant, legalMoves, makeMove } from '../../engine/index.ts';
 import type { Move } from '../../engine/index.ts';
 import { endSession, timelineFor } from './session.ts';
@@ -14,16 +14,22 @@ export type GameAction =
   | { readonly type: 'setupAnswer'; readonly optionId: string }
   /** Plays `move` at the timeline cursor (later moves are dropped), if `key` is still the current game. */
   | { readonly type: 'move'; readonly move: Move; readonly key: number; readonly now: number }
-  /** Against the bot: takes back the last own move together with the bot's answer. */
-  | { readonly type: 'undoPair' }
+  /**
+   * Against the bot: takes back the last own move together with the bot's answer
+   * (also after the game ended). With a clock, the player's clock runs again from `now`.
+   */
+  | { readonly type: 'undoPair'; readonly now: number }
   /** Moves the timeline cursor (browsing). */
   | { readonly type: 'goTo'; readonly cursor: number }
   /** Ends the game outside the rules (resignation, agreed draw). */
   | { readonly type: 'end'; readonly outcome: Outcome; readonly key: number; readonly now: number }
   /** Clock check: a fallen flag ends the game. */
   | { readonly type: 'tick'; readonly now: number }
-  /** Queues (or with null cancels) a premove. */
-  | { readonly type: 'premove'; readonly premove: Premove | null }
+  /**
+   * Queues (or with null cancels) a premove. If it already is the player's turn
+   * (the opponent moved while the premove was being made), it is played at once.
+   */
+  | { readonly type: 'premove'; readonly premove: Premove | null; readonly now: number }
   /** Bot vs Bot playback control. */
   | { readonly type: 'run'; readonly run: Run };
 
@@ -34,7 +40,12 @@ function playMove(s: GameSession, move: Move, now: number): GameSession {
   const next = makeMove(v, states[cursor], move);
   let clock = pressClock(s.clock, states[cursor].position.turn, now);
   if (next.result) clock = stopClock(clock, now);
-  return { ...s, clock, timeline: { states: [...states.slice(0, cursor + 1), next], cursor: cursor + 1 } };
+  return {
+    ...s,
+    clock,
+    clockAt: [...s.clockAt.slice(0, cursor + 1), clock],
+    timeline: { states: [...states.slice(0, cursor + 1), next], cursor: cursor + 1 },
+  };
 }
 
 /**
@@ -69,6 +80,7 @@ export function gameReducer(s: GameSession, a: GameAction): GameSession {
         ...s,
         // The board previews the choices made so far.
         timeline: timelineFor(getVariant(s.settings.variantId), answers),
+        clockAt: [s.clock],
         setup: step < s.setup.questions.length ? { ...s.setup, answers, step } : null,
       };
     }
@@ -85,7 +97,21 @@ export function gameReducer(s: GameSession, a: GameAction): GameSession {
       while (i > 0 && s.players[states[i].position.turn].kind !== 'human') i--;
       if (i < 0 || s.players[states[i].position.turn].kind !== 'human') return { ...s, premove: null };
       const kept = states.slice(0, i + 1);
-      return { ...s, outcome: null, premove: null, timeline: { states: kept, cursor: kept.length - 1 } };
+      const turn = kept[kept.length - 1].position.turn;
+      // Both clocks go back to how they stood when that position was reached; the player's runs from now
+      // (not before the first move of the game).
+      const before = s.clockAt[i] ?? s.clock;
+      const clock = isTimed(s.clock)
+        ? { ...before, stopped: false, running: kept.length > 1 ? turn : null, since: a.now }
+        : s.clock;
+      return {
+        ...s,
+        clock,
+        clockAt: [...s.clockAt.slice(0, i), clock],
+        outcome: null,
+        premove: null,
+        timeline: { states: kept, cursor: kept.length - 1 },
+      };
     }
 
     case 'goTo': {
@@ -104,8 +130,12 @@ export function gameReducer(s: GameSession, a: GameAction): GameSession {
       return endSession(s, { reason: 'timeout', winner: timeoutWinner(v, pos, loser) }, a.now);
     }
 
-    case 'premove':
-      return s.premove === a.premove ? s : { ...s, premove: a.premove };
+    case 'premove': {
+      if (s.premove === a.premove) return s;
+      const queued = { ...s, premove: a.premove };
+      const atEnd = s.timeline.cursor === s.timeline.states.length - 1;
+      return a.premove && atEnd ? runPremove(queued, a.now) : queued;
+    }
 
     case 'run':
       return s.run === a.run ? s : { ...s, run: a.run };

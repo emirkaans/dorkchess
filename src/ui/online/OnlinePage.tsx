@@ -10,6 +10,7 @@ import { BoardResizer } from '../BoardResizer.tsx';
 import { GameViewer } from '../GameViewer.tsx';
 import { Modal } from '../Modal.tsx';
 import { MoveList } from '../MoveList.tsx';
+import { GameOverOverlay } from '../GameOverOverlay.tsx';
 import { PlayerRow } from '../PlayerRow.tsx';
 import { PromotionDialog } from '../PromotionDialog.tsx';
 import { Splatter } from '../Punk.tsx';
@@ -223,7 +224,7 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
     const before = lastSound.current;
     lastSound.current = { moves: moveCount, over };
     if (!before || !prefs.sound) return;
-    if (over && !before.over) playSound('end');
+    if (over && !before.over) playSound(view.outcome?.reason === 'checkmate' ? 'mate' : 'end');
     else if (moveCount > before.moves && state) {
       const lastMove = state.moves.at(-1)?.move;
       playSound(isInCheck(variant, state.position) ? 'check' : lastMove?.captured ? 'capture' : 'move');
@@ -374,6 +375,16 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
                 disabled={!yourTurn || !atEnd || promotion !== null}
                 onMove={onMove}
               />
+              {view.outcome && atEnd && (
+                <GameOverOverlay
+                  mate={view.outcome.reason === 'checkmate'}
+                  text={
+                    view.outcome.reason === 'checkmate' && view.outcome.winner
+                      ? t('outcome.winner', { color: t(`color.${view.outcome.winner}`) })
+                      : endText(view.outcome)
+                  }
+                />
+              )}
               {open.length > 0 && (
                 <SetupDialog
                   variant={variant}

@@ -118,7 +118,8 @@ export function Board({
     setSeenPosition(position);
     const owner = selected !== null ? seenPosition.board[selected] : null;
     const now = selected !== null ? position.board[selected] : null;
-    const keep = owner && now && owner.color === now.color && owner.type === now.type && !dragRef.current?.moved;
+    // A drag in progress keeps going: dropped after the opponent's move, it is played as a normal move.
+    const keep = owner && now && owner.color === now.color && owner.type === now.type;
     if (!keep) {
       setSelected(null);
       updateDrag(null);

@@ -195,3 +195,17 @@ describe('tekrar', () => {
     expect(r.score).toBeLessThan(-200);
   });
 });
+
+describe('analiz: tek yasal hamle', () => {
+  it('tek hamlelik konum analizde tam aranır: şahtan kurtaran tek hamleden sonra gelen mat görülür', async () => {
+    // After 11. Bg5+ Black's only move is Nf6, then 12. Nf5# (a real game from the site).
+    const { playSan } = await import('../../src/engine/game.ts');
+    const v = getVariant('standard');
+    const line = 'e4 e5 Nf3 d6 Bc4 Nf6 d3 a6 Nc3 b5 Bb3 b4 Ne2 Bg4 Ng3 Nh5 Nxe5 Bxd1 Bxf7+ Ke7 Bg5+';
+    const state = playSan(v, createGame(v), ...line.split(' '));
+    expect(legalMoves(v, state.position)).toHaveLength(1);
+    const r = chooseMove(v, state, 4, { timeLimitMs: 500, seed: 1, analyse: true });
+    // Black's point of view: mated, not "a queen up".
+    expect(r.score).toBeLessThan(-10_000);
+  });
+});

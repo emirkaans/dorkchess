@@ -5,9 +5,13 @@ import type { WhiteScore } from '../ai/analysis.ts';
 import { BotClient, BotCancelled } from '../ai/client.ts';
 import { HINT } from '../ai/levels.ts';
 import { moveToSan } from '../engine/index.ts';
-import type { GameState, Move, VariantDefinition } from '../engine/index.ts';
+import type { GameState, Move, PieceType, VariantDefinition } from '../engine/index.ts';
 import { Board } from './Board.tsx';
-import { MoveList } from './MoveList.tsx';
+import { PromotionDialog } from './PromotionDialog.tsx';
+import { MoveTreeView } from './analysis/MoveTreeView.tsx';
+import { TreeNav, useTreeKeys } from './analysis/TreeNav.tsx';
+import { useLiveAnalysis } from './analysis/live.ts';
+import { addMove, pathTo, statesTo, treeOf } from './analysis/tree.ts';
 import { SharePanel } from './ShareTools.tsx';
 import type { PgnMeta } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
@@ -50,6 +54,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
             level: HINT.level,
             timeLimitMs: ANALYSIS_MS,
             minThinkMs: 0,
+            analyse: true,
           });
           score = toWhite(r.score, state.position.turn);
           best = r.move;
@@ -102,36 +107,42 @@ function bestSan(variant: VariantDefinition, state: GameState, move: Move | null
   }
 }
 
-/** Keys that step through the moves. */
-const KEY_STEPS: Record<string, (cursor: number, last: number) => number> = {
-  ArrowLeft: (c) => c - 1,
-  ArrowRight: (c) => c + 1,
-  ArrowUp: () => 0,
-  Home: () => 0,
-  ArrowDown: (_, last) => last,
-  End: (_, last) => last,
-};
-
 /**
- * Read-only game viewer laid out like an analysis board: the board fills the
- * height with an evaluation bar (black on top, white below) on its right; the
- * side panel holds the engine line, the moves, the graph and the navigation.
- * Arrow keys step through the moves.
+ * Game viewer laid out like an analysis board: the board fills the height with
+ * an evaluation bar (black on top, white below) on its right; the side panel
+ * holds the engine line, the moves, the graph and the navigation. Moves can be
+ * tried on the board: they open variations next to the game (as on lichess),
+ * which the engine looks at live. Arrow keys walk the moves.
  */
 export function GameViewer({ variant, states, title, children, autoAnalyse = false, meta, onOpenAnalysis }: Props) {
   const { t } = useI18n();
-  const [cursor, setCursor] = useState(states.length - 1);
+  const [tree, setTree] = useState(() => treeOf(states));
+  const [current, setCurrent] = useState(states.length - 1);
   const [flipped, setFlipped] = useState(false);
+  const [promotion, setPromotion] = useState<Move[] | null>(null);
   const { analysis, start, stop } = useAnalysis(variant, states);
-  const state = states[cursor];
-  const last = states.length - 1;
+  const state = tree.nodes[current].state;
+  // Nodes 0..states.length-1 are the game itself (see treeOf); later ids are tried moves.
+  const inGame = current < states.length;
   const turns = useMemo(() => states.map((s) => s.position.turn), [states]);
-  const marks = useMemo(() => classifyMoves(analysis.evals, turns), [analysis.evals, turns]);
+  const marks = useMemo(() => {
+    const m = new Map<number, string>();
+    classifyMoves(analysis.evals, turns).forEach((mark, i) => {
+      if (mark) m.set(i + 1, mark);
+    });
+    return m;
+  }, [analysis.evals, turns]);
   const analysed = analysis.evals.filter((e) => e !== null).length;
-  const score = analysis.evals[cursor];
-  const best = analysis.best[cursor];
-  const showEval = analysed > 0 || analysis.running;
-  const go = (c: number) => setCursor(Math.max(0, Math.min(last, c)));
+  const live = useLiveAnalysis(variant, inGame ? null : state, true);
+  const score = inGame ? analysis.evals[current] : live.score;
+  const best = inGame ? analysis.best[current] : live.best;
+  const showEval = analysed > 0 || analysis.running || !inGame;
+  // The game position the shown one comes from (for the graph's cursor).
+  const gameIndex = useMemo(() => {
+    let i = 0;
+    for (const id of pathTo(tree, current)) if (id < states.length) i = id;
+    return i;
+  }, [tree, current, states.length]);
 
   const startRef = useRef(start);
   useEffect(() => {
@@ -141,36 +152,38 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
     if (autoAnalyse) void startRef.current();
   }, [autoAnalyse]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      const step = KEY_STEPS[e.key];
-      if (!step) return;
-      e.preventDefault();
-      setCursor((c) => Math.max(0, Math.min(last, step(c, last))));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [last]);
+  useTreeKeys(tree, setCurrent);
 
   // Keep the shown move visible in the move list.
   const movesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = movesRef.current;
     if (!box) return;
-    const current = box.querySelector<HTMLElement>('.mv.current');
-    if (!current) {
+    const shown = box.querySelector<HTMLElement>('.mv.current');
+    if (!shown) {
       box.scrollTop = 0;
       return;
     }
-    const top = current.offsetTop - box.offsetTop;
-    if (top < box.scrollTop || top + current.offsetHeight > box.scrollTop + box.clientHeight) {
+    const top = shown.offsetTop - box.offsetTop;
+    if (top < box.scrollTop || top + shown.offsetHeight > box.scrollTop + box.clientHeight) {
       box.scrollTop = top - box.clientHeight / 2;
     }
-  }, [cursor]);
+  }, [current]);
 
-  const san = bestSan(variant, state, best);
+  const play = (move: Move) => {
+    const r = addMove(tree, variant, current, move);
+    setTree(r.tree);
+    setCurrent(r.id);
+  };
+  const onMove = (candidates: Move[]) => (candidates.length > 1 ? setPromotion(candidates) : play(candidates[0]));
+  const onPromote = (type: PieceType) => {
+    const move = promotion?.find((m) => m.promotion === type);
+    setPromotion(null);
+    if (move) play(move);
+  };
+
+  const san = bestSan(variant, state, best ?? null);
+  const shownLine = statesTo(tree, current);
 
   return (
     <div className="viewer">
@@ -184,11 +197,20 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
             highlight={variant.highlight ? variant.highlight.squares(state.position) : []}
             bandRanks={variant.highlight?.ranks ?? []}
             arrows={best ? [[best.from, best.to]] : []}
-            disabled
-            onMove={() => {}}
+            disabled={!!state.result || promotion !== null}
+            onMove={onMove}
           />
+          {promotion && (
+            <PromotionDialog
+              variant={variant}
+              color={state.position.turn}
+              options={promotion.map((m) => m.promotion!)}
+              onPick={onPromote}
+              onCancel={() => setPromotion(null)}
+            />
+          )}
         </div>
-        {showEval && <EvalBar score={score} flipped={flipped} />}
+        {showEval && <EvalBar score={score ?? null} flipped={flipped} />}
       </div>
 
       <div className="viewer-side">
@@ -197,9 +219,9 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
         <div className="viewer-engine">
           {showEval && (
             <div className="viewer-eval">
-              <span className="viewer-score">{score === null ? '…' : formatScore(score)}</span>
+              <span className="viewer-score">{score == null ? '…' : formatScore(score)}</span>
               <span className="viewer-best">
-                {score === null ? t('analysis.notYet') : san ? t('analysis.best', { san }) : ''}
+                {score == null ? t('analysis.notYet') : san ? t('analysis.best', { san }) : ''}
               </span>
             </div>
           )}
@@ -220,66 +242,34 @@ export function GameViewer({ variant, states, title, children, autoAnalyse = fal
         </div>
 
         <div className="viewer-moves" ref={movesRef}>
-          <MoveList game={states[last]} cursor={cursor} onSelect={setCursor} marks={marks} />
+          <MoveTreeView tree={tree} current={current} onSelect={setCurrent} marks={marks} />
         </div>
 
-        {analysed > 0 && <EvalGraph evals={analysis.evals} cursor={cursor} onSelect={setCursor} />}
+        {analysed > 0 && <EvalGraph evals={analysis.evals} cursor={gameIndex} onSelect={setCurrent} />}
 
-        <div className="viewer-nav">
-          <button onClick={() => go(0)} disabled={cursor === 0} aria-label={t('nav.first')} title={t('nav.first')}>
-            <NavIcon d="M6 5v14M18 5l-8 7 8 7" />
-          </button>
-          <button
-            onClick={() => go(cursor - 1)}
-            disabled={cursor === 0}
-            aria-label={t('nav.back')}
-            title={t('nav.back')}
-          >
-            <NavIcon d="M15 5l-7 7 7 7" />
-          </button>
-          <span className="replay-pos">
-            {cursor}/{last}
-          </span>
-          <button
-            onClick={() => go(cursor + 1)}
-            disabled={cursor === last}
-            aria-label={t('nav.forward')}
-            title={t('nav.forward')}
-          >
-            <NavIcon d="M9 5l7 7-7 7" />
-          </button>
-          <button onClick={() => go(last)} disabled={cursor === last} aria-label={t('nav.last')} title={t('nav.last')}>
-            <NavIcon d="M18 5v14M6 5l8 7-8 7" />
-          </button>
-          <button
-            onClick={() => setFlipped((f) => !f)}
-            aria-label={t('controls.flip')}
-            title={t('controls.flip')}
-            aria-pressed={flipped}
-          >
-            <NavIcon d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />
-          </button>
-        </div>
+        <TreeNav
+          tree={tree}
+          current={current}
+          onSelect={setCurrent}
+          onTree={(next, id) => {
+            setTree(next);
+            setCurrent(id);
+          }}
+          flipped={flipped}
+          onFlip={() => setFlipped((f) => !f)}
+        />
 
         {showEval && <p className="muted analysis-note">{t('analysis.marks')}</p>}
         <SharePanel
           variant={variant}
-          states={states}
-          cursor={cursor}
+          states={shownLine}
+          cursor={shownLine.length - 1}
           meta={meta}
-          onOpenAnalysis={onOpenAnalysis && (() => onOpenAnalysis(states, cursor))}
+          onOpenAnalysis={onOpenAnalysis && (() => onOpenAnalysis(shownLine, shownLine.length - 1))}
         />
         {children && <div className="viewer-actions">{children}</div>}
       </div>
     </div>
-  );
-}
-
-function NavIcon({ d }: { d: string }) {
-  return (
-    <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={d} />
-    </svg>
   );
 }
 

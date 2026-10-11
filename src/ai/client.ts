@@ -15,6 +15,8 @@ export interface ThinkOptions {
   /** The answer is held back until at least this long after the request (default MIN_THINK_MS). */
   readonly minThinkMs?: number;
   readonly onInfo?: (info: { depth: number; score: number }) => void;
+  /** Analysis instead of a bot move: positions with a single legal move are searched fully. */
+  readonly analyse?: boolean;
 }
 
 /** Rejection reason when a request is superseded or stopped. */
@@ -61,6 +63,7 @@ export class BotClient {
         level: opts.level,
         timeLimitMs: opts.timeLimitMs,
         seed: opts.seed,
+        analyse: opts.analyse,
       };
       worker.postMessage(msg);
     });

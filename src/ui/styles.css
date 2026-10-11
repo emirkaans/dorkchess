@@ -2373,6 +2373,124 @@ button.primary:hover:not(:disabled) {
   resize: vertical;
 }
 
+/* ---------- game over on the board ---------- */
+
+.game-over {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 5, 6, 0.55);
+  pointer-events: none;
+  animation: over-fade 0.6s ease-out both;
+}
+.game-over.mate {
+  background: rgba(5, 5, 6, 0.68);
+}
+.game-over-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 90%;
+  text-align: center;
+  animation: over-slam 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) 0.15s both;
+}
+.game-over-title {
+  font: 400 calc(var(--board) / 9) / 1 var(--marker);
+  color: var(--fg);
+  transform: rotate(-4deg);
+  text-shadow: 3px 3px 0 #000;
+}
+.game-over.mate .game-over-title {
+  font-size: calc(var(--board) / 6);
+  color: var(--pink);
+  text-shadow:
+    4px 4px 0 #000,
+    0 0 28px rgba(255, 46, 147, 0.55);
+}
+.game-over-text {
+  padding: 4px 14px;
+  background: var(--lime);
+  color: var(--on-pink);
+  font: 400 clamp(14px, calc(var(--board) / 30), 24px) / 1.3 var(--marker);
+  transform: rotate(2deg);
+}
+@keyframes over-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes over-slam {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+/* ---------- move tree (variations) ---------- */
+
+.move-tree li.tree-vars {
+  display: block;
+  padding: 6px 12px 8px 3.4em;
+  border-left: 2px solid var(--border);
+  margin: 2px 0 4px 1.4em;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.tree-var + .tree-var {
+  margin-top: 2px;
+}
+.var-num {
+  margin: 0 2px 0 4px;
+  color: #6b6872;
+  font-size: 12px;
+}
+.var-paren {
+  color: var(--muted);
+}
+.mv.var {
+  display: inline;
+  min-height: 0;
+  padding: 1px 4px;
+  font-size: 13px;
+  color: #c9c5bd;
+}
+.viewer-moves .mv.var.current,
+.analysis-page .mv.var.current {
+  background: var(--pink);
+  color: var(--on-pink);
+}
+.mv-gap {
+  padding: 4px 10px;
+  color: #5c5962;
+}
+.variation-actions {
+  display: flex;
+  gap: 6px;
+}
+.variation-actions button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border-radius: 4px;
+  font: 500 13px/1 var(--ui);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.variation-actions .ic {
+  width: 16px;
+  height: 16px;
+}
+.diagram {
+  position: relative;
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 1100px) {

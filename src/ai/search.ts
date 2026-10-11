@@ -39,6 +39,11 @@ export interface SearchParams {
    * upper bound (they can't be picked anyway).
    */
   readonly rootExact: { readonly topK: number; readonly margin: number };
+  /**
+   * For analysis: search a position with a single legal move as deep as any
+   * other (a bot just plays that move, but its score needs the full search).
+   */
+  readonly analyse?: boolean;
   /** Polled during the search; returning true aborts it (the last completed depth is used). */
   readonly shouldStop?: () => boolean;
   readonly now?: () => number;
@@ -650,7 +655,7 @@ class Searcher {
       depth = d;
       order = scores.map((s) => s.move);
       this.params.onInfo?.({ depth, score: scores[0].score, pv: [], nodes: this.nodes });
-      if (Math.abs(scores[0].score) > MATE_BOUND || rootMoves.length === 1) break;
+      if (Math.abs(scores[0].score) > MATE_BOUND || (rootMoves.length === 1 && !this.params.analyse)) break;
       // Soft limit: an iteration started late would most likely be aborted unfinished.
       if (this.elapsed() > this.params.timeLimitMs * SOFT_LIMIT || this.params.shouldStop?.()) break;
     }
@@ -709,6 +714,8 @@ export interface ChooseOptions {
   readonly shouldStop?: () => boolean;
   readonly now?: () => number;
   readonly onInfo?: (info: SearchInfo) => void;
+  /** Analysis: full depth even with a single legal move (see SearchParams.analyse). */
+  readonly analyse?: boolean;
 }
 
 /** Picks the bot's move for `level` (1–5). The move is always from the engine's legal move list. */
@@ -725,6 +732,7 @@ export function chooseMove(v: VariantDefinition, state: GameState, level: number
     shouldStop: opts.shouldStop,
     now: opts.now,
     onInfo: opts.onInfo,
+    analyse: opts.analyse,
   });
   const best = scores[0].score;
   let chosen: ScoredMove;

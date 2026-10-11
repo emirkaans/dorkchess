@@ -53,6 +53,8 @@ export interface GameSession {
   /** Base seed for the bots' randomness in this game. */
   readonly seed: number;
   readonly clock: ClockState;
+  /** The clock as it stood when each position of the timeline was reached (a take-back restores it). */
+  readonly clockAt: readonly ClockState[];
   readonly premove: Premove | null;
   readonly run: Run;
 }
@@ -97,6 +99,7 @@ export function newSession(
     if (botAnswers) answers[q.id] = q.options[Math.floor(random() * q.options.length)].id;
     else ask.push(q);
   }
+  const clock = createClock(timeControl(settings.timeControl));
   return {
     key,
     settings,
@@ -105,7 +108,8 @@ export function newSession(
     outcome: null,
     setup: ask.length ? { questions: ask, answers, step: 0 } : null,
     seed: Math.floor(random() * 2 ** 31),
-    clock: createClock(timeControl(settings.timeControl)),
+    clock,
+    clockAt: [clock],
     premove: null,
     run: 'play',
   };

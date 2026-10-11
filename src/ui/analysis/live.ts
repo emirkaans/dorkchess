@@ -1,0 +1,63 @@
+// Engine on one position (analysis board and the variations of the game viewer).
+
+import { useEffect, useState } from 'react';
+import { terminalScore, toWhite } from '../../ai/analysis.ts';
+import type { WhiteScore } from '../../ai/analysis.ts';
+import { BotCancelled, BotClient } from '../../ai/client.ts';
+import { HINT } from '../../ai/levels.ts';
+import type { GameState, Move, VariantDefinition } from '../../engine/index.ts';
+
+/** Engine time per position on the analysis board. */
+export const LIVE_ANALYSIS_MS = 3000;
+
+export interface Live {
+  readonly score: WhiteScore | null;
+  readonly best: Move | null;
+  readonly depth: number;
+  readonly thinking: boolean;
+}
+
+/** Engine on the shown position: restarts whenever it changes; stops when switched off. */
+export function useLiveAnalysis(variant: VariantDefinition, state: GameState | null, on: boolean): Live {
+  const [client] = useState(() => new BotClient());
+  const [live, setLive] = useState<Live>({ score: null, best: null, depth: 0, thinking: false });
+  useEffect(() => () => client.dispose(), [client]);
+  useEffect(() => {
+    if (!state || !on) {
+      client.stop();
+      setLive({ score: null, best: null, depth: 0, thinking: false });
+      return;
+    }
+    const terminal = terminalScore(state);
+    if (terminal !== null) {
+      setLive({ score: terminal, best: null, depth: 0, thinking: false });
+      return;
+    }
+    let current = true;
+    const turn = state.position.turn;
+    setLive({ score: null, best: null, depth: 0, thinking: true });
+    client
+      .think({
+        variantId: variant.id,
+        state,
+        level: HINT.level,
+        timeLimitMs: LIVE_ANALYSIS_MS,
+        minThinkMs: 0,
+        analyse: true,
+        onInfo: ({ depth, score }) => {
+          if (current) setLive((l) => ({ ...l, depth, score: toWhite(score, turn) }));
+        },
+      })
+      .then((r) => {
+        if (current) setLive({ score: toWhite(r.score, turn), best: r.move, depth: r.depth, thinking: false });
+      })
+      .catch((e) => {
+        if (!(e instanceof BotCancelled) && current) setLive((l) => ({ ...l, thinking: false }));
+      });
+    return () => {
+      current = false;
+      client.stop();
+    };
+  }, [client, variant, state, on]);
+  return live;
+}

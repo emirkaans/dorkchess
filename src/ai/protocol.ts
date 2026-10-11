@@ -19,6 +19,8 @@ export type WorkerRequest =
       readonly level: number;
       readonly timeLimitMs?: number;
       readonly seed?: number;
+      /** Analysis: score positions with a single legal move fully. */
+      readonly analyse?: boolean;
     }
   | { readonly t: 'stop'; readonly id: number };
 

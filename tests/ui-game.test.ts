@@ -64,30 +64,66 @@ describe('oyun durumu (reducer)', () => {
   it('bota karşı geri al: son kendi hamlen ve botun cevabı birlikte', () => {
     let s = newSession(settings({ mode: 'bot', humanColor: 'w' }), 1);
     s = playAll(s, 'e2e4', 'e7e5', 'g1f3', 'b8c6'); // insan, bot, insan, bot
-    s = gameReducer(s, { type: 'undoPair' });
+    s = gameReducer(s, { type: 'undoPair', now: 0 });
     expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5']);
     expect(viewOf(s).turn).toBe('w');
     // Bot düşünürken (sıra botta) geri al: yalnızca kendi son hamlen geri alınır.
     s = gameReducer(s, mv(s, 'g1', 'f3'));
-    s = gameReducer(s, { type: 'undoPair' });
+    s = gameReducer(s, { type: 'undoPair', now: 0 });
     expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5']);
+  });
+
+  it('süreli oyunda ve mattan sonra da geri alınır; saat oyuncu için yeniden işler', () => {
+    let s = newSession(settings({ mode: 'bot', humanColor: 'w', timeControl: '5+0' }), 1);
+    s = playAll(s, 'f2f3', 'e7e5', 'g2g4', 'd8h4'); // the bot mates
+    expect(viewOf(s).finalOutcome?.reason).toBe('checkmate');
+    expect(s.clock.stopped).toBe(true);
+    s = gameReducer(s, { type: 'undoPair', now: 5000 });
+    expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['f3', 'e5']);
+    expect(viewOf(s).finalOutcome).toBeNull();
+    expect(s.clock).toMatchObject({ stopped: false, running: 'w', since: 5000 });
+  });
+
+  it('geri alınca iki saat da o konuma gelindiği andaki süreye döner', () => {
+    let s = newSession(settings({ mode: 'bot', humanColor: 'w', timeControl: '5+0' }), 1);
+    s = gameReducer(s, mv(s, 'e2', 'e4', 0)); // the first move starts the clock
+    s = gameReducer(s, mv(s, 'e7', 'e5', 2_000)); // Black used 2 s
+    s = gameReducer(s, mv(s, 'g1', 'f3', 12_000)); // White used 10 s
+    s = gameReducer(s, mv(s, 'b8', 'c6', 13_000)); // Black used 1 s
+    s = gameReducer(s, { type: 'undoPair', now: 20_000 });
+    expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5']);
+    // As right after 1...e5: White still has 5:00, Black 4:58; White's clock runs from now.
+    expect(s.clock).toMatchObject({ remaining: { w: 300_000, b: 298_000 }, running: 'w', since: 20_000 });
+    // Playing on after the take-back keeps the history in step.
+    s = gameReducer(s, mv(s, 'd2', 'd4', 25_000));
+    expect(s.clock.remaining.w).toBe(295_000);
+    expect(s.clockAt).toHaveLength(4);
   });
 
   it('premove: bot hamlesinden sonra yasalsa aynı adımda oynanır', () => {
     let s = newSession(settings({ mode: 'bot', humanColor: 'w' }), 1);
     s = gameReducer(s, mv(s, 'e2', 'e4')); // sıra botta
-    s = gameReducer(s, { type: 'premove', premove: { from: sq('g1'), to: sq('f3') } });
+    s = gameReducer(s, { type: 'premove', premove: { from: sq('g1'), to: sq('f3') }, now: 0 });
     s = gameReducer(s, mv(s, 'e7', 'e5')); // botun hamlesi
     expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5', 'Nf3']);
     expect(s.premove).toBeNull();
     expect(viewOf(s).turn).toBe('b');
   });
 
+  it('premove: rakip hamlesiyle aynı anda bırakılırsa (sıra artık sende) hemen oynanır', () => {
+    let s = newSession(settings({ mode: 'bot', humanColor: 'w' }), 1);
+    s = gameReducer(s, mv(s, 'e2', 'e4'));
+    s = gameReducer(s, mv(s, 'e7', 'e5')); // bot answered first
+    s = gameReducer(s, { type: 'premove', premove: { from: sq('g1'), to: sq('f3') }, now: 0 });
+    expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5', 'Nf3']);
+    expect(s.premove).toBeNull();
+  });
+
   it('premove: yasal değilse sessizce iptal edilir', () => {
     let s = newSession(settings({ mode: 'bot', humanColor: 'w' }), 1);
     s = gameReducer(s, mv(s, 'e2', 'e4'));
     // e4 piyonu ileri gitmek istiyor ama bot e5 ile önünü kapatacak.
-    s = gameReducer(s, { type: 'premove', premove: { from: sq('e4'), to: sq('e5') } });
+    s = gameReducer(s, { type: 'premove', premove: { from: sq('e4'), to: sq('e5') }, now: 0 });
     s = gameReducer(s, mv(s, 'e7', 'e5'));
     expect(viewOf(s).game.moves.map((m) => m.san)).toEqual(['e4', 'e5']);
     expect(s.premove).toBeNull();
@@ -97,8 +133,8 @@ describe('oyun durumu (reducer)', () => {
   it('premove geri al, geçmişte gezinme ve oyun sonu ile iptal olur', () => {
     let s = newSession(settings({ mode: 'bot', humanColor: 'w' }), 1);
     s = gameReducer(s, mv(s, 'e2', 'e4'));
-    const queued = gameReducer(s, { type: 'premove', premove: { from: sq('d2'), to: sq('d4') } });
-    expect(gameReducer(queued, { type: 'undoPair' }).premove).toBeNull();
+    const queued = gameReducer(s, { type: 'premove', premove: { from: sq('d2'), to: sq('d4') }, now: 0 });
+    expect(gameReducer(queued, { type: 'undoPair', now: 0 }).premove).toBeNull();
     expect(gameReducer(queued, { type: 'goTo', cursor: 0 }).premove).toBeNull();
     const resigned = gameReducer(queued, {
       type: 'end',
