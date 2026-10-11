@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
-import { readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
@@ -22,7 +23,20 @@ function serviceWorker(): Plugin {
     generateBundle(_options, bundle) {
       const built = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
       const files = ['./', ...[...built, ...filesIn('public')].sort().map((f) => `./${f}`)];
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source: serviceWorkerSource(files, versionOf(files)) });
+      // Bundle files carry a content hash in their names; files of public/ do not, so their
+      // contents count too (a changed font or icon must make a new cache version).
+      const publicHashes = filesIn('public').map(
+        (f) =>
+          `${f}:${createHash('sha256')
+            .update(readFileSync(join('public', f)))
+            .digest('hex')
+            .slice(0, 12)}`,
+      );
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        source: serviceWorkerSource(files, versionOf([...files, ...publicHashes])),
+      });
     },
   };
 }
