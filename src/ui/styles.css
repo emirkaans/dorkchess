@@ -1,4 +1,16 @@
 /* punkchess: black ground, hot pink and acid lime, spray-paint grit. Dark only. */
+/*
+ * Chess piece glyphs (U+265A-265F, Noto Sans Symbols 2, OFL: public/fonts/OFL.txt), served
+ * with the site so they also work offline. Without it phones that lack a symbol font draw
+ * the pieces as colour emoji, which CSS cannot colour (every piece looked black).
+ */
+@font-face {
+  font-family: 'Punk Chess Glyphs';
+  src: url('/fonts/chess-glyphs.woff2') format('woff2');
+  unicode-range: U+265A-265F;
+  font-display: block;
+}
+
 :root {
   --bg: #0a0a0b;
   --panel: #111113;
@@ -1258,7 +1270,8 @@ button.primary:hover:not(:disabled) {
 .glyph {
   font-size: calc(var(--board) / 8 * 0.8);
   line-height: 1;
-  font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', serif;
+  /* The web font first: system fallbacks on phones can be colour emoji. */
+  font-family: 'Punk Chess Glyphs', 'Segoe UI Symbol', 'DejaVu Sans', serif;
 }
 .piece.white .glyph {
   color: var(--pw);
@@ -1310,6 +1323,7 @@ button.primary:hover:not(:disabled) {
   color: #0a0a0b;
   border: 1px solid #0a0a0b;
   font-size: calc(var(--board) / 8 * 0.26);
+  font-family: 'Punk Chess Glyphs', 'Segoe UI Symbol', 'DejaVu Sans', sans-serif;
   line-height: 1;
   display: flex;
   align-items: center;
