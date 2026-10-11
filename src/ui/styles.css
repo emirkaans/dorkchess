@@ -299,8 +299,18 @@ button.primary:hover:not(:disabled) {
   object-fit: cover;
   object-position: 72% center;
 }
+/* Darkens the left side where the text sits, so it reads over the board in the picture. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(10, 10, 11, 0.55) 0%, rgba(10, 10, 11, 0.35) 30%, rgba(10, 10, 11, 0) 55%);
+  pointer-events: none;
+}
 .hero-copy {
   position: relative;
+  z-index: 2;
   max-width: 780px;
 }
 .tape {
@@ -399,6 +409,7 @@ button.primary:hover:not(:disabled) {
 }
 .slogan {
   position: absolute;
+  z-index: 2;
   right: max(28px, calc((100% - 1400px) / 2 + 28px));
   bottom: 56px;
   margin: 0;
@@ -2660,6 +2671,10 @@ button.primary:hover:not(:disabled) {
   .hero-image {
     object-position: 80% center;
     opacity: 0.45;
+  }
+  /* The image is already dimmed here; no extra shade. */
+  .hero::before {
+    display: none;
   }
   .tape {
     margin-left: 10px;
