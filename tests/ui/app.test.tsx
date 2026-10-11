@@ -207,6 +207,53 @@ describe('uygulama: bilgisayara karşı', () => {
     expect(status()).toBe('Sıra: Beyaz');
   });
 
+  it('oyun sunucuya seyrek yüklenir: ilk hamle, 8 yarım hamlede bir, link paylaşılınca; izleyen varsa her hamle', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let watchers = 0;
+    const puts: number[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      if (init?.method === 'PUT')
+        puts.push((JSON.parse(String(init.body)) as { record: { moves: string[] } }).record.moves.length);
+      return new Response(JSON.stringify({ ok: true, watchers }), { headers: { 'content-type': 'application/json' } });
+    });
+    const settle = () => act(async () => vi.advanceTimersByTime(1100));
+    startGame({ mode: 'hotseat' });
+    const line: [string, string][] = [
+      ['e2', 'e4'],
+      ['e7', 'e5'],
+      ['g1', 'f3'],
+      ['b8', 'c6'],
+      ['f1', 'c4'],
+      ['g8', 'f6'],
+      ['d2', 'd3'],
+      ['f8', 'c5'],
+      ['c2', 'c3'],
+      ['d7', 'd6'],
+    ];
+    for (const [a, b] of line) {
+      move(a, b);
+      await settle();
+    }
+    expect(puts).toEqual([1, 9]); // the first move, then 8 plies later
+    // Copying the game's link uploads what is there now.
+    fireEvent.click(screen.getByText('Paylaş / dışa aktar'));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Oyun linki' })));
+    expect(puts).toEqual([1, 9, 10]);
+    // Someone follows the game: from the next upload on, after every move.
+    watchers = 1;
+    move('b1', 'd2');
+    await settle();
+    move('c8', 'g4');
+    await settle();
+    expect(puts.slice(3)).toEqual([]); // the server reported no watcher at the last upload
+    puts.length = 0;
+    fireEvent.click(screen.getByRole('button', { name: 'Oyun linki' }));
+    await act(async () => {});
+    move('h2', 'h3');
+    await settle();
+    expect(puts).toEqual([12, 13]);
+  });
+
   it('sayfa yenilenince bot oyunu kaldığı yerden devam eder', async () => {
     startGame({ mode: 'bot', botLevel: 3, timeControl: '5+0' });
     move('e2', 'e4');

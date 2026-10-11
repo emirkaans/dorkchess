@@ -10,7 +10,7 @@ import { LOW_TIME_MS, remainingMs } from '../../clock/clock.ts';
 import { isInCheck, opposite, toFen } from '../../engine/index.ts';
 import type { GameState, Square } from '../../engine/index.ts';
 import { storeGame } from '../../storage/games.ts';
-import { uploadRecord } from '../online/connection.ts';
+import { FLUSH_UPLOAD, uploadRecord, useWatcherCount } from '../online/connection.ts';
 import { moveSound } from '../sound.ts';
 import type { SoundKind } from '../sound.ts';
 import { gameReducer } from './reducer.ts';
@@ -183,23 +183,44 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
   }, [finalOutcome, key, latest]);
 }
 
+/** Plies between uploads of a game nobody follows. */
+const UPLOAD_EVERY = 8;
+
 /**
- * Keeps the server copy of a local game up to date (a second after each move,
- * and when it ends), so its link /<gameId> works for anyone.
+ * Keeps the server copy of a local game (its link /<gameId> works for anyone)
+ * fresh without a request per move: it is uploaded at the first move, every
+ * few moves, when the game ends, when its link is shared and when the page is
+ * hidden or closed. While someone follows the game live, after every move.
  */
 export function useGameUpload(session: GameSession, view: SessionView): void {
   const latest = useLatest({ session, view });
   const length = view.endState.moves.length;
   const outcome = view.finalOutcome;
   const gameId = session.gameId;
-  useEffect(() => {
-    if (length === 0) return;
-    const timer = setTimeout(() => {
-      const { session: s, view: v } = latest.current;
-      void uploadRecord(gameId, {
+  // What the server has (moves and whether it ended) and whether anyone watches.
+  const sent = useRef({ gameId: '', length: 0, over: false, watchers: 0 });
+  // Once the game is on the server, the server tells when people follow it.
+  const [stored, setStored] = useState<string | null>(null);
+
+  const upload = useRef((keepalive = false) => {
+    const { session: s, view: v } = latest.current;
+    const moves = v.endState.moves;
+    const over = !!v.finalOutcome;
+    const last = sent.current;
+    if (moves.length === 0) return;
+    if (last.gameId === s.gameId && last.length === moves.length && last.over === over) return;
+    sent.current = {
+      gameId: s.gameId,
+      length: moves.length,
+      over,
+      watchers: last.gameId === s.gameId ? last.watchers : 0,
+    };
+    void uploadRecord(
+      s.gameId,
+      {
         variantId: v.variant.id,
         startFen: toFen(v.variant, s.timeline.states[0].position),
-        moves: v.endState.moves.map((m) => m.san),
+        moves: moves.map((m) => m.san),
         white: playerCode(s.players.w),
         black: playerCode(s.players.b),
         mode: s.settings.mode,
@@ -207,10 +228,45 @@ export function useGameUpload(session: GameSession, view: SessionView): void {
         result: v.finalOutcome ? resultCode(v.finalOutcome) : '*',
         termination: v.finalOutcome?.reason ?? '',
         date: new Date().toISOString(),
-      });
-    }, 1000);
+      },
+      keepalive,
+    ).then((watchers) => {
+      if (watchers === null || sent.current.gameId !== s.gameId) return;
+      sent.current = { ...sent.current, watchers };
+      setStored(s.gameId);
+    });
+  });
+  useWatcherCount(stored === gameId ? gameId : null, (count) => {
+    sent.current = { ...sent.current, watchers: count };
+    // Someone just started following: bring the server copy up to date now.
+    if (count > 0) upload.current();
+  });
+
+  useEffect(() => {
+    if (length === 0) return;
+    const last = sent.current;
+    const fresh = last.gameId !== gameId;
+    const due = fresh || !!outcome || last.watchers > 0 || length - last.length >= UPLOAD_EVERY || length < last.length;
+    if (!due) return;
+    const timer = setTimeout(() => upload.current(), 1000);
     return () => clearTimeout(timer);
-  }, [gameId, length, outcome, latest]);
+  }, [gameId, length, outcome]);
+
+  useEffect(() => {
+    const flush = () => upload.current();
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') upload.current(true);
+    };
+    const leave = () => upload.current(true);
+    window.addEventListener(FLUSH_UPLOAD, flush);
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', leave);
+    return () => {
+      window.removeEventListener(FLUSH_UPLOAD, flush);
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', leave);
+    };
+  }, []);
 }
 
 /** Hint (level 4 search, shown as an arrow) and draw offers against the bot. */

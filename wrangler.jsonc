@@ -9,8 +9,18 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // Every request reaches the Worker first (www redirect, API); it hands the rest to the assets.
-    "run_worker_first": true,
+    // Pages, the API and preview pictures reach the Worker (www redirect, game link previews);
+    // the static files are served directly, which costs no Worker requests.
+    "run_worker_first": [
+      "/*",
+      "!/assets/*",
+      "!/fonts/*",
+      "!/icons/*",
+      "!/hero.webp",
+      "!/og.png",
+      "!/manifest.webmanifest",
+      "!/sw.js",
+    ],
   },
   "durable_objects": {
     "bindings": [{ "name": "GAME", "class_name": "GameRoom" }],

@@ -23,7 +23,7 @@ import {
 } from '../src/online/room.ts';
 import type { Room } from '../src/online/room.ts';
 import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record.ts';
-import type { GameInfo, GameRecord, RecordUpload } from '../src/online/record.ts';
+import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../src/online/record.ts';
 import { previewVersion, renderPreview } from './og.ts';
 
 export interface Env {
@@ -34,6 +34,8 @@ export interface Env {
 /** What a socket is: a seat colour, or a spectator. */
 interface Attachment {
   readonly color: Color | null;
+  /** The browser playing a stored local game (told when people start or stop following it). */
+  readonly owner?: boolean;
 }
 
 const MAX_MESSAGE = 2048;
@@ -170,7 +172,10 @@ export class GameRoom extends DurableObject<Env> {
     const stored = await this.ctx.storage.get<{ owner: string }>('record');
     if (stored && stored.owner !== owner) return json({ error: 'bad-request' }, 403);
     await this.ctx.storage.put('record', { record, owner });
-    return json({ ok: true });
+    // People following the game get the new moves at once; the uploader learns whether
+    // anyone watches (then it uploads after every move, otherwise only now and then).
+    for (const ws of this.ctx.getWebSockets()) if (!this.isOwner(ws)) this.send(ws, { t: 'record', record });
+    return json({ ok: true, watchers: this.watchers() } satisfies RecordSaved);
   }
 
   private async create(id: string, request: Request): Promise<Response> {
@@ -196,7 +201,8 @@ export class GameRoom extends DurableObject<Env> {
   private async openSocket(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'bad-request' }, 426);
     const room = await this.load();
-    if (!room) return json({ error: 'not-found' }, 404);
+    // A stored local game can be followed too (its record comes on every update).
+    if (!room && !(await this.ctx.storage.get('record'))) return json({ error: 'not-found' }, 404);
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     // A socket starts as a spectator; its first message ("hello") may claim a seat.
@@ -214,7 +220,18 @@ export class GameRoom extends DurableObject<Env> {
       return this.send(ws, { t: 'error', code: 'bad-request' });
     }
     const room = await this.load();
-    if (!room) return this.send(ws, { t: 'error', code: 'not-found' });
+    if (!room) {
+      // Following a local game: "hello" answers with the record, "ping" keeps the line open.
+      if (msg.t === 'ping') return this.send(ws, { t: 'pong', now: Date.now() });
+      const stored = await this.ctx.storage.get<{ record: GameRecord; owner: string }>('record');
+      if (msg.t !== 'hello' || !stored) return this.send(ws, { t: 'error', code: 'not-found' });
+      if (typeof msg.token === 'string' && msg.token === stored.owner) {
+        ws.serializeAttachment({ color: null, owner: true } satisfies Attachment);
+        return this.send(ws, { t: 'watchers', count: this.watchers() });
+      }
+      this.send(ws, { t: 'record', record: stored.record });
+      return this.tellOwners();
+    }
     const now = Date.now();
     const color = this.colorOf(ws);
 
@@ -285,12 +302,28 @@ export class GameRoom extends DurableObject<Env> {
   private async dropped(ws: WebSocket) {
     const color = this.colorOf(ws);
     const room = await this.load();
+    if (!room && !this.isOwner(ws)) return this.tellOwners(ws);
     if (!room || !color) return;
     // Another tab of the same player still holds the seat.
     if (this.connected(ws)[color]) return;
     const next = setConnected(room, color, false, Date.now());
     await this.save(next);
     this.broadcast(next, ws);
+  }
+
+  private isOwner(ws: WebSocket): boolean {
+    return !!(ws.deserializeAttachment() as Attachment | null)?.owner;
+  }
+
+  /** People following a stored local game (its owner's own socket excluded). */
+  private watchers(closing?: WebSocket): number {
+    return this.ctx.getWebSockets().filter((ws) => ws !== closing && !this.isOwner(ws)).length;
+  }
+
+  /** Tells the playing browser how many follow its game (it then uploads every move, or now and then). */
+  private tellOwners(closing?: WebSocket) {
+    const count = this.watchers(closing);
+    for (const ws of this.ctx.getWebSockets()) if (this.isOwner(ws)) this.send(ws, { t: 'watchers', count });
   }
 
   private colorOf(ws: WebSocket): Color | null {

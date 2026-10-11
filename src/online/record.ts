@@ -34,6 +34,12 @@ export type GameInfo =
   | { readonly kind: 'online'; readonly phase: Room['phase']; readonly record: GameRecord | null }
   | { readonly kind: 'local'; readonly record: GameRecord };
 
+/** PUT /api/games/:id/record answer: how many people follow the game right now. */
+export interface RecordSaved {
+  readonly ok: true;
+  readonly watchers: number;
+}
+
 /** PUT /api/games/:id/record body: the record and the secret of the browser that owns the game. */
 export interface RecordUpload {
   readonly record: GameRecord;

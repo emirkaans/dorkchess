@@ -12,7 +12,7 @@ import type {
   ServerMessage,
 } from '../../online/protocol.ts';
 import { loadJSON, saveJSON } from '../../storage/local.ts';
-import type { GameInfo, GameRecord, RecordUpload } from '../../online/record.ts';
+import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../../online/record.ts';
 
 const ticketKey = (gameId: string) => `online:${gameId}`;
 
@@ -162,15 +162,120 @@ function ownerToken(): string {
   return token;
 }
 
-/** Stores a local game on the server; failures (offline, …) are ignored, the game simply has no shared copy. */
-export async function uploadRecord(id: string, record: GameRecord): Promise<void> {
+/**
+ * Stores a local game on the server and returns how many people follow it
+ * (null on failure: offline, …; the game simply has no fresh shared copy).
+ * `keepalive` lets the upload finish while the page is being closed.
+ */
+export async function uploadRecord(id: string, record: GameRecord, keepalive = false): Promise<number | null> {
   try {
-    await fetch(`/api/games/${encodeURIComponent(id)}/record`, {
+    const res = await fetch(`/api/games/${encodeURIComponent(id)}/record`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ record, owner: ownerToken() } satisfies RecordUpload),
+      keepalive,
     });
+    if (!res.ok) return null;
+    return ((await res.json()) as Partial<RecordSaved>).watchers ?? 0;
   } catch {
-    // offline: the game stays local
+    return null;
   }
+}
+
+/**
+ * The browser playing a stored local game listens to its own game: the server
+ * says how many people follow it, so the moves can go up at once when someone does.
+ */
+export function useWatcherCount(id: string | null, onCount: (n: number) => void): void {
+  const handler = useRef(onCount);
+  useEffect(() => {
+    handler.current = onCount;
+  });
+  useEffect(() => {
+    if (!id) return;
+    let closed = false;
+    let retry = 0;
+    let socket: WebSocket | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let ping: ReturnType<typeof setInterval> | undefined;
+    const open = () => {
+      const ws = new WebSocket(wsUrl(id));
+      socket = ws;
+      ws.onopen = () => {
+        retry = 0;
+        ws.send(JSON.stringify({ t: 'hello', token: ownerToken() } satisfies ClientMessage));
+        ping = setInterval(() => ws.send(JSON.stringify({ t: 'ping' } satisfies ClientMessage)), 25_000);
+      };
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(String(e.data)) as ServerMessage;
+          if (msg.t === 'watchers') handler.current(msg.count);
+        } catch {
+          // ignore a broken message
+        }
+      };
+      ws.onclose = () => {
+        clearInterval(ping);
+        if (!closed) timer = setTimeout(open, Math.min(30_000, 2000 * 2 ** retry++));
+      };
+    };
+    open();
+    return () => {
+      closed = true;
+      clearTimeout(timer);
+      clearInterval(ping);
+      socket?.close();
+    };
+  }, [id]);
+}
+
+/** Asks the running game to upload now (e.g. its link was just copied). */
+export const FLUSH_UPLOAD = 'punkchess:flush-upload';
+export const requestUpload = () => window.dispatchEvent(new Event(FLUSH_UPLOAD));
+
+/**
+ * Follows a stored local game live over a WebSocket: `onRecord` gets the record
+ * on connect and after every update. Reconnects while `id` is set.
+ */
+export function useRecordFeed(id: string | null, onRecord: (r: GameRecord) => void): void {
+  const handler = useRef(onRecord);
+  useEffect(() => {
+    handler.current = onRecord;
+  });
+  useEffect(() => {
+    if (!id) return;
+    let closed = false;
+    let retry = 0;
+    let socket: WebSocket | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let ping: ReturnType<typeof setInterval> | undefined;
+    const open = () => {
+      const ws = new WebSocket(wsUrl(id));
+      socket = ws;
+      ws.onopen = () => {
+        retry = 0;
+        ws.send(JSON.stringify({ t: 'hello', token: null } satisfies ClientMessage));
+        ping = setInterval(() => ws.send(JSON.stringify({ t: 'ping' } satisfies ClientMessage)), 25_000);
+      };
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(String(e.data)) as ServerMessage;
+          if (msg.t === 'record') handler.current(msg.record);
+        } catch {
+          // ignore a broken message
+        }
+      };
+      ws.onclose = () => {
+        clearInterval(ping);
+        if (!closed) timer = setTimeout(open, Math.min(8000, 1000 * 2 ** retry++));
+      };
+    };
+    open();
+    return () => {
+      closed = true;
+      clearTimeout(timer);
+      clearInterval(ping);
+      socket?.close();
+    };
+  }, [id]);
 }

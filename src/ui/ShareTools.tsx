@@ -7,6 +7,7 @@ import type { ResultCode } from '../storage/games.ts';
 import { decodeLink, encodeGame, encodePosition } from '../storage/share.ts';
 import { Modal } from './Modal.tsx';
 import { gameUrl } from './routes.ts';
+import { requestUpload } from './online/connection.ts';
 import { useI18n } from './i18n.tsx';
 
 /** Player names and result written into an exported PGN. */
@@ -124,10 +125,16 @@ export function SharePanel({ variant, states, cursor, meta, onOpenAnalysis, open
       </summary>
       <div className="share-grid">
         {gameId
-          ? item('game', LINK, t('share.gameLink'), () => copy(gameUrl(gameId), 'game'))
+          ? item('game', LINK, t('share.gameLink'), () => {
+              requestUpload();
+              void copy(gameUrl(gameId), 'game');
+            })
           : item('game', LINK, t('share.gameLink'), () => copy(gameLinkOf(variant, states), 'game'), !hasMoves)}
         {gameId &&
-          item('analysis-link', LINK, t('share.analysisLink'), () => copy(gameUrl(gameId, true), 'analysis-link'))}
+          item('analysis-link', LINK, t('share.analysisLink'), () => {
+            requestUpload();
+            void copy(gameUrl(gameId, true), 'analysis-link');
+          })}
         {item('pgn', DOC, t('share.copyPgn'), () => copy(pgnOf(variant, states, meta), 'pgn'))}
         {item('fen', BOARD, t('share.copyFen'), () => copy(toFen(variant, shown.position), 'fen'))}
         {item('position', PIN, t('share.positionLink'), () => copy(positionLinkOf(variant, shown), 'position'))}

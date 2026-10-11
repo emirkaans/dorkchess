@@ -2,6 +2,7 @@
 // Durable Object per game). Shared by both sides. No React / DOM imports.
 
 import type { Color, GameEndReason, PieceType, Square } from '../engine/index.ts';
+import type { GameRecord } from './record.ts';
 
 /** A move on the wire: squares (and the promotion piece); the engine fills in the rest. */
 export interface WireMove {
@@ -107,4 +108,8 @@ export type ErrorCode = 'illegal' | 'not-your-turn' | 'bad-request' | 'full' | '
 export type ServerMessage =
   | { readonly t: 'view'; readonly view: GameView }
   | { readonly t: 'error'; readonly code: ErrorCode }
-  | { readonly t: 'pong'; readonly now: number };
+  | { readonly t: 'pong'; readonly now: number }
+  /** A followed local game changed (or the answer to "hello" for one). */
+  | { readonly t: 'record'; readonly record: GameRecord }
+  /** To the browser playing a stored local game: how many people follow it now. */
+  | { readonly t: 'watchers'; readonly count: number };

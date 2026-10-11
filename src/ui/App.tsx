@@ -46,7 +46,7 @@ import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { decodeLink } from '../storage/share.ts';
 import { isGameId } from '../online/record.ts';
-import { fetchGameInfo, uploadRecord } from './online/connection.ts';
+import { fetchGameInfo, uploadRecord, useRecordFeed } from './online/connection.ts';
 import { parseRoute, pathOf } from './routes.ts';
 import type { Route } from './routes.ts';
 import type { GameState } from '../engine/index.ts';
@@ -323,26 +323,16 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     };
   }, []);
 
-  // Watching a game that is still going on: new moves come in every few seconds.
-  const liveId = page === 'review' && review?.review.live ? review.review.gameId : undefined;
-  const liveMoves = review?.review.states.length ?? 0;
-  const reviewOfRecordRef = useRef(reviewOfRecord);
-  useEffect(() => {
-    reviewOfRecordRef.current = reviewOfRecord;
-  });
-  useEffect(() => {
+  // Watching a game that is still going on: the server sends every update over a WebSocket.
+  const liveId = page === 'review' && review?.review.live ? (review.review.gameId ?? null) : null;
+  useRecordFeed(liveId, (rec) => {
     if (!liveId) return;
-    const timer = setInterval(async () => {
-      const info = await fetchGameInfo(liveId);
-      const rec = info?.record;
-      if (!rec || (rec.moves.length + 1 === liveMoves && rec.result === '*')) return;
-      const next = reviewOfRecordRef.current(liveId, { ...rec, id: liveId }, true);
-      setReview((cur) =>
-        cur && cur.review.gameId === liveId ? { ...cur, review: { ...next, key: cur.review.key } } : cur,
-      );
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [liveId, liveMoves]);
+    setReview((cur) => {
+      if (!cur || cur.review.gameId !== liveId || rec.moves.length + 1 < cur.review.states.length) return cur;
+      if (rec.moves.length + 1 === cur.review.states.length && rec.result === '*') return cur;
+      return { ...cur, review: { ...reviewOfRecord(liveId, { ...rec, id: liveId }, true), key: cur.review.key } };
+    });
+  });
 
   // The running game is kept in the browser, so a reload (/<gameId>) carries on with it.
   useEffect(() => {
