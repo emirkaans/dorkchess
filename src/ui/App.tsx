@@ -154,6 +154,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     setNewGame(null);
     setPage('game');
     setTab('moves');
+    window.scrollTo(0, 0);
     // The rule card introduces a variant; classic chess needs none.
     setShowRules(!isClassic(s.variantId) && !isRuleCardHidden(s.variantId));
   };

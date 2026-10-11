@@ -70,7 +70,7 @@ function ControlButton(props: {
       aria-pressed={props.pressed}
     >
       <Icon d={props.icon} />
-      {props.children}
+      <span className="control-label">{props.children}</span>
     </button>
   );
 }

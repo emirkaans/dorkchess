@@ -2683,3 +2683,198 @@ a:focus-visible {
     transition: none !important;
   }
 }
+
+/* ---------- phones: focused game screen (as on lichess) ---------- */
+
+.menu-toggle,
+.menu-lang {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  /* One-line top bar; the menu opens from the ☰ button. */
+  .toolbar {
+    flex-wrap: nowrap;
+    position: relative;
+  }
+  .toolbar .lang:not(.menu-lang) {
+    display: none;
+  }
+  .menu-toggle {
+    display: grid;
+  }
+  .toolbar-end {
+    margin-left: auto;
+  }
+  .menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 12px 12px;
+    background: var(--grit), var(--bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5);
+  }
+  .menu.open {
+    display: flex;
+  }
+  .menu button {
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .menu button.on {
+    border-bottom-color: var(--pink);
+  }
+  .menu-lang {
+    display: block;
+    margin-top: 10px;
+  }
+
+  /* Game: board edge to edge, a player strip above and below, controls right under it. */
+  .layout {
+    --board: 100vw;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 0 28px;
+  }
+  .layout .board-wrap.sized {
+    --board: 100vw;
+  }
+  .layout > .board-wrap,
+  .layout .board-col,
+  .layout .players,
+  .layout > .side {
+    display: contents;
+  }
+  .layout .player-row.top {
+    order: 1;
+  }
+  .layout .board-frame {
+    order: 2;
+  }
+  .layout .player-row.bottom {
+    order: 3;
+  }
+  .layout .side .controls {
+    order: 4;
+  }
+  .layout .side > * {
+    order: 6;
+    margin: 0 12px 12px;
+  }
+  .layout .side .game-box {
+    order: 5;
+  }
+  .layout .side .share-box {
+    order: 7;
+  }
+  .layout .board-bar {
+    order: 8;
+    margin: 0 12px;
+  }
+  .layout .board-frame {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+  }
+  .layout .splatter,
+  .layout .turn-tape,
+  .layout .board-resize {
+    display: none;
+  }
+
+  .layout .player-row,
+  .layout .player-row.top,
+  .layout .player-row.bottom {
+    position: static;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 0;
+    background: var(--panel);
+  }
+  .layout .player-row.turn {
+    box-shadow: inset 3px 0 0 var(--pink);
+  }
+  .layout .player-row .clock,
+  .layout .player-row.bottom .clock {
+    grid-column: auto;
+    order: 0;
+    padding: 4px 12px;
+  }
+  .layout .player-row .clock-time {
+    font-size: 30px;
+  }
+  .layout .avatar {
+    width: 34px;
+    height: 34px;
+  }
+  .layout .avatar-skull {
+    width: 26px;
+    height: 26px;
+  }
+  .layout .player-head {
+    flex-wrap: nowrap;
+  }
+  .layout .player-name {
+    font-size: 16px;
+  }
+  .layout .player-sub {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .layout .taken {
+    min-height: 16px;
+  }
+
+  /* Controls: one row of icons; their names stay for screen readers. */
+  .layout .side .controls {
+    display: flex;
+    gap: 4px;
+    margin: 10px 12px 12px;
+  }
+  .layout .control {
+    flex: 1;
+    min-height: 48px;
+    padding: 0;
+  }
+  .layout .control .ic {
+    width: 22px;
+    height: 22px;
+  }
+  .layout .control-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .layout .game-box {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .layout .box-head h2 {
+    font-size: 22px;
+  }
+  .layout .status {
+    font-size: 18px;
+  }
+  .layout .new-game-button,
+  .layout .analyse-button {
+    min-height: 50px;
+  }
+}

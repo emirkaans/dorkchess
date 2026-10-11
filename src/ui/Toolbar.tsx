@@ -33,6 +33,13 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOn
     return () => observer.disconnect();
   }, []);
 
+  // Phones: the menu folds into a button; any choice (or a page change) closes it.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = (go: () => void) => () => {
+    setMenuOpen(false);
+    go();
+  };
+
   // On the home page the bar is see-through at the top, over the hero image; once the page scrolls it turns solid.
   const [overHero, setOverHero] = useState(page === 'home');
   useEffect(() => {
@@ -49,41 +56,58 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOn
   return (
     <header className={`topbar${overHero ? ' over-hero' : ''}`} ref={ref}>
       <div className="toolbar">
-        <button className="logo" onClick={onHome} aria-label={t('menu.logo')}>
+        <button className="logo" onClick={close(onHome)} aria-label={t('menu.logo')}>
           <Crown className="logo-crown" />
           <span className="logo-punk">punk</span>
           <span className="logo-chess">chess</span>
         </button>
-        <nav className="menu" aria-label={t('menu.label')}>
+        <nav className={`menu${menuOpen ? ' open' : ''}`} id="main-menu" aria-label={t('menu.label')}>
           <button
             className={page === 'home' ? 'on' : ''}
             aria-current={page === 'home' ? 'page' : undefined}
-            onClick={onHome}
+            onClick={close(onHome)}
           >
             {t('menu.home')}
           </button>
           <button
             className={page === 'game' ? 'on' : ''}
             aria-current={page === 'game' ? 'page' : undefined}
-            onClick={onPlay}
+            onClick={close(onPlay)}
           >
             {t('menu.play')}
           </button>
           <button
             className={page === 'online' ? 'on' : ''}
             aria-current={page === 'online' ? 'page' : undefined}
-            onClick={onOnline}
+            onClick={close(onOnline)}
           >
             {t('menu.online')}
           </button>
           <button
             className={page === 'analysis' ? 'on' : ''}
             aria-current={page === 'analysis' ? 'page' : undefined}
-            onClick={onAnalysis}
+            onClick={close(onAnalysis)}
           >
             {t('menu.analysis')}
           </button>
-          <button onClick={onHistory}>{t('toolbar.history')}</button>
+          <button onClick={close(onHistory)}>{t('toolbar.history')}</button>
+          {menuOpen && (
+            <select
+              className="lang menu-lang"
+              aria-label={t('toolbar.language')}
+              value={prefs.locale}
+              onChange={(e) => {
+                const locale = e.target.value;
+                if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
+              }}
+            >
+              {Object.entries(LOCALES).map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          )}
         </nav>
         <div className="toolbar-end">
           <select
@@ -108,6 +132,17 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onOn
             title={t('toolbar.settings')}
           >
             <GearIcon />
+          </button>
+          <button
+            className="icon-button menu-toggle"
+            aria-label={t('menu.label')}
+            aria-expanded={menuOpen}
+            aria-controls="main-menu"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path d={menuOpen ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} />
+            </svg>
           </button>
         </div>
       </div>
