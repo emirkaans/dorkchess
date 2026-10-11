@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
-import { LOW_TIME_MS, TIME_CONTROLS, remainingMs, timeControl } from '../../clock/clock.ts';
+import { LOW_TIME_MS, remainingMs, timeControl } from '../../clock/clock.ts';
 import type { ClockState } from '../../clock/clock.ts';
 import {
   createGame,
@@ -31,16 +31,8 @@ import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
 import type { Prefs } from '../prefs.ts';
 import { moveSound, playSound } from '../sound.ts';
-import {
-  ApiError,
-  createOnlineGame,
-  joinOnlineGame,
-  loadName,
-  loadTicket,
-  saveName,
-  saveTicket,
-  useOnlineGame,
-} from './connection.ts';
+import { ApiError, joinOnlineGame, loadName, loadTicket, saveName, saveTicket, useOnlineGame } from './connection.ts';
+import { LobbyPage } from './LobbyPage.tsx';
 
 const HUMAN = { kind: 'human' } as const;
 
@@ -58,105 +50,10 @@ interface Props {
 }
 
 export function OnlinePage({ gameId, ...rest }: Props) {
-  return gameId ? <OnlineGame key={gameId} gameId={gameId} {...rest} /> : <Lobby {...rest} />;
-}
-
-// ---------------------------------------------------------------------------
-// Lobby: create a game and get a link to send.
-
-function Lobby({ onOpenGame, defaultVariantId }: Omit<Props, 'gameId'>) {
-  const { t, vt } = useI18n();
-  const [name, setName] = useState(loadName);
-  const [variantId, setVariantId] = useState(defaultVariantId);
-  const [timeControlId, setTimeControlId] = useState('5+0');
-  const [color, setColor] = useState<Color | 'random'>('random');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const create = async () => {
-    setBusy(true);
-    setError(null);
-    saveName(name.trim());
-    try {
-      const ticket = await createOnlineGame({ variantId, timeControlId, color, name: name.trim() || t('online.anon') });
-      onOpenGame(ticket.gameId);
-    } catch (e) {
-      setError(t(e instanceof ApiError && e.code !== 'network' ? 'online.error.create' : 'online.error.network'));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="online-lobby">
-      <form
-        className="online-card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void create();
-        }}
-      >
-        <div className="analysis-head">
-          <svg className="bolt" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
-          </svg>
-          <h1>{t('online.title')}</h1>
-        </div>
-        <p className="muted online-lede">{t('online.lede')}</p>
-
-        <label className="analysis-field">
-          <span>{t('online.name')}</span>
-          <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} autoComplete="nickname" />
-        </label>
-
-        <fieldset className="choice-row">
-          <legend>{t('newGame.variant')}</legend>
-          {listVariants().map((v) => (
-            <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
-              <input
-                type="radio"
-                name="online-variant"
-                checked={variantId === v.id}
-                onChange={() => setVariantId(v.id)}
-              />
-              {vt(v).name}
-            </label>
-          ))}
-        </fieldset>
-
-        <fieldset className="choice-row">
-          <legend>{t('newGame.time')}</legend>
-          {TIME_CONTROLS.map((tc) => (
-            <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
-              <input
-                type="radio"
-                name="online-time"
-                checked={timeControlId === tc.id}
-                onChange={() => setTimeControlId(tc.id)}
-              />
-              {tc.initialMs === null ? t('time.none') : tc.label}
-            </label>
-          ))}
-        </fieldset>
-
-        <fieldset className="choice-row">
-          <legend>{t('online.color')}</legend>
-          {(['w', 'random', 'b'] as const).map((c) => (
-            <label key={c} className={`chip${color === c ? ' on' : ''}`}>
-              <input type="radio" name="online-color" checked={color === c} onChange={() => setColor(c)} />
-              {c === 'random' ? t('online.random') : t(`color.${c}`)}
-            </label>
-          ))}
-        </fieldset>
-
-        {error && <p className="error">{error}</p>}
-        <button type="submit" className="primary analysis-go" disabled={busy}>
-          <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-            <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
-          </svg>
-          {busy ? t('online.creating') : t('online.create')}
-        </button>
-      </form>
-    </main>
+  return gameId ? (
+    <OnlineGame key={gameId} gameId={gameId} {...rest} />
+  ) : (
+    <LobbyPage onOpenGame={rest.onOpenGame} defaultVariantId={rest.defaultVariantId} />
   );
 }
 

@@ -5,6 +5,7 @@
 //   POST /api/games/:id/join      take the free seat -> { gameId, color, token }
 //   GET  /api/games/:id/ws        WebSocket (first message: { t: 'hello', token })
 //   GET  /api/games/:id           what the game link shows (online room or stored local game)
+//   GET  /api/lobby/ws            WebSocket to the lobby (open seeks, quick pairing)
 //   PUT  /api/games/:id/record    stores a local game (bot / two players) so its link works anywhere
 //   GET  /og/:id.png              link-preview picture of a game
 // Game pages (/<id>, /<id>/analysis) get link-preview tags for that game.
@@ -15,6 +16,7 @@ import type { GameInfo } from '../src/online/record.ts';
 import { previewTags, previewVersion } from './og.ts';
 
 export { GameRoom } from './game-room.ts';
+export { Lobby } from './lobby.ts';
 
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
@@ -79,6 +81,10 @@ export default {
       return Response.redirect(url.toString(), 301);
     }
 
+    if (url.pathname === '/api/lobby/ws') {
+      // One lobby for the whole site.
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(request);
+    }
     if (url.pathname === '/api/games' && request.method === 'POST') {
       return toRoom(env, request, newGameId(), '/create');
     }

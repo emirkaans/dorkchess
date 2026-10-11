@@ -25,9 +25,11 @@ import type { Room } from '../src/online/room.ts';
 import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record.ts';
 import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../src/online/record.ts';
 import { previewVersion, renderPreview } from './og.ts';
+import type { Lobby } from './lobby.ts';
 
 export interface Env {
   readonly GAME: DurableObjectNamespace<GameRoom>;
+  readonly LOBBY: DurableObjectNamespace<Lobby>;
   readonly ASSETS: Fetcher;
 }
 

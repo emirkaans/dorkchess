@@ -23,9 +23,15 @@
     ],
   },
   "durable_objects": {
-    "bindings": [{ "name": "GAME", "class_name": "GameRoom" }],
+    "bindings": [
+      { "name": "GAME", "class_name": "GameRoom" },
+      { "name": "LOBBY", "class_name": "Lobby" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["Lobby"] },
+  ],
   "routes": [
     { "pattern": "punkchess.com", "custom_domain": true },
     { "pattern": "www.punkchess.com", "custom_domain": true },
