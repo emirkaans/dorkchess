@@ -1926,7 +1926,8 @@ button.primary:hover:not(:disabled) {
 
 /* Narrow screens: board on top at full width, side panel below; the dialog scrolls. */
 @media (max-width: 900px) {
-  .modal.viewer-modal {
+  .modal.viewer-modal,
+  .review-page {
     height: auto;
     overflow: visible;
   }
@@ -2489,6 +2490,21 @@ button.primary:hover:not(:disabled) {
 }
 .diagram {
   position: relative;
+}
+
+/* ---------- review page (post-game analysis) ---------- */
+
+.review-page {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 16px 24px 24px;
+  height: calc(100svh - var(--toolbar-h, 73px));
+  display: flex;
+  flex-direction: column;
+}
+.review-page .viewer {
+  /* As tall as the page allows, leaving room for the side panel on the right. */
+  --board: max(260px, min(100svh - var(--toolbar-h, 73px) - 40px, 100vw - 48px - 20px - var(--bar) - 8px - 400px));
 }
 
 /* ---------- narrow screens ---------- */

@@ -18,6 +18,11 @@ import { OnlinePage } from './online/OnlinePage.tsx';
 import { PlayerRow } from './PlayerRow.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
 import { Splatter } from './Punk.tsx';
+import { ReviewPage } from './ReviewPage.tsx';
+import type { Review } from './ReviewPage.tsx';
+import { recordTexts } from '../i18n/records.ts';
+import { loadGames, replay } from '../storage/games.ts';
+import type { SavedGame } from '../storage/games.ts';
 import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
@@ -69,7 +74,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const [showRules, setShowRules] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  /** Finished game shown on the review (post-game analysis) page, and the page to go back to. */
+  const [review, setReview] = useState<{ review: Review; back: Page | 'history' } | null>(null);
   const [tab, setTab] = useState<Tab>('moves');
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
@@ -144,9 +150,37 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   };
 
   const fen = toFen(variant, game.position);
+  const openReview = (r: Omit<Review, 'key'>, back: Page | 'history') => {
+    setReview({ review: { ...r, key: Date.now() }, back });
+    setPage('review');
+    window.scrollTo(0, 0);
+  };
+  /** A stored game from the history, on the review page at #review/<id> (pushed, so Back works). */
+  const openSaved = (game: SavedGame, back: Page | 'history', push = true) => {
+    const v = getVariant(game.variantId);
+    const texts = recordTexts(game, t);
+    setShowHistory(false);
+    if (push && location.hash !== `#review/${game.id}`) history.pushState(null, '', `#review/${game.id}`);
+    openReview(
+      {
+        variantId: v.id,
+        states: replay(game),
+        subtitle: `${vt(v).name} · ${texts.white} – ${texts.black} · ${game.result}`,
+        meta: { white: texts.white, black: texts.black, result: game.result, termination: texts.termination },
+        savedId: game.id,
+      },
+      back,
+    );
+  };
+  const leaveReview = () => {
+    if (!review) return;
+    if (review.back === 'history') {
+      setPage('home');
+      setShowHistory(true);
+    } else setPage(review.back);
+  };
   const openAnalysis = (variantId: string, states: readonly GameState[], cursor: number) => {
     setAnalysisSeed({ key: Date.now(), variantId, states, cursor });
-    setShowAnalysis(false);
     setSharedGame(null);
     setShowHistory(false);
     setPage('analysis');
@@ -155,6 +189,19 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const openLinkRef = useRef<() => void>(() => {});
   useEffect(() => {
     openLinkRef.current = () => {
+      // A stored game: #review/<id> (also when coming back to it with the browser's Back / Forward).
+      const saved = /^#review\/([^/]+)$/.exec(location.hash);
+      if (saved) {
+        const game = loadGames().find((g) => g.id === decodeURIComponent(saved[1]));
+        if (game) openSaved(game, 'history', false);
+        else history.replaceState(null, '', location.pathname + location.search);
+        return;
+      }
+      // Leaving a review page with the browser's Back button.
+      if (page === 'review' && review?.review.savedId) {
+        leaveReview();
+        return;
+      }
       // An online game link: #online/<id>.
       const online = /^#online\/([A-Za-z0-9]{8})$/.exec(location.hash);
       if (online) {
@@ -194,11 +241,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
 
   // The address bar shows the open online game (so it can be reloaded or shared), and nothing elsewhere.
   useEffect(() => {
-    const want = page === 'online' && onlineId ? `#online/${onlineId}` : '';
-    const isOnline = location.hash.startsWith('#online');
+    const savedId = page === 'review' ? review?.review.savedId : undefined;
+    const want =
+      page === 'online' && onlineId ? `#online/${onlineId}` : savedId ? `#review/${encodeURIComponent(savedId)}` : '';
+    const ours = location.hash.startsWith('#online') || location.hash.startsWith('#review');
     if (want && location.hash !== want) history.replaceState(null, '', location.pathname + location.search + want);
-    else if (!want && isOnline) history.replaceState(null, '', location.pathname + location.search);
-  }, [page, onlineId]);
+    else if (!want && ours) history.replaceState(null, '', location.pathname + location.search);
+  }, [page, onlineId, review]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -268,6 +317,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         <HomePage onPlay={openNewGame} />
       ) : page === 'analysis' ? (
         <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={settings.variantId} seed={analysisSeed} />
+      ) : page === 'review' && review ? (
+        <ReviewPage
+          review={review.review}
+          onBack={leaveReview}
+          backLabel={review.back === 'history' ? t('review.backHistory') : t('review.back')}
+          onOpenAnalysis={openAnalysis}
+        />
       ) : page === 'online' ? (
         <OnlinePage
           gameId={onlineId}
@@ -277,6 +333,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           setPrefs={setPrefs}
           defaultVariantId={settings.variantId}
           onOpenAnalysis={openAnalysis}
+          onReview={(r) => openReview(r, 'online')}
         />
       ) : (
         <main className="layout">
@@ -411,7 +468,24 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             </div>
 
             {view.finalOutcome && view.endState.moves.length > 0 && (
-              <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
+              <button
+                className="primary analyse-button"
+                onClick={() =>
+                  openReview(
+                    {
+                      variantId: variant.id,
+                      states: timeline.states,
+                      subtitle: gameLabel,
+                      meta: {
+                        white: botName(players.w, t),
+                        black: botName(players.b, t),
+                        result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
+                      },
+                    },
+                    'game',
+                  )
+                }
+              >
                 {t('analysis.button')}
               </button>
             )}
@@ -506,7 +580,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         </main>
       )}
 
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} onOpenAnalysis={openAnalysis} />}
+      {showHistory && (
+        <HistoryModal onClose={() => setShowHistory(false)} onOpenGame={(g) => openSaved(g, 'history')} />
+      )}
       {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
         <Modal label={t('analysis.shared')} className="viewer-modal" onClose={() => setSharedGame(null)}>
@@ -521,29 +597,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             onOpenAnalysis={(states, cursor) => openAnalysis(sharedGame[0].variantId, states, cursor)}
           >
             <button onClick={() => setSharedGame(null)}>{t('close')}</button>
-          </GameViewer>
-        </Modal>
-      )}
-      {showAnalysis && (
-        <Modal label={t('analysis.dialog')} className="viewer-modal" onClose={() => setShowAnalysis(false)}>
-          <GameViewer
-            variant={variant}
-            states={timeline.states}
-            autoAnalyse
-            title={
-              <>
-                <h2>{t('analysis.title')}</h2>
-                <p className="muted">{gameLabel}</p>
-              </>
-            }
-            meta={{
-              white: botName(players.w, t),
-              black: botName(players.b, t),
-              result: view.finalOutcome ? resultCode(view.finalOutcome) : '*',
-            }}
-            onOpenAnalysis={(states, cursor) => openAnalysis(variant.id, states, cursor)}
-          >
-            <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
           </GameViewer>
         </Modal>
       )}

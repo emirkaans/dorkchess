@@ -7,14 +7,13 @@ import type { Color, GameState, Move, PieceType, VariantDefinition } from '../..
 import type { GameView, OnlineOutcome } from '../../online/protocol.ts';
 import { Board } from '../Board.tsx';
 import { BoardResizer } from '../BoardResizer.tsx';
-import { GameViewer } from '../GameViewer.tsx';
-import { Modal } from '../Modal.tsx';
 import { MoveList } from '../MoveList.tsx';
 import { GameOverOverlay } from '../GameOverOverlay.tsx';
 import { PlayerRow } from '../PlayerRow.tsx';
 import { PromotionDialog } from '../PromotionDialog.tsx';
 import { Splatter } from '../Punk.tsx';
 import { SetupDialog } from '../SetupDialog.tsx';
+import type { Review } from '../ReviewPage.tsx';
 import { SharePanel } from '../ShareTools.tsx';
 import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
@@ -42,6 +41,8 @@ interface Props {
   setPrefs: Dispatch<SetStateAction<Prefs>>;
   defaultVariantId: string;
   onOpenAnalysis: (variantId: string, states: readonly GameState[], cursor: number) => void;
+  /** Opens the finished game on the review page. */
+  onReview: (review: Omit<Review, 'key'>) => void;
 }
 
 export function OnlinePage({ gameId, ...rest }: Props) {
@@ -175,7 +176,14 @@ function clockOf(view: GameView, offset: number): ClockState {
   };
 }
 
-function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<Props, 'gameId'> & { gameId: string }) {
+function OnlineGame({
+  gameId,
+  onLobby,
+  prefs,
+  setPrefs,
+  onOpenAnalysis,
+  onReview,
+}: Omit<Props, 'gameId'> & { gameId: string }) {
   const { t, vt } = useI18n();
   const [ticket, setTicket] = useState(() => loadTicket(gameId));
   const link = useOnlineGame(gameId, ticket?.token ?? null);
@@ -211,7 +219,6 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
   const [flipped, setFlipped] = useState<boolean | null>(null);
   const isFlipped = flipped ?? you === 'b';
   const [promotion, setPromotion] = useState<Move[] | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
   const [copied, setCopied] = useState(false);
   const boardArea = useRef<HTMLDivElement>(null);
 
@@ -504,7 +511,17 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
         )}
 
         {view.phase === 'over' && states.length > 1 && (
-          <button className="primary analyse-button" onClick={() => setShowAnalysis(true)}>
+          <button
+            className="primary analyse-button"
+            onClick={() =>
+              onReview({
+                variantId: variant.id,
+                states,
+                subtitle: `${nameOf('w')} – ${nameOf('b')}`,
+                meta: { white: nameOf('w'), black: nameOf('b') },
+              })
+            }
+          >
             {t('analysis.button')}
           </button>
         )}
@@ -581,27 +598,6 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
           />
         )}
       </aside>
-
-      {showAnalysis && (
-        <Modal label={t('analysis.dialog')} className="viewer-modal" onClose={() => setShowAnalysis(false)}>
-          <GameViewer
-            variant={variant}
-            states={states}
-            autoAnalyse
-            title={
-              <>
-                <h2>{t('analysis.title')}</h2>
-                <p className="muted">
-                  {nameOf('w')} – {nameOf('b')}
-                </p>
-              </>
-            }
-            onOpenAnalysis={(all, cursor) => onOpenAnalysis(variant.id, all, cursor)}
-          >
-            <button onClick={() => setShowAnalysis(false)}>{t('close')}</button>
-          </GameViewer>
-        </Modal>
-      )}
     </main>
   );
 }

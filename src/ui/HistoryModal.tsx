@@ -1,18 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Modal } from './Modal.tsx';
 import { getVariant } from '../engine/index.ts';
-import type { GameState } from '../engine/index.ts';
-import { importPgn, loadGames, replay, storeGame } from '../storage/games.ts';
+import { importPgn, loadGames, storeGame } from '../storage/games.ts';
 import type { SavedGame } from '../storage/games.ts';
 import { errorText } from '../i18n/index.ts';
 import { recordTexts } from '../i18n/records.ts';
-import { GameViewer } from './GameViewer.tsx';
 import { useI18n } from './i18n.tsx';
 import type { I18n } from './i18n.tsx';
 
 interface Props {
   onClose: () => void;
-  onOpenAnalysis: (variantId: string, states: readonly GameState[], cursor: number) => void;
+  /** Opens a stored game on the review page. */
+  onOpenGame: (game: SavedGame) => void;
 }
 
 const formatDate = (iso: string, locale: string) =>
@@ -26,11 +25,10 @@ const variantName = (id: string, vt: I18n['vt']) => {
   }
 };
 
-/** History: stored games, replay with a slider, PGN-like export/import. */
-export function HistoryModal({ onClose, onOpenAnalysis }: Props) {
+/** History: stored games (each opens on the review page) and PGN-like import. */
+export function HistoryModal({ onClose, onOpenGame }: Props) {
   const { t, vt, locale } = useI18n();
   const [games, setGames] = useState<SavedGame[]>(() => loadGames());
-  const [open, setOpen] = useState<SavedGame | null>(null);
   const [importText, setImportText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -40,18 +38,16 @@ export function HistoryModal({ onClose, onOpenAnalysis }: Props) {
       setGames((list) => storeGame(game, list));
       setImportText('');
       setError(null);
-      setOpen(game);
+      onOpenGame(game);
     } catch (e) {
       setError(errorText(e, t));
     }
   };
 
   return (
-    <Modal label={t('history.label')} className={open ? 'viewer-modal' : 'history'} onClose={onClose}>
+    <Modal label={t('history.label')} className="history" onClose={onClose}>
       <div>
-        {open ? (
-          <Replay game={open} onBack={() => setOpen(null)} onOpenAnalysis={onOpenAnalysis} />
-        ) : (
+        {
           <>
             <h2>{t('history.title')}</h2>
             {games.length === 0 ? (
@@ -84,7 +80,7 @@ export function HistoryModal({ onClose, onOpenAnalysis }: Props) {
                           {r.termination && <span className="muted"> {r.termination}</span>}
                         </td>
                         <td>
-                          <button onClick={() => setOpen(g)}>{t('history.view')}</button>
+                          <button onClick={() => onOpenGame(g)}>{t('history.view')}</button>
                         </td>
                       </tr>
                     );
@@ -111,41 +107,8 @@ export function HistoryModal({ onClose, onOpenAnalysis }: Props) {
               </button>
             </div>
           </>
-        )}
+        }
       </div>
     </Modal>
-  );
-}
-
-function Replay({
-  game,
-  onBack,
-  onOpenAnalysis,
-}: {
-  game: SavedGame;
-  onBack: () => void;
-  onOpenAnalysis: Props['onOpenAnalysis'];
-}) {
-  const { t, vt } = useI18n();
-  const variant = getVariant(game.variantId);
-  const states = useMemo<GameState[]>(() => replay(game), [game]);
-  const texts = recordTexts(game, t);
-
-  return (
-    <div className="replay">
-      <GameViewer
-        variant={variant}
-        states={states}
-        title={
-          <h2>
-            {variantName(game.variantId, vt)} · {texts.white} – {texts.black} · {game.result}
-          </h2>
-        }
-        meta={{ white: texts.white, black: texts.black, result: game.result, termination: texts.termination }}
-        onOpenAnalysis={(all, cursor) => onOpenAnalysis(game.variantId, all, cursor)}
-      >
-        <button onClick={onBack}>{t('history.back')}</button>
-      </GameViewer>
-    </div>
   );
 }

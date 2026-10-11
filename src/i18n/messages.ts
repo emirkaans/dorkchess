@@ -190,7 +190,6 @@ export const tr = {
   // Analysis and viewer
   'analysis.button': 'Oyunu analiz et',
   'analysis.title': 'Analiz',
-  'analysis.dialog': 'Oyun analizi',
   'analysis.shared': 'Paylaşılan oyun',
   'analysis.start': 'Analiz et',
   'analysis.continue': 'Analize devam et',
@@ -277,6 +276,8 @@ export const tr = {
   'over.title': 'OYUN BİTTİ',
   'tree.promote': 'Ana hat yap',
   'tree.delete': 'Buradan sonrasını sil',
+  'review.back': '← Oyuna dön',
+  'review.backHistory': '← Geçmişe dön',
   'nav.first': 'Başa',
   'nav.back': 'Geri',
   'nav.forward': 'İleri',
@@ -467,7 +468,6 @@ export const en: Record<MessageKey, string> = {
 
   'analysis.button': 'Analyse the game',
   'analysis.title': 'Analysis',
-  'analysis.dialog': 'Game analysis',
   'analysis.shared': 'Shared game',
   'analysis.start': 'Analyse',
   'analysis.continue': 'Continue analysis',
@@ -555,6 +555,8 @@ export const en: Record<MessageKey, string> = {
   'over.title': 'GAME OVER',
   'tree.promote': 'Make main line',
   'tree.delete': 'Delete from here',
+  'review.back': '← Back to the game',
+  'review.backHistory': '← Back to history',
   'nav.first': 'First',
   'nav.back': 'Back',
   'nav.forward': 'Forward',

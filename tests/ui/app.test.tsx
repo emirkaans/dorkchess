@@ -332,6 +332,56 @@ describe('uygulama: erişilebilirlik', () => {
     expect(document.querySelector('.game-over')).toBeNull();
   });
 
+  it('oyun sonu analizi ayrı sayfada açılır, "Oyuna dön" ile oyuna dönülür', () => {
+    startGame({ mode: 'hotseat' });
+    for (const [a, b] of [
+      ['f2', 'f3'],
+      ['e7', 'e5'],
+      ['g2', 'g4'],
+      ['d8', 'h4'],
+    ])
+      move(a, b);
+    fireEvent.click(screen.getByRole('button', { name: 'Oyunu analiz et' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.querySelector('.review-page .viewer')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Analiz' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '← Oyuna dön' }));
+    expect(document.querySelector('.review-page')).toBeNull();
+    expect(status()).toContain('Mat');
+  });
+
+  it('geçmişteki oyun analiz sayfasında kendi adresiyle açılır; adres yeniden açılabilir', () => {
+    startGame({ mode: 'hotseat' });
+    for (const [a, b] of [
+      ['f2', 'f3'],
+      ['e7', 'e5'],
+      ['g2', 'g4'],
+      ['d8', 'h4'],
+    ])
+      move(a, b);
+    fireEvent.click(screen.getByRole('button', { name: 'Geçmiş' }));
+    fireEvent.click(screen.getByRole('button', { name: 'İzle' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.querySelector('.review-page .viewer')).not.toBeNull();
+    expect(location.hash).toMatch(/^#review\//);
+    const address = location.hash;
+    fireEvent.click(screen.getByRole('button', { name: '← Geçmişe dön' }));
+    expect(screen.getByRole('dialog', { name: 'Oyun geçmişi' })).toBeTruthy();
+    expect(location.hash).toBe('');
+    // The address alone opens the game again (reload or a bookmark).
+    cleanup();
+    history.replaceState(null, '', address);
+    render(<App />);
+    expect(document.querySelector('.review-page .viewer')).not.toBeNull();
+    expect([...document.querySelectorAll('.review-page .tree-row .mv')].map((b) => b.textContent)).toEqual([
+      'f3',
+      'e5',
+      'g4',
+      'Qh4#',
+    ]);
+    history.replaceState(null, '', location.pathname);
+  });
+
   it('kural kartı yeni oyunda yalnızca varyantlarda kendiliğinden açılır', () => {
     localStorage.removeItem('dorkchess:hideRules:standard');
     startGame({ mode: 'hotseat' });
