@@ -23,7 +23,7 @@ import {
   setupStartPosition,
 } from '../engine/index.ts';
 import type { Color, GameState, SetupQuestion, VariantDefinition } from '../engine/index.ts';
-import { MAX_NAME, RECONNECT_MS } from './protocol.ts';
+import { MAX_NAME, reconnectMs } from './protocol.ts';
 import type { CreateRequest, ErrorCode, GameView, OnlineOutcome, Phase, WireMove } from './protocol.ts';
 
 export interface Seat {
@@ -249,7 +249,7 @@ export function draw(room: Room, color: Color, action: 'offer' | 'accept' | 'dec
 export function setConnected(room: Room, color: Color, connected: boolean, now: number): Room {
   const gone = { ...room.gone };
   if (connected) delete gone[color];
-  else if (room.phase === 'playing') gone[color] = now + RECONNECT_MS;
+  else if (room.phase === 'playing') gone[color] = now + reconnectMs(timeControl(room.timeControlId));
   return { ...room, gone };
 }
 

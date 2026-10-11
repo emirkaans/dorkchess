@@ -20,8 +20,16 @@ export interface OnlineOutcome {
 
 export type Phase = 'waiting' | 'setup' | 'playing' | 'over';
 
-/** Seconds a disconnected player has to come back before losing the game. */
-export const RECONNECT_MS = 15_000;
+/**
+ * How long a disconnected player has to come back before losing the game, by
+ * time control: up to 3 minutes 15 s, under 10 minutes 30 s, otherwise
+ * (10 minutes and more, or no clock) a minute.
+ */
+export function reconnectMs(control: { readonly initialMs: number | null }): number {
+  const ms = control.initialMs;
+  if (ms === null || ms >= 10 * 60_000) return 60_000;
+  return ms <= 3 * 60_000 ? 15_000 : 30_000;
+}
 
 /** Longest player name accepted. */
 export const MAX_NAME = 24;

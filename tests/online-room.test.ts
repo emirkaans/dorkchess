@@ -3,7 +3,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { parseSquare } from '../src/engine/board.ts';
-import { RECONNECT_MS } from '../src/online/protocol.ts';
+import { reconnectMs } from '../src/online/protocol.ts';
+import { timeControl } from '../src/clock/clock.ts';
+
+/** 5+0, the time control of newGame(): 30 seconds to come back. */
+const RECONNECT_MS = 30_000;
 import type { WireMove } from '../src/online/protocol.ts';
 import {
   RoomError,
@@ -88,7 +92,7 @@ describe('online oda', () => {
     expect(over.outcome).toEqual({ reason: 'timeout', winner: 'w' });
   });
 
-  it('kopma: 15 saniye içinde dönmeyen kaybeder, saat bu arada işler; dönerse sayaç iptal', () => {
+  it('kopma: süresi içinde (5+0: 30 sn) dönmeyen kaybeder, saat bu arada işler; dönerse sayaç iptal', () => {
     let room = playMove(newGame(), 'w', mv('e2', 'e4'), 0, 0);
     room = setConnected(room, 'b', false, 1000);
     expect(nextDeadline(room)).toBe(1000 + RECONNECT_MS);
@@ -150,5 +154,10 @@ describe('online oda', () => {
     // Only once, and only after the game.
     expect(rematch(r.room, 'w', 'offer', 'Other123').next).toBeNull();
     expect(rematch(newGame(), 'w', 'offer', 'X1234567').room.rematchOffer).toBeUndefined();
+  });
+
+  it('kopma süresi tempoya göre: 3+2ye kadar 15 sn, 5 dakikada 30 sn, 10 dakika ve üzerinde 1 dk', () => {
+    const secs = (id: string) => reconnectMs(timeControl(id)) / 1000;
+    expect(['1+0', '3+2', '5+0', '10+0', '15+10', 'none'].map(secs)).toEqual([15, 15, 30, 60, 60, 60]);
   });
 });
