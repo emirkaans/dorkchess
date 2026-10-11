@@ -356,6 +356,22 @@ describe('uygulama: erişilebilirlik', () => {
     expect(document.querySelector('.game-over')).toBeNull();
   });
 
+  it('mat yazısı ve karartma birkaç saniye sonra kaybolur', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    startGame({ mode: 'hotseat' });
+    for (const [a, b] of [
+      ['f2', 'f3'],
+      ['e7', 'e5'],
+      ['g2', 'g4'],
+      ['d8', 'h4'],
+    ])
+      move(a, b);
+    expect(document.querySelector('.game-over')).not.toBeNull();
+    act(() => vi.advanceTimersByTime(3700));
+    expect(document.querySelector('.game-over')).toBeNull();
+    expect(status()).toContain('Mat'); // the result stays in the panel
+  });
+
   it('oyun sonu analizi ayrı sayfada açılır, "Oyuna dön" ile oyuna dönülür', () => {
     startGame({ mode: 'hotseat' });
     for (const [a, b] of [

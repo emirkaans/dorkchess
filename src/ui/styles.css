@@ -2398,7 +2398,8 @@ button.primary:hover:not(:disabled) {
   place-items: center;
   background: rgba(5, 5, 6, 0.55);
   pointer-events: none;
-  animation: over-fade 0.6s ease-out both;
+  /* Shown for a moment, then the board is clear again. */
+  animation: over-flash 3.6s ease-out both;
 }
 .game-over.mate {
   background: rgba(5, 5, 6, 0.68);
@@ -2432,9 +2433,17 @@ button.primary:hover:not(:disabled) {
   font: 400 clamp(14px, calc(var(--board) / 30), 24px) / 1.3 var(--marker);
   transform: rotate(2deg);
 }
-@keyframes over-fade {
-  from {
+@keyframes over-flash {
+  0% {
     opacity: 0;
+  }
+  15%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
   }
 }
 @keyframes over-slam {
