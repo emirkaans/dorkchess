@@ -3339,6 +3339,30 @@ button.seek-row:hover:not(:disabled) {
   --board: max(260px, min(100svh - var(--toolbar-h, 73px) - 40px, 100vw - 48px - 20px - var(--bar) - 8px - 400px));
 }
 
+/*
+ * Phones (as on lichess): the board first at full width, then the move buttons,
+ * the engine and the moves; the page scrolls instead of squeezing into the screen.
+ */
+@media (max-width: 900px) {
+  .review-page {
+    height: auto;
+    padding: 8px 8px 24px;
+  }
+  .review-page .viewer {
+    --board: min(100vw - 16px - var(--bar) - 8px, 640px);
+    gap: 10px;
+  }
+  .viewer-nav {
+    order: -3;
+  }
+  .viewer-engine {
+    order: -2;
+  }
+  .viewer-moves {
+    order: -1;
+  }
+}
+
 /* ---------- loading a game address ---------- */
 
 .page-loading {
