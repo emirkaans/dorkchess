@@ -299,13 +299,21 @@ button.primary:hover:not(:disabled) {
   object-fit: cover;
   object-position: 72% center;
 }
-/* Darkens the left side where the text sits, so it reads over the board in the picture. */
+/*
+ * Shade behind the text only: an oval around the copy that fades out before
+ * the corners, so the paint splatter at the top and bottom left stays bright.
+ */
 .hero::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(90deg, rgba(10, 10, 11, 0.55) 0%, rgba(10, 10, 11, 0.35) 30%, rgba(10, 10, 11, 0) 55%);
+  background: radial-gradient(
+    ellipse 46% 34% at 24% 54%,
+    rgba(10, 10, 11, 0.62) 0%,
+    rgba(10, 10, 11, 0.42) 55%,
+    rgba(10, 10, 11, 0) 100%
+  );
   pointer-events: none;
 }
 .hero-copy {
@@ -329,12 +337,21 @@ button.primary:hover:not(:disabled) {
 .tape span + span {
   margin: -2px 0 0 56px;
 }
+/* The short pitch as a headline: one sentence per line, the second in pink. */
 .lede {
-  font-size: 17px;
-  line-height: 1.6;
-  max-width: 520px;
-  margin: 0 0 clamp(16px, 3vh, 28px);
-  text-shadow: 0 1px 2px #000;
+  font:
+    400 clamp(46px, 7vw, 88px) / 1 'Protest Revolution',
+    var(--marker);
+  margin: 0 0 clamp(20px, 4vh, 36px);
+  text-shadow:
+    0 2px 0 #000,
+    0 6px 24px rgba(0, 0, 0, 0.85);
+}
+.lede span {
+  display: block;
+}
+.lede span + span {
+  color: var(--pink);
 }
 .ctas {
   display: flex;
@@ -2671,10 +2688,6 @@ button.primary:hover:not(:disabled) {
   .hero-image {
     object-position: 80% center;
     opacity: 0.45;
-  }
-  /* The image is already dimmed here; no extra shade. */
-  .hero::before {
-    display: none;
   }
   .tape {
     margin-left: 10px;

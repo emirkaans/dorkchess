@@ -46,8 +46,7 @@ export const tr = {
   // Home page
   'home.tape1': 'AYNI OYUN.',
   'home.tape2': 'FARKLI TAVIR.',
-  'home.lede':
-    'Satranç oyna. Kuralları boz. Klasik oyun, dört aykırı varyant ve beş seviyeli bir bot. Kayıt yok, sunucu yok: aç ve oyna.',
+  'home.lede': 'Satranç oyna. Kuralları boz.',
   'home.play': 'Hemen oyna',
   'home.explore': 'Varyantları gör',
   'home.fact1': 'Çevrimdışı çalışır',
@@ -348,8 +347,7 @@ export const en: Record<MessageKey, string> = {
 
   'home.tape1': 'SAME GAME.',
   'home.tape2': 'DIFFERENT ATTITUDE.',
-  'home.lede':
-    'Play chess. Break the rules. The classic game, four rebel variants and a five-level bot. No sign-up, no server: just open and play.',
+  'home.lede': 'Play chess. Break the rules.',
   'home.play': 'Play now',
   'home.explore': 'Explore variants',
   'home.fact1': 'Works offline',

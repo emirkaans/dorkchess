@@ -41,7 +41,13 @@ export function HomePage({ onPlay }: Props) {
             <span>{t('home.tape1')}</span>
             <span>{t('home.tape2')}</span>
           </p>
-          <p className="lede">{t('home.lede')}</p>
+          <p className="lede">
+            {t('home.lede')
+              .split(/(?<=\.)\s+/)
+              .map((sentence) => (
+                <span key={sentence}>{sentence}</span>
+              ))}
+          </p>
           <div className="ctas">
             <button className="cta" onClick={() => onPlay()}>
               <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
