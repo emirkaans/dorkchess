@@ -29,7 +29,10 @@ vi.mock('../../src/ai/client.ts', () => {
 
 // --- sounds: recorded instead of played ---
 const sounds = vi.hoisted(() => [] as string[]);
-vi.mock('../../src/ui/sound.ts', () => ({ playSound: (kind: string) => sounds.push(kind) }));
+vi.mock('../../src/ui/sound.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/ui/sound.ts')>()),
+  playSound: (kind: string) => sounds.push(kind),
+}));
 
 const { App } = await import('../../src/ui/App.tsx');
 const { findMove } = await import('../../src/engine/game.ts');
@@ -214,6 +217,24 @@ describe('uygulama: bilgisayara karşı', () => {
     move('g2', 'g4');
     await botPlays('d8', 'h4');
     expect(sounds.filter((k) => k === 'mate')).toHaveLength(2);
+  });
+
+  it('şah çeken taş alma da taş alma sesiyle çalar (çıtırtı + şah tınısı)', () => {
+    sounds.length = 0;
+    startGame({ mode: 'hotseat' });
+    const line: [string, string][] = [
+      ['e2', 'e4'],
+      ['e7', 'e5'],
+      ['g1', 'f3'],
+      ['d7', 'd6'],
+      ['f1', 'c4'],
+      ['h7', 'h6'],
+    ];
+    for (const [a, b] of line) move(a, b);
+    move('c4', 'f7'); // Bxf7+
+    expect(sounds.at(-1)).toBe('captureCheck');
+    move('e8', 'f7'); // Kxf7: a plain capture
+    expect(sounds.at(-1)).toBe('capture');
   });
 });
 

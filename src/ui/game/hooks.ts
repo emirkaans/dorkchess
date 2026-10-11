@@ -10,6 +10,7 @@ import { LOW_TIME_MS, remainingMs } from '../../clock/clock.ts';
 import { isInCheck, opposite, toFen } from '../../engine/index.ts';
 import type { GameState, Square } from '../../engine/index.ts';
 import { newGameId, storeGame } from '../../storage/games.ts';
+import { moveSound } from '../sound.ts';
 import type { SoundKind } from '../sound.ts';
 import { gameReducer } from './reducer.ts';
 import type { GameAction } from './reducer.ts';
@@ -153,8 +154,7 @@ export function useGameFeedback(session: GameSession, view: SessionView, sound: 
     const { view: v, sound: play } = latest.current;
     const end = v.endState;
     if (end.result) return; // the end sound plays instead
-    if (isInCheck(v.variant, end.position)) play('check');
-    else play(end.moves.at(-1)?.move.captured !== undefined ? 'capture' : 'move');
+    play(moveSound(end.moves.at(-1)?.move.captured !== undefined, isInCheck(v.variant, end.position)));
   }, [key, length, latest]);
 
   const finalOutcome = view.finalOutcome;

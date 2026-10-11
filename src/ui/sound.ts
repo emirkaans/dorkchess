@@ -2,7 +2,11 @@
 // short wooden "tok"s like a piece put down on a board: a noise click for the
 // contact plus a low body that drops in pitch.
 
-export type SoundKind = 'move' | 'capture' | 'check' | 'end' | 'mate' | 'lowtime';
+export type SoundKind = 'move' | 'capture' | 'check' | 'captureCheck' | 'end' | 'mate' | 'lowtime';
+
+/** Sound of a played move: a capture always cracks (with a check ping on top when it also checks). */
+export const moveSound = (captured: boolean, check: boolean): SoundKind =>
+  captured ? (check ? 'captureCheck' : 'capture') : check ? 'check' : 'move';
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -111,13 +115,16 @@ export function playSound(kind: SoundKind): void {
       tok(ac, t);
       break;
     case 'capture':
-      // A crack like a nutshell breaking, then the piece lands.
+      // Only the crack, like a nutshell breaking (no "tok" of a plain move).
       crack(ac, t);
-      tok(ac, t + 0.06, 0.9);
       break;
     case 'check':
       tok(ac, t, 1.1);
       tone(ac, 1320, t + 0.02, 0.18, 'sine', 0.09);
+      break;
+    case 'captureCheck':
+      crack(ac, t);
+      tone(ac, 1320, t + 0.03, 0.18, 'sine', 0.09);
       break;
     case 'end':
       tok(ac, t, 0.9);

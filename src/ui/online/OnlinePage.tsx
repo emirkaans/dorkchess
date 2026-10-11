@@ -20,7 +20,7 @@ import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
 import type { Prefs } from '../prefs.ts';
-import { playSound } from '../sound.ts';
+import { moveSound, playSound } from '../sound.ts';
 import {
   ApiError,
   createOnlineGame,
@@ -227,7 +227,7 @@ function OnlineGame({ gameId, onLobby, prefs, setPrefs, onOpenAnalysis }: Omit<P
     if (over && !before.over) playSound(view.outcome?.reason === 'checkmate' ? 'mate' : 'end');
     else if (moveCount > before.moves && state) {
       const lastMove = state.moves.at(-1)?.move;
-      playSound(isInCheck(variant, state.position) ? 'check' : lastMove?.captured ? 'capture' : 'move');
+      playSound(moveSound(lastMove?.captured !== undefined, isInCheck(variant, state.position)));
     }
   }, [view, moveCount, prefs.sound, state, variant]);
 
