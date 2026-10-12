@@ -245,7 +245,7 @@ export class GameRoom extends DurableObject<Env> {
       let next: Room;
       switch (msg.t) {
         case 'move':
-          next = playMove(room, color, msg.move, msg.ply, now, typeof msg.lag === 'number' ? msg.lag : 0);
+          next = playMove(room, color, msg.move, msg.ply, now);
           break;
         case 'setup':
           next = answerSetup(room, color, msg.answers);
@@ -259,7 +259,7 @@ export class GameRoom extends DurableObject<Env> {
         case 'rematch': {
           const r = rematch(room, color, msg.action, randomGameId());
           if (r.next) {
-            const stub = this.env.GAME.get(this.env.GAME.idFromName(r.next.id), { locationHint: 'eeur' });
+            const stub = this.env.GAME.get(this.env.GAME.idFromName(r.next.id));
             const res = await stub.fetch(`https://room/adopt?id=${r.next.id}`, {
               method: 'POST',
               body: JSON.stringify(r.next),

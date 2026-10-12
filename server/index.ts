@@ -32,11 +32,8 @@ const notFound = () =>
   });
 
 /** Forwards a request to the game's Durable Object as `path` (the id goes along as a parameter). */
-/** Where new game rooms are created: close to the players (most play from Turkey). */
-export const ROOM_LOCATION = { locationHint: 'eeur' } as const;
-
 function toRoom(env: Env, request: Request, id: string, path: string): Promise<Response> {
-  const stub = env.GAME.get(env.GAME.idFromName(id), ROOM_LOCATION);
+  const stub = env.GAME.get(env.GAME.idFromName(id));
   const url = new URL(request.url);
   url.pathname = path;
   url.search = `?id=${id}`;
@@ -86,7 +83,7 @@ export default {
 
     if (url.pathname === '/api/lobby/ws') {
       // One lobby for the whole site.
-      return env.LOBBY.get(env.LOBBY.idFromName('main'), ROOM_LOCATION).fetch(request);
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(request);
     }
     if (url.pathname === '/api/games' && request.method === 'POST') {
       return toRoom(env, request, newGameId(), '/create');

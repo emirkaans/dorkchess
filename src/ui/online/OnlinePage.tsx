@@ -13,7 +13,7 @@ import {
   opposite,
 } from '../../engine/index.ts';
 import type { Color, GameState, Move, PieceType, VariantDefinition } from '../../engine/index.ts';
-import type { ClientMessage, GameView, OnlineOutcome, WireMove } from '../../online/protocol.ts';
+import type { GameView, OnlineOutcome } from '../../online/protocol.ts';
 import { Board } from '../Board.tsx';
 import type { Premove } from '../Board.tsx';
 import { BoardResizer } from '../BoardResizer.tsx';
@@ -70,47 +70,20 @@ export function OnlinePage({ gameId, ...rest }: Props) {
 // ---------------------------------------------------------------------------
 // A game: waiting for the opponent, setup choices, play, result.
 
-/**
- * All states of the game from a view, replayed with the engine. `cache` holds
- * the last result: when the new view only adds moves, only those are played
- * (a full replay on every move gets slow in long games, on phones above all).
- */
-function statesOf(
-  v: VariantDefinition,
-  view: GameView | null,
-  cache: { current: { key: string; moves: readonly WireMove[]; states: GameState[] } | null },
-): GameState[] {
+/** All states of the game from the view (replayed with the engine). */
+function statesOf(v: VariantDefinition, view: GameView | null): GameState[] {
   if (!view?.startFen) return [];
-  const key = `${v.id}|${view.startFen}`;
-  const prev = cache.current;
-  const same =
-    prev &&
-    prev.key === key &&
-    prev.moves.length <= view.moves.length &&
-    prev.moves.every((m, i) => {
-      const n = view.moves[i];
-      return m.from === n.from && m.to === n.to && m.promotion === n.promotion;
-    });
-  const states = same ? prev.states.slice(0, prev.moves.length + 1) : [createGame(v, view.startFen)];
-  for (let i = states.length - 1; i < view.moves.length; i++) {
-    const m = view.moves[i];
-    const last = states[states.length - 1];
-    const move = findMove(v, last, m.from, m.to, m.promotion);
+  const states = [createGame(v, view.startFen)];
+  for (const m of view.moves) {
+    const prev = states[states.length - 1];
+    const move = findMove(v, prev, m.from, m.to, m.promotion);
     if (!move) break;
-    states.push(makeMove(v, last, move));
+    states.push(makeMove(v, prev, move));
   }
-  cache.current = { key, moves: view.moves.slice(0, states.length - 1), states };
   return states;
 }
 
 /** The server clock, re-based on local time so ClockView can run it. */
-/** A move as sent to the server. */
-const toWire = (move: Move): WireMove => ({
-  from: move.from,
-  to: move.to,
-  ...(move.promotion ? { promotion: move.promotion } : {}),
-});
-
 function clockOf(view: GameView, offset: number): ClockState {
   const r = view.clock.remaining;
   return {
@@ -133,59 +106,19 @@ function OnlineGame({
 }: Omit<Props, 'gameId'> & { gameId: string }) {
   const { t, vt } = useI18n();
   const [ticket, setTicket] = useState(() => loadTicket(gameId));
-  const [cursor, setCursor] = useState<number | null>(null); // null: follow the game
-  const replayCache = useRef<Parameters<typeof statesOf>[2]['current']>(null);
-  // A queued premove; mirrored in a ref so it can go out the moment the opponent's move arrives.
-  const [premove, setPremove] = useState<Premove | null>(null);
-  const premoveRef = useRef<Premove | null>(null);
-  useEffect(() => {
-    premoveRef.current = premove;
-  }, [premove]);
-  const [pending, setPending] = useState<{ move: Move; ply: number } | null>(null);
-  const sendNow = useRef<(msg: ClientMessage) => void>(() => {});
-
-  /** Plays the queued premove as soon as a view makes it our turn: before anything is drawn. */
-  const onView = (v: GameView) => {
-    const pm = premoveRef.current;
-    if (!pm || v.phase !== 'playing' || !v.you) return;
-    const variant = getVariant(v.variantId);
-    const st = statesOf(variant, v, replayCache).at(-1);
-    if (!st || st.position.turn !== v.you || st.result) return;
-    premoveRef.current = null;
-    setPremove(null);
-    const candidates = legalMoves(variant, st.position).filter((m) => m.from === pm.from && m.to === pm.to);
-    if (!candidates.length) return;
-    const move = candidates.find((m) => m.promotion === variant.promotionTypes[0]) ?? candidates[0];
-    const ply = v.moves.length;
-    setPending({ move, ply });
-    setCursor(null);
-    sendNow.current({ t: 'move', move: toWire(move), ply });
-  };
-
-  const [live, setLive] = useState(false);
-  const link = useOnlineGame(gameId, ticket?.token ?? null, { live, onView });
+  const link = useOnlineGame(gameId, ticket?.token ?? null);
   const { view, offset, status, send } = link;
-  useEffect(() => {
-    sendNow.current = send;
-  });
   const variant = getVariant(view?.variantId ?? listVariants()[0].id);
   const texts = vt(variant);
   const you = view?.you ?? null;
-  const isLive = view?.phase === 'playing' && !!you;
-  if (isLive !== live) setLive(isLive);
 
   // Played states; a move just sent is shown at once until the server's answer arrives.
-  const confirmed = useMemo(() => statesOf(variant, view, replayCache), [variant, view]);
-  // The sent move is settled once the server has it (or the game left play); an error undoes it.
+  const confirmed = useMemo(() => statesOf(variant, view), [variant, view]);
+  const [pending, setPending] = useState<{ move: Move; ply: number } | null>(null);
   const [seenView, setSeenView] = useState(view);
   if (seenView !== view) {
     setSeenView(view);
-    if (pending && (!view || view.phase !== 'playing' || view.moves.length > pending.ply)) setPending(null);
-  }
-  const [seenError, setSeenError] = useState(link.error);
-  if (seenError !== link.error) {
-    setSeenError(link.error);
-    if (link.error) setPending(null);
+    setPending(null);
   }
   const states = useMemo(() => {
     const last = confirmed.at(-1);
@@ -198,6 +131,7 @@ function OnlineGame({
   }, [confirmed, pending, variant]);
   const state = states.at(-1) ?? null;
 
+  const [cursor, setCursor] = useState<number | null>(null); // null: follow the game
   const shownIndex = cursor === null ? states.length - 1 : Math.min(cursor, states.length - 1);
   const shown = states[shownIndex] ?? null;
   const atEnd = shownIndex === states.length - 1;
@@ -253,11 +187,15 @@ function OnlineGame({
     const ply = view.moves.length;
     setPending({ move, ply });
     setCursor(null);
-    send({ t: 'move', move: toWire(move), ply });
+    send({
+      t: 'move',
+      move: { from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) },
+      ply,
+    });
   };
 
-  // Premove: queued while the opponent thinks; normally played by onView the moment the
-  // opponent's move arrives. This catches the rest (e.g. a premove set when it is already our turn).
+  // Premove: queued while the opponent thinks, played as soon as it is our move (if still legal).
+  const [premove, setPremove] = useState<Premove | null>(null);
   const myTurnNow = !!view && view.phase === 'playing' && !!you && state?.position.turn === you && !pending;
   const sendRef = useRef(sendMove);
   useEffect(() => {

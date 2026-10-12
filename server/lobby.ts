@@ -145,7 +145,7 @@ export class Lobby extends DurableObject<Env> {
     const req = gameRequest(seek, Math.random);
     const created = createRoom(gameId, req, seekerToken, Math.random);
     const joined = joinRoom(created.room, me.name, takerToken);
-    const stub = this.env.GAME.get(this.env.GAME.idFromName(gameId), { locationHint: 'eeur' });
+    const stub = this.env.GAME.get(this.env.GAME.idFromName(gameId));
     const res = await stub.fetch(`https://room/adopt?id=${gameId}`, {
       method: 'POST',
       body: JSON.stringify(joined.room),
