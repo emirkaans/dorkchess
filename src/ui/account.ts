@@ -67,6 +67,18 @@ export async function signOut(): Promise<void> {
   }
 }
 
+/** Deletes the signed-in account; true when done. */
+export async function deleteAccount(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/auth/delete', { method: 'POST', credentials: 'same-origin' });
+    if (!res.ok) return false;
+    set({ ...state, loading: false, user: null, signup: null });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Is a username allowed and free? (null: yes) */
 export async function checkUsername(name: string): Promise<UsernameProblem | null> {
   const res = await fetch(`/api/auth/username?name=${encodeURIComponent(name)}`);

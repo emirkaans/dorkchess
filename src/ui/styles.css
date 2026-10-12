@@ -2852,6 +2852,45 @@ button.primary:hover:not(:disabled) {
   letter-spacing: 0;
   color: var(--lime);
 }
+.account-delete,
+.account-confirm .danger {
+  color: var(--pink);
+}
+.account-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.account-confirm p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.account-links {
+  margin: 4px 0 0;
+  padding: 6px 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.account-links a,
+.signup-legal a,
+.home-footer a {
+  color: var(--muted);
+}
+.signup-legal {
+  margin: 0;
+  font-size: 12px;
+}
+.home-footer {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px 16px 32px;
+  font-size: 13px;
+}
 .signup-card {
   max-width: 480px;
   margin: 0 auto;

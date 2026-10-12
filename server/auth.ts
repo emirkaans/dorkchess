@@ -8,6 +8,7 @@
 //   GET  /api/auth/username?name=…         { ok } or { problem }
 //   POST /api/auth/username { username }   creates the account (after a Google sign-in)
 //   POST /api/auth/logout
+//   POST /api/auth/delete                  deletes the signed-in account (and its sign-in link, sessions)
 
 import { suggestUsername, usernameProblem } from '../src/online/account.ts';
 import type { AccountUser, MeResponse, UsernameProblem } from '../src/online/account.ts';
@@ -214,6 +215,18 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
     return new Response(JSON.stringify({ user: { id: userId, username, rating: null } satisfies AccountUser }), {
       headers,
     });
+  }
+
+  if (path === '/api/auth/delete' && request.method === 'POST') {
+    if (!sameOrigin(request, url)) return json({ error: 'forbidden' }, 403);
+    const user = await currentUser(request, env);
+    if (!user) return json({ error: 'signed-out' }, 401);
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(user.id),
+      env.DB.prepare('DELETE FROM identities WHERE user_id = ?1').bind(user.id),
+      env.DB.prepare('DELETE FROM users WHERE id = ?1').bind(user.id),
+    ]);
+    return json({ ok: true }, 200, { 'set-cookie': cookie(SESSION_COOKIE, '', { maxAge: 0, secure }) });
   }
 
   if (path === '/api/auth/logout' && request.method === 'POST') {

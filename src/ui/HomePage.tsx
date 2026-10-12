@@ -122,6 +122,10 @@ export function HomePage({ onPlay, onOnline }: Props) {
           ))}
         </div>
       </section>
+      <footer className="home-footer">
+        <a href="/privacy">{t('legal.privacy')}</a>
+        <a href="/terms">{t('legal.terms')}</a>
+      </footer>
     </div>
   );
 }

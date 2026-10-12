@@ -38,7 +38,10 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    event.respondWith(caches.match('./', { ignoreVary: true }).then((page) => page || fetch(request)));
+    // The privacy policy and terms are plain pages of their own, not the app.
+    const doc = /^\\/(privacy|terms)\\/?$/.exec(new URL(request.url).pathname);
+    const shell = doc ? './' + doc[1] + '.html' : './';
+    event.respondWith(caches.match(shell, { ignoreVary: true }).then((page) => page || fetch(request)));
     return;
   }
   // ignoreVary: crossorigin requests (module script, stylesheet) carry an Origin header

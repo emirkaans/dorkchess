@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { signInWithGoogle, signOut, useAccount } from './account.ts';
+import { deleteAccount, signInWithGoogle, signOut, useAccount } from './account.ts';
 import { useI18n } from './i18n.tsx';
 
 function PersonIcon() {
@@ -16,6 +16,9 @@ export function AccountButton() {
   const { t } = useI18n();
   const account = useAccount();
   const [open, setOpen] = useState(false);
+  // Deleting asks once more inside the menu (the viewer may not allow confirm()).
+  const [confirming, setConfirming] = useState(false);
+  const [failed, setFailed] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   // Closes the menu on a click elsewhere.
@@ -44,7 +47,11 @@ export function AccountButton() {
         className="account-button on"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o);
+          setConfirming(false);
+          setFailed(false);
+        }}
         title={account.user.username}
       >
         <PersonIcon />
@@ -62,6 +69,30 @@ export function AccountButton() {
           >
             {t('account.signOut')}
           </button>
+          {confirming ? (
+            <div className="account-confirm">
+              <p>{failed ? t('account.deleteFailed') : t('account.deleteSure')}</p>
+              <button
+                role="menuitem"
+                className="danger"
+                onClick={() => {
+                  void deleteAccount().then((ok) => (ok ? location.assign('/') : setFailed(true)));
+                }}
+              >
+                {t('account.deleteYes')}
+              </button>
+              <button role="menuitem" onClick={() => setConfirming(false)}>
+                {t('newGame.cancel')}
+              </button>
+            </div>
+          ) : (
+            <button role="menuitem" className="account-delete" onClick={() => setConfirming(true)}>
+              {t('account.delete')}
+            </button>
+          )}
+          <p className="account-links">
+            <a href="/privacy">{t('legal.privacy')}</a> · <a href="/terms">{t('legal.terms')}</a>
+          </p>
         </div>
       )}
     </div>

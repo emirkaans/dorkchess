@@ -97,6 +97,9 @@ export function SignupPage({ onDone }: { onDone: (returnTo: string) => void }) {
         <button type="submit" className="primary analysis-go" disabled={busy || !!problem || !value}>
           {busy ? t('signup.saving') : t('signup.submit')}
         </button>
+        <p className="muted signup-legal">
+          {t('signup.legal')} <a href="/terms">{t('legal.terms')}</a> · <a href="/privacy">{t('legal.privacy')}</a>
+        </p>
       </form>
     </main>
   );
