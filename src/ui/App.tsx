@@ -25,6 +25,7 @@ import { loadGames, replay } from '../storage/games.ts';
 import type { SavedGame } from '../storage/games.ts';
 import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
+import { SignupPage } from './SignupPage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
@@ -236,6 +237,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         setOnlineId(null);
         return setPage('online');
       }
+      if (r.kind === 'signup') return setPage('signup');
       const id = r.id;
       // This browser's running (or just finished) game.
       if (id === session.gameId && session.key > 1) {
@@ -450,6 +452,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           onOnline={() => {
             setOnlineId(null);
             setPage('online');
+          }}
+        />
+      ) : page === 'signup' ? (
+        <SignupPage
+          onDone={(to) => {
+            history.replaceState(null, '', to);
+            applyRouteRef.current(parseRoute(new URL(to, location.origin).pathname));
           }}
         />
       ) : page === 'analysis' ? (

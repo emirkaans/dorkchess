@@ -26,8 +26,9 @@ import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record
 import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../src/online/record.ts';
 import { previewVersion, renderPreview } from './og.ts';
 import type { Lobby } from './lobby.ts';
+import type { AuthEnv } from './auth.ts';
 
-export interface Env {
+export interface Env extends AuthEnv {
   readonly GAME: DurableObjectNamespace<GameRoom>;
   readonly LOBBY: DurableObjectNamespace<Lobby>;
   readonly ASSETS: Fetcher;

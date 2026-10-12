@@ -28,6 +28,17 @@
       { "name": "LOBBY", "class_name": "Lobby" },
     ],
   },
+  // Accounts (server/auth.ts). Schema: migrations/ (npx wrangler d1 migrations apply punkchess --remote).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "punkchess",
+      "database_id": "a722258c-7f0f-46fd-8a7a-6179c57fd808",
+      "migrations_dir": "migrations",
+    },
+  ],
+  // GOOGLE_CLIENT_SECRET is a secret: wrangler secret put GOOGLE_CLIENT_SECRET (locally: .dev.vars).
+  "vars": { "GOOGLE_CLIENT_ID": "146944465320-9ak9165g6o32vgmb1c5g21d5qj8ivvu1.apps.googleusercontent.com" },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
     { "tag": "v2", "new_sqlite_classes": ["Lobby"] },

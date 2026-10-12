@@ -6,6 +6,7 @@
 //   GET  /api/games/:id/ws        WebSocket (first message: { t: 'hello', token })
 //   GET  /api/games/:id           what the game link shows (online room or stored local game)
 //   GET  /api/lobby/ws            WebSocket to the lobby (open seeks, quick pairing)
+//   /auth/*, /api/me, /api/auth/*  accounts (server/auth.ts)
 //   PUT  /api/games/:id/record    stores a local game (bot / two players) so its link works anywhere
 //   GET  /og/:id.png              link-preview picture of a game
 // Game pages (/<id>, /<id>/analysis) get link-preview tags for that game.
@@ -14,9 +15,11 @@ import { GAME_ID } from '../src/online/protocol.ts';
 import type { Env } from './game-room.ts';
 import type { GameInfo } from '../src/online/record.ts';
 import { previewTags, previewVersion } from './og.ts';
+import { currentUser, handleAuth } from './auth.ts';
 
 export { GameRoom } from './game-room.ts';
 export { Lobby } from './lobby.ts';
+import { ACCOUNT_ID, ACCOUNT_NAME, ACCOUNT_RATING } from './lobby.ts';
 
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
@@ -81,9 +84,23 @@ export default {
       return Response.redirect(url.toString(), 301);
     }
 
+    const auth = await handleAuth(request, env, url);
+    if (auth) return auth;
+
     if (url.pathname === '/api/lobby/ws') {
-      // One lobby for the whole site.
-      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(request);
+      // One lobby for the whole site. A signed-in player is told to it by these headers
+      // (never taken from the browser), so nobody can play under someone else's username.
+      const headers = new Headers(request.headers);
+      headers.delete(ACCOUNT_ID);
+      headers.delete(ACCOUNT_NAME);
+      headers.delete(ACCOUNT_RATING);
+      const user = await currentUser(request, env).catch(() => null);
+      if (user) {
+        headers.set(ACCOUNT_ID, user.id);
+        headers.set(ACCOUNT_NAME, user.username);
+        if (user.rating !== null) headers.set(ACCOUNT_RATING, String(user.rating));
+      }
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(new Request(request, { headers }));
     }
     if (url.pathname === '/api/games' && request.method === 'POST') {
       return toRoom(env, request, newGameId(), '/create');

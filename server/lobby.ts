@@ -15,7 +15,14 @@ import type { Env } from './game-room.ts';
 interface Attachment {
   readonly player: LobbyPlayer | null;
   readonly seek: Seek | null;
+  /** The player is a signed-in account (set by the Worker): name and id are fixed. */
+  readonly account?: boolean;
 }
+
+/** Headers the Worker adds for a signed-in player (and strips from what browsers send). */
+export const ACCOUNT_ID = 'x-punkchess-account';
+export const ACCOUNT_NAME = 'x-punkchess-username';
+export const ACCOUNT_RATING = 'x-punkchess-rating';
 
 const MAX_MESSAGE = 1024;
 
@@ -24,7 +31,14 @@ export class Lobby extends DurableObject<Env> {
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ player: null, seek: null } satisfies Attachment);
+    const accountId = request.headers.get(ACCOUNT_ID);
+    const username = request.headers.get(ACCOUNT_NAME);
+    const rating = Number(request.headers.get(ACCOUNT_RATING));
+    const player: LobbyPlayer | null =
+      accountId && username
+        ? { id: `account-${accountId}`, name: username, rating: Number.isFinite(rating) && rating > 0 ? rating : null }
+        : null;
+    server.serializeAttachment({ player, seek: null, account: !!player } satisfies Attachment);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -77,9 +91,11 @@ export class Lobby extends DurableObject<Env> {
     }
     if (msg.t === 'ping') return this.send(ws, { t: 'pong' });
     if (msg.t === 'hello') {
+      // A signed-in player keeps the account's id and username.
+      if (this.attachment(ws).account) return this.broadcast();
       const player = cleanPlayer(msg.playerId, msg.name);
       if (!player) return this.send(ws, { t: 'error', code: 'bad-request' });
-      ws.serializeAttachment({ player, seek: null } satisfies Attachment);
+      ws.serializeAttachment({ player, seek: null, account: false } satisfies Attachment);
       return this.broadcast();
     }
     const me = this.attachment(ws).player;
@@ -87,10 +103,15 @@ export class Lobby extends DurableObject<Env> {
 
     switch (msg.t) {
       case 'name': {
+        if (this.attachment(ws).account) return;
         const player = cleanPlayer(me.id, msg.name);
         if (!player) return;
         const seek = this.attachment(ws).seek;
-        ws.serializeAttachment({ player, seek: seek && { ...seek, player } } satisfies Attachment);
+        ws.serializeAttachment({
+          ...this.attachment(ws),
+          player,
+          seek: seek && { ...seek, player },
+        } satisfies Attachment);
         return this.broadcast();
       }
       case 'seek': {

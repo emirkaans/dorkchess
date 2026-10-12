@@ -9,6 +9,7 @@ import { useI18n } from '../i18n.tsx';
 import type { Mode } from '../settings.ts';
 import { ApiError, createOnlineGame, loadName, saveName } from './connection.ts';
 import { playerIdentity, useLobby } from './lobbyConnection.ts';
+import { useAccount } from '../account.ts';
 
 type Tab = 'quick' | 'seeks' | 'friend';
 
@@ -47,6 +48,7 @@ export function LobbyPage({
   const [tab, setTab] = useState<Tab>('quick');
   const lobby = useLobby((ticket) => onOpenGame(ticket.gameId));
   const [name, setName] = useState(() => playerIdentity().name);
+  const account = useAccount();
   const mine = lobby.seeks.find((s) => s.id === lobby.mySeek) ?? null;
 
   const saveNickname = () => {
@@ -69,19 +71,26 @@ export function LobbyPage({
             </span>
           </div>
 
-          <label className="analysis-field lobby-name">
-            <span>{t('online.name')}</span>
-            <input
-              value={name}
-              maxLength={24}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={saveNickname}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-              }}
-              autoComplete="nickname"
-            />
-          </label>
+          {account.user ? (
+            <div className="analysis-field lobby-name">
+              <span>{t('signup.username')}</span>
+              <strong className="lobby-username">{account.user.username}</strong>
+            </div>
+          ) : (
+            <label className="analysis-field lobby-name">
+              <span>{t('online.name')}</span>
+              <input
+                value={name}
+                maxLength={24}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={saveNickname}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+                autoComplete="nickname"
+              />
+            </label>
+          )}
         </div>
 
         <div className="lobby-tabs" role="tablist">
@@ -287,6 +296,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
 /** A private game: made here, started when the friend opens the link. */
 function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string) => void; defaultVariantId: string }) {
   const { t, vt } = useI18n();
+  const account = useAccount();
   const [variantId, setVariantId] = useState(defaultVariantId);
   const [timeControlId, setTimeControlId] = useState('5+0');
   const [color, setColor] = useState<Color | 'random'>('random');
@@ -297,7 +307,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
     setBusy(true);
     setError(null);
     try {
-      const name = loadName() || t('online.anon');
+      const name = account.user?.username ?? (loadName() || t('online.anon'));
       saveName(name);
       const ticket = await createOnlineGame({ variantId, timeControlId, color, name });
       onOpenGame(ticket.gameId);

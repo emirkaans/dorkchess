@@ -45,7 +45,7 @@ export default defineConfig({
   plugins: [react(), serviceWorker()],
   server: {
     // The online game API runs in `npm run dev:server` (wrangler dev).
-    proxy: { '/api': { target: 'http://localhost:8787', ws: true } },
+    proxy: { '/api': { target: 'http://localhost:8787', ws: true }, '/auth': { target: 'http://localhost:8787' } },
   },
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],

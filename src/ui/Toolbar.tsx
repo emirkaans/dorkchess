@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { AccountButton } from './AccountButton.tsx';
 import { LOCALES, isLocale } from '../i18n/index.ts';
 import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
 
-export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'loading';
+export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'loading';
 
 interface Props {
   page: Page;
@@ -97,6 +98,7 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHi
           )}
         </nav>
         <div className="toolbar-end">
+          <AccountButton />
           <select
             className="lang"
             aria-label={t('toolbar.language')}
