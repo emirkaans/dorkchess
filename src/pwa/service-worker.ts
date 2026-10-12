@@ -38,10 +38,10 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    // The privacy policy and terms are plain pages of their own, not the app.
-    const doc = /^\\/(privacy|terms)\\/?$/.exec(new URL(request.url).pathname);
-    const shell = doc ? './' + doc[1] + '.html' : './';
-    event.respondWith(caches.match(shell, { ignoreVary: true }).then((page) => page || fetch(request)));
+    // The privacy policy and terms are plain pages of their own, not the app: straight from the
+    // network (a cached copy would be a redirect from privacy.html, which a navigation refuses).
+    if (['/privacy', '/privacy/', '/terms', '/terms/'].includes(new URL(request.url).pathname)) return;
+    event.respondWith(caches.match('./', { ignoreVary: true }).then((page) => page || fetch(request)));
     return;
   }
   // ignoreVary: crossorigin requests (module script, stylesheet) carry an Origin header

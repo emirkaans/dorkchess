@@ -16,6 +16,13 @@ describe('PWA', () => {
     expect(src.match(/ignoreVary: true/g)).toHaveLength(2);
   });
 
+  it('service worker geçerli JavaScript; gizlilik ve koşullar sayfaları ağdan gelir', () => {
+    const src = serviceWorkerSource(files, versionOf(files));
+    // A syntax error would stop the worker from installing at all.
+    expect(() => new Function(src)).not.toThrow();
+    expect(src).toContain("['/privacy', '/privacy/', '/terms', '/terms/']");
+  });
+
   it('dosya adları değişince önbellek sürümü değişir', () => {
     expect(versionOf(files)).toBe(versionOf([...files]));
     expect(versionOf(['./', './assets/index-xyz.js'])).not.toBe(versionOf(files));
