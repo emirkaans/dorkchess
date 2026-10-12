@@ -1947,6 +1947,60 @@ button.primary:hover:not(:disabled) {
   outline: 2px solid var(--lime);
   outline-offset: 2px;
 }
+/* New game: compact, fits the screen; the fields scroll inside and the buttons stay in view. */
+.modal.new-game {
+  max-height: calc(100svh - 32px);
+  gap: 12px;
+}
+.modal.new-game h2 {
+  margin: 0;
+}
+.new-game-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px;
+}
+.new-game .modal-actions {
+  flex: none;
+}
+.new-game .choice-row legend {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.new-game .chip {
+  min-height: 40px;
+  padding: 6px 10px;
+  font-size: 14px;
+  justify-content: center;
+}
+/* Mode: one row of three, like tabs. */
+.segmented {
+  border: 1px solid var(--border);
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.segmented .chip {
+  border: none;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.segmented .chip + .chip {
+  border-left: 1px solid var(--border);
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.choice-grid.time {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
 .field-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -2771,17 +2825,72 @@ button.primary:hover:not(:disabled) {
 .lobby-actions > button {
   width: 100%;
 }
+/* Compact enough that every option shows without scrolling. */
+.lobby-card .analysis-head h1 {
+  font-size: clamp(26px, 4.2vh, 34px);
+}
+.lobby-card .online-lede {
+  margin: 0;
+  font-size: 13px;
+}
+.lobby-card .choice-row legend {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.lobby-card .chip {
+  min-height: 38px;
+  padding: 4px 8px;
+  font-size: 14px;
+  justify-content: center;
+}
+.choice-grid.colors {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.lobby-card .lobby-tabs button {
+  min-height: 42px;
+}
+.lobby-card .lobby-actions .analysis-go {
+  min-height: 48px;
+}
+.lobby-card .lobby-scroll {
+  gap: 10px;
+}
+.lobby-card .seek-form {
+  gap: 10px;
+}
+.lobby-card .seek-form h2 {
+  font-size: 18px;
+}
+.lobby-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 .lobby-name {
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
+  width: min(240px, 46%);
+  gap: 4px;
 }
 .lobby-name input {
-  min-height: 40px;
+  min-height: 38px;
+}
+.lobby-actions.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+}
+.lobby-actions.pair > button {
+  min-height: 48px;
+}
+/* Short screens: the explanations go, the options stay. */
+@media (max-height: 760px) {
+  .lobby-card .online-lede {
+    display: none;
+  }
 }
 .offline-play {
   flex: none;
-  padding: 12px 18px;
+  padding: 10px 16px;
   border: 1px dashed var(--border);
   border-radius: 6px;
   display: flex;
@@ -2993,7 +3102,7 @@ button.seek-row:hover:not(:disabled) {
   }
   .offline-play h2 {
     width: 100%;
-    font-size: 16px;
+    font-size: 14px;
   }
   .offline-buttons {
     width: 100%;
@@ -3566,6 +3675,45 @@ button.seek-row:hover:not(:disabled) {
   .modal.history,
   .modal.settings {
     width: 100%;
+  }
+  .modal.new-game {
+    max-height: calc(100svh - 16px);
+    padding: 14px 14px 12px;
+  }
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .choice-grid.time {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .choice-grid.colors {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* The four variants on one row in the lobby. */
+  .lobby-card .choice-grid:not(.time):not(.colors) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .lobby-card .choice-grid:not(.time):not(.colors) .chip {
+    padding: 4px 2px;
+    font-size: 12px;
+  }
+  .lobby-head {
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+  .lobby-card .analysis-head h1 {
+    font-size: 24px;
+  }
+  .lobby-card {
+    padding: 12px;
+    gap: 10px;
+  }
+  .lobby-card .lobby-scroll {
+    gap: 8px;
+  }
+  .online-lobby:has(.lobby-card) {
+    gap: 10px;
   }
   .history-table th:nth-child(3),
   .history-table td:nth-child(3) {

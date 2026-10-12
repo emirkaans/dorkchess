@@ -59,28 +59,30 @@ export function LobbyPage({
     <main className="online-lobby">
       <section className="online-card lobby-card">
         <div className="lobby-head">
-          <div className="analysis-head">
-            {BOLT}
-            <h1>{t('online.title')}</h1>
+          <div className="lobby-title">
+            <div className="analysis-head">
+              {BOLT}
+              <h1>{t('online.title')}</h1>
+            </div>
+            <span className={`lobby-online${lobby.status === 'open' ? '' : ' off'}`}>
+              {lobby.status === 'open' ? t('lobby.online', { n: String(lobby.online) }) : t('lobby.reconnecting')}
+            </span>
           </div>
-          <span className={`lobby-online${lobby.status === 'open' ? '' : ' off'}`}>
-            {lobby.status === 'open' ? t('lobby.online', { n: String(lobby.online) }) : t('lobby.reconnecting')}
-          </span>
-        </div>
 
-        <label className="analysis-field lobby-name">
-          <span>{t('online.name')}</span>
-          <input
-            value={name}
-            maxLength={24}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={saveNickname}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-            autoComplete="nickname"
-          />
-        </label>
+          <label className="analysis-field lobby-name">
+            <span>{t('online.name')}</span>
+            <input
+              value={name}
+              maxLength={24}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveNickname}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              autoComplete="nickname"
+            />
+          </label>
+        </div>
 
         <div className="lobby-tabs" role="tablist">
           {(['quick', 'seeks', 'friend'] as const).map((id) => (
@@ -112,9 +114,9 @@ export function LobbyPage({
               {t('lobby.resume')}
             </button>
           )}
-          {(['bot', 'hotseat'] as const).map((mode) => (
-            <button key={mode} onClick={() => onPlayOffline(mode)}>
-              {t(`mode.${mode}`)}
+          {(['bot', 'botvbot', 'hotseat'] as const).map((mode) => (
+            <button key={mode} onClick={() => onPlayOffline(mode)} title={t(`mode.${mode}`)}>
+              {t(`mode.${mode}Short`)}
             </button>
           ))}
         </div>
@@ -162,61 +164,65 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
   const [variantId, setVariantId] = useState(defaultVariantId);
   const [timeControlId, setTimeControlId] = useState('5+0');
   const [color, setColor] = useState<Color | 'random'>('random');
+  // The list of open games, or the form to post one: shown one at a time so both fit the screen.
+  const [posting, setPosting] = useState(false);
   const colorLabel = (c: Color | 'random') => (c === 'random' ? t('online.random') : t(`color.${c}`));
+  const waiting = !!mine && !mine.quick;
 
   return (
     <div className="lobby-panel">
       <div className="lobby-scroll">
-        <div className="seek-table" role="table" aria-label={t('lobby.tab.seeks')}>
-          <div className="seek-row head" role="row">
-            <span role="columnheader">{t('lobby.player')}</span>
-            <span role="columnheader">{t('lobby.variant')}</span>
-            <span role="columnheader">{t('lobby.time')}</span>
-            <span role="columnheader">{t('lobby.color')}</span>
+        {!posting && (
+          <div className="seek-table" role="table" aria-label={t('lobby.tab.seeks')}>
+            <div className="seek-row head" role="row">
+              <span role="columnheader">{t('lobby.player')}</span>
+              <span role="columnheader">{t('lobby.variant')}</span>
+              <span role="columnheader">{t('lobby.time')}</span>
+              <span role="columnheader">{t('lobby.color')}</span>
+            </div>
+            {lobby.seeks.length === 0 && <p className="muted seek-empty">{t('lobby.empty')}</p>}
+            {lobby.seeks.map((s) => {
+              const own = s.id === lobby.mySeek || s.player.id === me;
+              return (
+                <button
+                  key={s.id}
+                  role="row"
+                  className={`seek-row${own ? ' own' : ''}`}
+                  disabled={own || lobby.status !== 'open'}
+                  onClick={() => lobby.accept(s.id)}
+                  title={own ? undefined : t('lobby.join')}
+                >
+                  <span role="cell" className="seek-player">
+                    {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
+                  </span>
+                  <span role="cell">{vt(getVariant(s.variantId)).name}</span>
+                  <span role="cell">
+                    {timeControl(s.timeControlId).initialMs === null
+                      ? t('time.none')
+                      : timeControl(s.timeControlId).label}
+                  </span>
+                  <span role="cell">
+                    <span className={`seek-color ${s.color}`} aria-hidden="true" />
+                    {colorLabel(s.color)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          {lobby.seeks.length === 0 && <p className="muted seek-empty">{t('lobby.empty')}</p>}
-          {lobby.seeks.map((s) => {
-            const own = s.id === lobby.mySeek || s.player.id === me;
-            return (
-              <button
-                key={s.id}
-                role="row"
-                className={`seek-row${own ? ' own' : ''}`}
-                disabled={own || lobby.status !== 'open'}
-                onClick={() => lobby.accept(s.id)}
-                title={own ? undefined : t('lobby.join')}
-              >
-                <span role="cell" className="seek-player">
-                  {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
-                </span>
-                <span role="cell">{vt(getVariant(s.variantId)).name}</span>
-                <span role="cell">
-                  {timeControl(s.timeControlId).initialMs === null
-                    ? t('time.none')
-                    : timeControl(s.timeControlId).label}
-                </span>
-                <span role="cell">
-                  <span className={`seek-color ${s.color}`} aria-hidden="true" />
-                  {colorLabel(s.color)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        )}
 
-        {mine && !mine.quick ? (
-          <p className="muted seek-mine">{t('lobby.waiting')}</p>
-        ) : (
+        {waiting && <p className="muted seek-mine">{t('lobby.waiting')}</p>}
+        {posting && !waiting && (
           <form
             id="seek-form"
             className="seek-form"
             onSubmit={(e) => {
               e.preventDefault();
               lobby.seek({ variantId, timeControlId, color });
+              setPosting(false);
             }}
           >
-            <h2>{t('lobby.newSeek')}</h2>
-            <fieldset className="choice-row">
+            <fieldset className="choice-row choice-grid">
               <legend>{t('newGame.variant')}</legend>
               {listVariants().map((v) => (
                 <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
@@ -230,7 +236,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
                 </label>
               ))}
             </fieldset>
-            <fieldset className="choice-row">
+            <fieldset className="choice-row choice-grid time">
               <legend>{t('newGame.time')}</legend>
               {TIME_CONTROLS.map((tc) => (
                 <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
@@ -244,7 +250,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
                 </label>
               ))}
             </fieldset>
-            <fieldset className="choice-row">
+            <fieldset className="choice-row choice-grid colors">
               <legend>{t('online.color')}</legend>
               {(['w', 'random', 'b'] as const).map((c) => (
                 <label key={c} className={`chip${color === c ? ' on' : ''}`}>
@@ -256,11 +262,20 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
           </form>
         )}
       </div>
-      <div className="lobby-actions">
-        {mine && !mine.quick ? (
+      <div className={`lobby-actions${posting && !waiting ? ' pair' : ''}`}>
+        {waiting ? (
           <button onClick={lobby.cancel}>{t('lobby.removeSeek')}</button>
+        ) : posting ? (
+          <>
+            <button type="button" onClick={() => setPosting(false)}>
+              {t('settings.back')}
+            </button>
+            <button type="submit" form="seek-form" className="primary analysis-go" disabled={lobby.status !== 'open'}>
+              {t('lobby.newSeek')}
+            </button>
+          </>
         ) : (
-          <button type="submit" form="seek-form" className="primary analysis-go" disabled={lobby.status !== 'open'}>
+          <button type="button" className="primary analysis-go" onClick={() => setPosting(true)}>
             {t('lobby.newSeek')}
           </button>
         )}
@@ -302,7 +317,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
     >
       <div className="lobby-scroll">
         <p className="muted online-lede">{t('online.lede')}</p>
-        <fieldset className="choice-row">
+        <fieldset className="choice-row choice-grid">
           <legend>{t('newGame.variant')}</legend>
           {listVariants().map((v) => (
             <label key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`}>
@@ -316,7 +331,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
             </label>
           ))}
         </fieldset>
-        <fieldset className="choice-row">
+        <fieldset className="choice-row choice-grid time">
           <legend>{t('newGame.time')}</legend>
           {TIME_CONTROLS.map((tc) => (
             <label key={tc.id} className={`chip${timeControlId === tc.id ? ' on' : ''}`}>
@@ -330,7 +345,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
             </label>
           ))}
         </fieldset>
-        <fieldset className="choice-row">
+        <fieldset className="choice-row choice-grid colors">
           <legend>{t('online.color')}</legend>
           {(['w', 'random', 'b'] as const).map((c) => (
             <label key={c} className={`chip${color === c ? ' on' : ''}`}>

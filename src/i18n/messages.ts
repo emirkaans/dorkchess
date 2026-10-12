@@ -20,6 +20,8 @@ export const tr = {
   'mode.bot': 'Bilgisayara karşı',
   'mode.botvbot': 'Bot vs Bot (izle)',
   'mode.hotseatShort': 'İki kişi',
+  'mode.botShort': 'Bilgisayar',
+  'mode.botvbotShort': 'Bot vs Bot',
   'theme.klasik': 'Klasik',
   'theme.koyu': 'Koyu',
   'theme.dork': 'Dork',
@@ -78,6 +80,7 @@ export const tr = {
   'home.opponents': 'Rakibini seç',
   'home.hotseatSub': 'Sırayla, aynı cihazda',
   'home.botSub': 'Beş seviye',
+  'home.onlineSub': 'Hızlı eşleşme, lobi ya da arkadaşın',
   'home.botvbotSub': 'Arkana yaslan, izle',
 
   // Game page
@@ -382,6 +385,8 @@ export const en: Record<MessageKey, string> = {
   'mode.bot': 'Against the computer',
   'mode.botvbot': 'Bot vs bot (watch)',
   'mode.hotseatShort': 'Two players',
+  'mode.botShort': 'Computer',
+  'mode.botvbotShort': 'Bot vs bot',
   'theme.klasik': 'Classic',
   'theme.koyu': 'Dark',
   'theme.dork': 'Dork',
@@ -438,6 +443,7 @@ export const en: Record<MessageKey, string> = {
   'home.opponents': 'Pick your opponent',
   'home.hotseatSub': 'Take turns on one device',
   'home.botSub': 'Five levels',
+  'home.onlineSub': 'Quick pairing, the lobby or a friend',
   'home.botvbotSub': 'Sit back and watch',
 
   'game.players': 'Players',

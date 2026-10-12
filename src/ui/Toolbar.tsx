@@ -28,7 +28,8 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHi
     if (!el || typeof ResizeObserver === 'undefined') return;
     const publish = () => document.documentElement.style.setProperty('--toolbar-h', `${el.offsetHeight}px`);
     const observer = new ResizeObserver(publish);
-    observer.observe(el);
+    // Border box: the bar's padding changes with the screen width, its content box may not.
+    observer.observe(el, { box: 'border-box' });
     publish();
     return () => observer.disconnect();
   }, []);

@@ -8,16 +8,19 @@ import type { GameSettings, Mode } from './settings.ts';
 interface Props {
   /** Opens the new game dialog, optionally with some settings already picked. */
   onPlay: (patch?: Partial<GameSettings>) => void;
+  /** Opens online play (the lobby): the main way to play. */
+  onOnline: () => void;
 }
 
 const STANDARD_TYPES = new Set(['k', 'q', 'r', 'b', 'n', 'p']);
 /** The piece that shows a variant on its card: its own special piece, else the king. */
 const signature = (v: VariantDefinition): PieceType => v.pieceTypes.find((type) => !STANDARD_TYPES.has(type)) ?? 'k';
 
+/** Ways to play on this device, after online play: the computer, bots, two players. */
 const OPPONENTS: { mode: Mode; sub: 'home.hotseatSub' | 'home.botSub' | 'home.botvbotSub' }[] = [
-  { mode: 'hotseat', sub: 'home.hotseatSub' },
   { mode: 'bot', sub: 'home.botSub' },
   { mode: 'botvbot', sub: 'home.botvbotSub' },
+  { mode: 'hotseat', sub: 'home.hotseatSub' },
 ];
 
 function Arrow() {
@@ -29,7 +32,7 @@ function Arrow() {
 }
 
 /** Landing page: hero, the variants and the ways to play. */
-export function HomePage({ onPlay }: Props) {
+export function HomePage({ onPlay, onOnline }: Props) {
   const { t, vt } = useI18n();
   return (
     <div className="home">
@@ -49,7 +52,7 @@ export function HomePage({ onPlay }: Props) {
               ))}
           </p>
           <div className="ctas">
-            <button className="cta" onClick={() => onPlay()}>
+            <button className="cta" onClick={onOnline}>
               <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
                 <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
               </svg>
@@ -101,9 +104,16 @@ export function HomePage({ onPlay }: Props) {
             <Crown />
             {t('home.opponents')}
           </h2>
+          <button className="opponent" onClick={onOnline}>
+            <b>1</b>
+            <span>
+              {t('online.title')}
+              <small>{t('home.onlineSub')}</small>
+            </span>
+          </button>
           {OPPONENTS.map((o, i) => (
             <button key={o.mode} className="opponent" onClick={() => onPlay({ mode: o.mode })}>
-              <b>{i + 1}</b>
+              <b>{i + 2}</b>
               <span>
                 {t(`mode.${o.mode}`)}
                 <small>{t(o.sub)}</small>

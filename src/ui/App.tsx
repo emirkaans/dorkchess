@@ -445,7 +445,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           <p className="muted">{t('online.connecting')}</p>
         </main>
       ) : page === 'home' ? (
-        <HomePage onPlay={openNewGame} />
+        <HomePage
+          onPlay={openNewGame}
+          onOnline={() => {
+            setOnlineId(null);
+            setPage('online');
+          }}
+        />
       ) : page === 'analysis' ? (
         <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={settings.variantId} seed={analysisSeed} />
       ) : page === 'review' && review ? (

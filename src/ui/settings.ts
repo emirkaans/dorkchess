@@ -28,7 +28,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
   timeControl: 'none',
 };
 
-export const MODES: readonly Mode[] = ['hotseat', 'bot', 'botvbot'];
+/** Games on this device, in the order they are offered (online play comes before all of them). */
+export const MODES: readonly Mode[] = ['bot', 'botvbot', 'hotseat'];
 
 export const BOT_DELAYS = [200, 1000, 2000] as const;
 

@@ -36,7 +36,7 @@ vi.mock('../../src/ui/sound.ts', async (importOriginal) => ({
 
 const { App } = await import('../../src/ui/App.tsx');
 const { findMove } = await import('../../src/engine/game.ts');
-const { getVariant } = await import('../../src/engine/variants/index.ts');
+const { getVariant, listVariants } = await import('../../src/engine/variants/index.ts');
 const { parseSquare } = await import('../../src/engine/board.ts');
 const { encodeGame, encodePosition } = await import('../../src/storage/share.ts');
 
@@ -80,8 +80,10 @@ function startGame(settings: Record<string, unknown>) {
     JSON.stringify({ variantId: 'standard', timeControl: 'none', humanColor: 'w', ...settings }),
   );
   render(<App />);
-  // The app opens on the home page: Play now opens the new game dialog.
-  fireEvent.click(screen.getByRole('button', { name: 'Hemen oyna' }));
+  // The app opens on the home page: a variant card opens the new game dialog with the saved settings.
+  const variantId = (settings.variantId as string | undefined) ?? 'standard';
+  const card = document.querySelectorAll('.variant-card')[listVariants().findIndex((v) => v.id === variantId)];
+  fireEvent.click(card);
   fireEvent.click(screen.getByRole('button', { name: 'Oyuna başla' }));
 }
 
@@ -507,7 +509,8 @@ describe('uygulama: dil', () => {
     localStorage.setItem('dorkchess:hideRules:jester', 'true');
     localStorage.setItem('dorkchess:settings', JSON.stringify({ mode: 'hotseat', variantId: 'jester' }));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Play now' }));
+    // The Jester card opens the new game dialog ("Play now" opens online play).
+    fireEvent.click(document.querySelectorAll('.variant-card')[listVariants().findIndex((v) => v.id === 'jester')]);
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
     expect(screen.getByRole('dialog', { name: 'White: which piece becomes the Jester?' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Right knight \(g1\)/ })).toBeTruthy();

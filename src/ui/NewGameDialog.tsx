@@ -55,87 +55,88 @@ export function NewGameDialog({ initial, onStart, onCancel }: Props) {
       >
         <h2>{t('newGame.title')}</h2>
 
-        <fieldset className="choice-row">
-          <legend>{t('newGame.mode')}</legend>
-          {MODES.map((m) => (
-            <label key={m} className={s.mode === m ? 'chip on' : 'chip'}>
-              <input type="radio" name="mode" checked={s.mode === m} onChange={() => set({ mode: m })} />
-              {t(`mode.${m}`)}
-            </label>
-          ))}
-        </fieldset>
+        <div className="new-game-body">
+          <fieldset className="segmented" aria-label={t('newGame.mode')}>
+            {MODES.map((m) => (
+              <label key={m} className={s.mode === m ? 'chip on' : 'chip'} title={t(`mode.${m}`)}>
+                <input type="radio" name="mode" checked={s.mode === m} onChange={() => set({ mode: m })} />
+                {t(`mode.${m}Short`)}
+              </label>
+            ))}
+          </fieldset>
 
-        <fieldset className="choice-row">
-          <legend>{t('newGame.variant')}</legend>
-          {listVariants().map((v) => (
-            <label key={v.id} className={s.variantId === v.id ? 'chip on' : 'chip'}>
-              <input
-                type="radio"
-                name="variant"
-                checked={s.variantId === v.id}
-                onChange={() => set({ variantId: v.id })}
+          <fieldset className="choice-row choice-grid">
+            <legend>{t('newGame.variant')}</legend>
+            {listVariants().map((v) => (
+              <label key={v.id} className={s.variantId === v.id ? 'chip on' : 'chip'}>
+                <input
+                  type="radio"
+                  name="variant"
+                  checked={s.variantId === v.id}
+                  onChange={() => set({ variantId: v.id })}
+                />
+                {vt(v).name}
+              </label>
+            ))}
+          </fieldset>
+
+          {s.mode === 'bot' && (
+            <div className="field-grid">
+              <LevelSelect label={t('newGame.level')} value={s.botLevel} onChange={(n) => set({ botLevel: n })} />
+              <label className="field">
+                <span>{t('newGame.yourColor')}</span>
+                <select
+                  value={s.humanColor}
+                  onChange={(e) => set({ humanColor: e.target.value as GameSettings['humanColor'] })}
+                >
+                  <option value="w">{t('color.w')}</option>
+                  <option value="b">{t('color.b')}</option>
+                  <option value="random">{t('newGame.random')}</option>
+                </select>
+              </label>
+            </div>
+          )}
+
+          {s.mode === 'botvbot' && (
+            <div className="field-grid">
+              <LevelSelect
+                label={t('newGame.whiteLevel')}
+                value={s.whiteLevel}
+                onChange={(n) => set({ whiteLevel: n })}
               />
-              {vt(v).name}
-            </label>
-          ))}
-        </fieldset>
-
-        {s.mode === 'bot' && (
-          <div className="field-grid">
-            <LevelSelect label={t('newGame.level')} value={s.botLevel} onChange={(n) => set({ botLevel: n })} />
-            <label className="field">
-              <span>{t('newGame.yourColor')}</span>
-              <select
-                value={s.humanColor}
-                onChange={(e) => set({ humanColor: e.target.value as GameSettings['humanColor'] })}
-              >
-                <option value="w">{t('color.w')}</option>
-                <option value="b">{t('color.b')}</option>
-                <option value="random">{t('newGame.random')}</option>
-              </select>
-            </label>
-          </div>
-        )}
-
-        {s.mode === 'botvbot' && (
-          <div className="field-grid">
-            <LevelSelect
-              label={t('newGame.whiteLevel')}
-              value={s.whiteLevel}
-              onChange={(n) => set({ whiteLevel: n })}
-            />
-            <LevelSelect
-              label={t('newGame.blackLevel')}
-              value={s.blackLevel}
-              onChange={(n) => set({ blackLevel: n })}
-            />
-            <label className="field">
-              <span>{t('newGame.delay')}</span>
-              <select value={s.delayMs} onChange={(e) => set({ delayMs: Number(e.target.value) })}>
-                {BOT_DELAYS.map((d) => (
-                  <option key={d} value={d}>
-                    {t('newGame.seconds', { n: (d / 1000).toLocaleString(locale) })}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
-
-        <fieldset className="choice-row">
-          <legend>{t('newGame.time')}</legend>
-          {TIME_CONTROLS.map((tc) => (
-            <label key={tc.id} className={s.timeControl === tc.id ? 'chip on' : 'chip'}>
-              <input
-                type="radio"
-                name="time"
-                checked={s.timeControl === tc.id}
-                onChange={() => set({ timeControl: tc.id })}
+              <LevelSelect
+                label={t('newGame.blackLevel')}
+                value={s.blackLevel}
+                onChange={(n) => set({ blackLevel: n })}
               />
-              {tc.initialMs === null ? t('time.none') : tc.label}
-            </label>
-          ))}
-        </fieldset>
+              <label className="field">
+                <span>{t('newGame.delay')}</span>
+                <select value={s.delayMs} onChange={(e) => set({ delayMs: Number(e.target.value) })}>
+                  {BOT_DELAYS.map((d) => (
+                    <option key={d} value={d}>
+                      {t('newGame.seconds', { n: (d / 1000).toLocaleString(locale) })}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
+          <fieldset className="choice-row choice-grid time">
+            <legend>{t('newGame.time')}</legend>
+            {TIME_CONTROLS.map((tc) => (
+              <label key={tc.id} className={s.timeControl === tc.id ? 'chip on' : 'chip'}>
+                <input
+                  type="radio"
+                  name="time"
+                  checked={s.timeControl === tc.id}
+                  onChange={() => set({ timeControl: tc.id })}
+                />
+                {tc.initialMs === null ? t('time.none') : tc.label}
+              </label>
+            ))}
+          </fieldset>
+        </div>
 
         <div className="modal-actions">
           {onCancel && (
