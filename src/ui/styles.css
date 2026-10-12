@@ -2782,6 +2782,92 @@ button.primary:hover:not(:disabled) {
   line-height: 1.5;
 }
 
+/* Taunt stickers: the palette under the controls, and the sticker flashed over the board. */
+.sticker-menu {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.sticker-chip {
+  min-height: 40px;
+  padding: 4px 6px;
+  font: 400 15px/1.1 var(--marker);
+  color: var(--on-pink);
+  border: 2px solid #0a0a0b;
+  transform: rotate(-2deg);
+}
+.sticker-chip:nth-child(even) {
+  transform: rotate(2deg);
+}
+.sticker-pop {
+  position: absolute;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border: 3px solid #0a0a0b;
+  box-shadow: 4px 4px 0 #0a0a0b;
+  font: 400 clamp(20px, 4vw, 30px) / 1 var(--marker);
+  color: var(--on-pink);
+  pointer-events: none;
+  animation: sticker-slap 3s ease-out both;
+}
+.sticker-pop.top {
+  top: 10%;
+}
+.sticker-pop.bottom {
+  bottom: 10%;
+}
+.sticker-who {
+  font: 500 11px/1 var(--ui);
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+.sticker-bored,
+.sticker-oops,
+.sticker-gg {
+  background: var(--lime);
+}
+.sticker-fire,
+.sticker-comeon,
+.sticker-wp {
+  background: var(--pink);
+}
+.sticker-what,
+.sticker-respect {
+  background: #f1eee8;
+}
+@keyframes sticker-slap {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(2.2) rotate(-14deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(0.92) rotate(-6deg);
+  }
+  20% {
+    transform: translateX(-50%) scale(1) rotate(-6deg);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) rotate(-6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.9) rotate(-6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticker-pop {
+    animation: none;
+    transform: translateX(-50%) rotate(-6deg);
+  }
+}
+
 /* Account: the top bar button and its menu; the username page. */
 .account {
   position: relative;
@@ -2891,6 +2977,98 @@ button.primary:hover:not(:disabled) {
   padding: 24px 16px 32px;
   font-size: 13px;
 }
+/* Battle jacket on the profile: the jacket, its share button and every patch (earned or locked). */
+.jacket-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 24px;
+  align-items: start;
+}
+.jacket-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jacket {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.6));
+}
+.jacket-share {
+  align-self: center;
+  min-width: 200px;
+}
+.patch-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+.patch-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.patch-list li.locked {
+  opacity: 0.7;
+}
+.patch-list svg {
+  width: 52px;
+  height: 52px;
+  flex: none;
+}
+.patch-list span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.patch-list strong {
+  font: 400 17px/1 var(--display);
+  letter-spacing: 0.04em;
+}
+.patch-list li.locked strong {
+  color: var(--muted);
+}
+.patch-list small {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.patch-date {
+  color: var(--lime) !important;
+}
+.new-patches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--lime);
+  background: rgba(198, 255, 61, 0.08);
+}
+.new-patches strong {
+  font: 400 20px/1 var(--marker);
+  color: var(--lime);
+}
+.new-patches a {
+  color: var(--lime);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .jacket-section {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Profile page (/@/<username>). */
 .profile-page {
   max-width: 900px;

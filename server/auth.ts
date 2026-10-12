@@ -229,6 +229,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
     await env.DB.batch([
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM ratings WHERE user_id = ?1').bind(user.id),
+      env.DB.prepare('DELETE FROM user_patches WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM identities WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?1').bind(user.id),
     ]);

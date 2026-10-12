@@ -12,6 +12,8 @@ import type {
   ServerMessage,
 } from '../../online/protocol.ts';
 import { loadJSON, saveJSON } from '../../storage/local.ts';
+import type { Color } from '../../engine/index.ts';
+import type { StickerId } from '../../online/stickers.ts';
 import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../../online/record.ts';
 
 const ticketKey = (gameId: string) => `online:${gameId}`;
@@ -65,6 +67,8 @@ export interface OnlineLink {
   readonly status: LinkStatus;
   readonly error: ErrorCode | null;
   readonly send: (msg: ClientMessage) => void;
+  /** The last sticker flashed in the game (`key` changes with every new one). */
+  readonly sticker: { readonly from: Color; readonly id: StickerId; readonly key: number } | null;
 }
 
 const wsUrl = (gameId: string) => {
@@ -78,6 +82,7 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState<LinkStatus>('connecting');
   const [error, setError] = useState<ErrorCode | null>(null);
+  const [sticker, setSticker] = useState<OnlineLink['sticker']>(null);
   const socket = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -107,6 +112,9 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
         if (msg.t === 'view') {
           setOffset(Date.now() - msg.view.now);
           setView(msg.view);
+        } else if (msg.t === 'sticker') {
+          const { from, id } = msg;
+          setSticker((s) => ({ from, id, key: (s?.key ?? 0) + 1 }));
         } else if (msg.t === 'error') {
           const code = msg.code;
           setError(code);
@@ -135,7 +143,7 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
   const send = (msg: ClientMessage) => {
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(msg));
   };
-  return { view, offset, status, error, send };
+  return { view, offset, status, error, send, sticker };
 }
 
 // ---------------------------------------------------------------------------

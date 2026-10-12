@@ -71,6 +71,8 @@ export interface Room {
   readonly ratingDiff?: Readonly<Partial<Record<Color, number>>>;
   /** The result has been written to the ratings database (or did not need to be). */
   readonly recorded?: boolean;
+  /** Patches the game earned each player (src/achievements/patches.ts). */
+  readonly newPatches?: Readonly<Partial<Record<Color, readonly string[]>>>;
 }
 
 /**
@@ -328,6 +330,7 @@ export function viewOf(
       rating: rating ? Math.round(rating.rating) : null,
       provisional: rating?.provisional ?? false,
       diff: room.ratingDiff?.[c] ?? null,
+      newPatches: room.newPatches?.[c] ?? [],
     };
   };
   const finite = (ms: number) => (Number.isFinite(ms) ? ms : null);

@@ -24,11 +24,13 @@ import { PromotionDialog } from '../PromotionDialog.tsx';
 import { Splatter } from '../Punk.tsx';
 import { SetupDialog } from '../SetupDialog.tsx';
 import type { Review } from '../ReviewPage.tsx';
+import { STICKERS, STICKER_SHOW_MS } from '../../online/stickers.ts';
 import { SharePanel } from '../ShareTools.tsx';
 import { gameUrl } from '../routes.ts';
 import { outcomeText } from '../game/session.ts';
 import type { Outcome } from '../game/session.ts';
 import { useI18n } from '../i18n.tsx';
+import type { MessageKey } from '../../i18n/index.ts';
 import type { Prefs } from '../prefs.ts';
 import type { Mode } from '../settings.ts';
 import { moveSound, playSound } from '../sound.ts';
@@ -108,6 +110,19 @@ function OnlineGame({
   const [ticket, setTicket] = useState(() => loadTicket(gameId));
   const link = useOnlineGame(gameId, ticket?.token ?? null);
   const { view, offset, status, send } = link;
+  const [stickerMenu, setStickerMenu] = useState(false);
+  // The sticker on screen: the last one flashed, until its time is up.
+  const [poppedSticker, setPoppedSticker] = useState(link.sticker);
+  const [seenSticker, setSeenSticker] = useState(link.sticker);
+  if (seenSticker !== link.sticker) {
+    setSeenSticker(link.sticker);
+    setPoppedSticker(link.sticker);
+  }
+  useEffect(() => {
+    if (!poppedSticker) return;
+    const id = setTimeout(() => setPoppedSticker(null), STICKER_SHOW_MS);
+    return () => clearTimeout(id);
+  }, [poppedSticker]);
   const variant = getVariant(view?.variantId ?? listVariants()[0].id);
   const texts = vt(variant);
   const you = view?.you ?? null;
@@ -321,6 +336,7 @@ function OnlineGame({
 
   const sized = prefs.boardSize ? ({ '--board-user': `${prefs.boardSize}px` } as CSSProperties) : undefined;
   const away = (['w', 'b'] as const).filter((c) => playing && view.players[c]?.deadline);
+  const canSticker = prefs.stickers && !!you && (playing || view.phase === 'over');
 
   return (
     <main className="layout">
@@ -343,6 +359,16 @@ function OnlineGame({
         </aside>
         <div className="board-col">
           <div className="board-frame">
+            {prefs.stickers && poppedSticker && (
+              <div
+                key={poppedSticker.key}
+                className={`sticker-pop ${poppedSticker.from === top ? 'top' : 'bottom'} sticker-${poppedSticker.id}`}
+                role="status"
+              >
+                <span className="sticker-who">{nameOf(poppedSticker.from)}</span>
+                {t(`sticker.${poppedSticker.id}`)}
+              </div>
+            )}
             <Splatter className="splatter-tl" />
             <Splatter className="splatter-br" />
             {yourTurn && atEnd && <div className="turn-tape">{t('game.yourTurn')}</div>}
@@ -484,9 +510,43 @@ function OnlineGame({
             >
               {t('controls.resign')}
             </button>
+            {canSticker && (
+              <button
+                className={`control${stickerMenu ? ' lime' : ''}`}
+                aria-expanded={stickerMenu}
+                onClick={() => setStickerMenu((o) => !o)}
+              >
+                {t('sticker.button')}
+              </button>
+            )}
             {opponent && !opponent.connected && !away.length && (
               <p className="muted online-note">{t('online.opponentOffline')}</p>
             )}
+          </div>
+        )}
+
+        {canSticker && stickerMenu && (
+          <div className="sticker-menu" role="group" aria-label={t('sticker.button')}>
+            {STICKERS.map((id) => (
+              <button
+                key={id}
+                className={`sticker-chip sticker-${id}`}
+                onClick={() => {
+                  send({ t: 'sticker', id });
+                  setStickerMenu(false);
+                }}
+              >
+                {t(`sticker.${id}`)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {view.phase === 'over' && you && (view.players[you]?.newPatches.length ?? 0) > 0 && (
+          <div className="new-patches" role="status">
+            <strong>{t('jacket.newPatch')}</strong>
+            <span>{view.players[you]!.newPatches.map((id) => t(`patch.${id}` as MessageKey)).join(' · ')}</span>
+            {view.players[you]!.username && <a href={`/@/${view.players[you]!.username}`}>{t('jacket.see')}</a>}
           </div>
         )}
 

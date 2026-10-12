@@ -43,6 +43,11 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
     const count = await env.DB.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1')
       .bind(user.id)
       .first<{ n: number }>();
+    const patches = await env.DB.prepare(
+      'SELECT patch_id, earned_at FROM user_patches WHERE user_id = ?1 ORDER BY earned_at ASC',
+    )
+      .bind(user.id)
+      .all<{ patch_id: string; earned_at: number }>();
     const ratings: ProfileRating[] = rows.results.map((r) => ({
       category: r.category,
       rating: Math.round(r.rating),
@@ -57,6 +62,7 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
       createdAt: user.created_at,
       games: count?.n ?? 0,
       ratings,
+      patches: patches.results.map((p) => ({ id: p.patch_id, earnedAt: p.earned_at })),
     } satisfies ProfileResponse);
   }
 

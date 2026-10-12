@@ -106,6 +106,7 @@ describe('online oda', () => {
       rating: null,
       provisional: false,
       diff: null,
+      newPatches: [],
     });
     expect(JSON.stringify(view)).not.toContain('tb'); // tokens never leave the server
 

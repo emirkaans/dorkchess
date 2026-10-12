@@ -9,7 +9,10 @@ import type { Room, SeatRating } from '../src/online/room.ts';
 import { ratingCategory } from '../src/rating/categories.ts';
 import { DEFAULT_GLICKO, aged, isProvisional, rateGame } from '../src/rating/glicko2.ts';
 import type { Glicko } from '../src/rating/glicko2.ts';
+import { listVariants } from '../src/engine/index.ts';
 import type { Color } from '../src/engine/index.ts';
+import { newPatches } from '../src/achievements/patches.ts';
+import type { PatchContext } from '../src/achievements/patches.ts';
 
 interface RatingRow {
   user_id: string;
@@ -141,6 +144,87 @@ export async function settleGame(room: Room, db: D1Database | undefined, now: nu
         now,
       ),
   );
+  // Patches for the battle jacket, written in the same batch.
+  const earned: Partial<Record<Color, string[]>> = {};
+  for (const color of ['w', 'b'] as const) {
+    const account = color === 'w' ? w : b;
+    if (!account) continue;
+    const won = winner === color;
+    const ids = await earnedPatches(db, account.id, {
+      color,
+      won,
+      drawn: winner === null,
+      termination: record.termination,
+      moves: record.moves,
+      variantId: room.variantId,
+      timeControlId: room.timeControlId,
+      rated,
+      rating: before[color] ? Math.round(before[color].rating) : null,
+      opponentRating: before[color === 'w' ? 'b' : 'w'] ? Math.round(before[color === 'w' ? 'b' : 'w']!.rating) : null,
+      clockLeftMs: Number.isFinite(room.clock.remaining[color]) ? room.clock.remaining[color] : null,
+      gamesPlayed: 0,
+      winStreak: 0,
+      variantsWon: [],
+      allVariants: listVariants().map((v) => v.id),
+    });
+    if (!ids.length) continue;
+    earned[color] = ids;
+    for (const id of ids) {
+      statements.push(
+        db
+          .prepare('INSERT OR IGNORE INTO user_patches (user_id, patch_id, earned_at, game_id) VALUES (?1, ?2, ?3, ?4)')
+          .bind(account.id, id, now, room.id),
+      );
+    }
+  }
+
   await db.batch(statements);
-  return { ...room, recorded: true, ...(diff ? { ratingDiff: diff } : {}) };
+  return {
+    ...room,
+    recorded: true,
+    ...(diff ? { ratingDiff: diff } : {}),
+    ...(Object.keys(earned).length ? { newPatches: earned } : {}),
+  };
+}
+
+/**
+ * Patches a game earns a player: the game's own facts plus what earlier games
+ * say (games played, win streak, variants won), which this game is added to.
+ */
+async function earnedPatches(db: D1Database, userId: string, game: PatchContext): Promise<string[]> {
+  const [have, count, recent, variants] = await db.batch([
+    db.prepare('SELECT patch_id FROM user_patches WHERE user_id = ?1').bind(userId),
+    db.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1').bind(userId),
+    db
+      .prepare(
+        'SELECT result, white_user FROM games WHERE white_user = ?1 OR black_user = ?1 ORDER BY ended_at DESC LIMIT 10',
+      )
+      .bind(userId),
+    db
+      .prepare(
+        `SELECT DISTINCT variant_id FROM games
+         WHERE (white_user = ?1 AND result = '1-0') OR (black_user = ?1 AND result = '0-1')`,
+      )
+      .bind(userId),
+  ]);
+  const owned = new Set((have.results as { patch_id: string }[]).map((r) => r.patch_id));
+  let streak = game.won ? 1 : 0;
+  if (game.won) {
+    for (const r of recent.results as { result: string; white_user: string | null }[]) {
+      const wasWhite = r.white_user === userId;
+      if (r.result === (wasWhite ? '1-0' : '0-1')) streak++;
+      else break;
+    }
+  }
+  const won = new Set((variants.results as { variant_id: string }[]).map((r) => r.variant_id));
+  if (game.won) won.add(game.variantId);
+  return newPatches(
+    {
+      ...game,
+      gamesPlayed: ((count.results[0] as { n: number } | undefined)?.n ?? 0) + 1,
+      winStreak: streak,
+      variantsWon: [...won],
+    },
+    owned,
+  );
 }

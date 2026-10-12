@@ -19,6 +19,8 @@ export interface ProfileResponse {
   /** Finished online games (rated or not). */
   readonly games: number;
   readonly ratings: readonly ProfileRating[];
+  /** Patches on the battle jacket, oldest first. */
+  readonly patches: readonly { readonly id: string; readonly earnedAt: number }[];
 }
 
 /** A finished game, seen from the profile's player. */

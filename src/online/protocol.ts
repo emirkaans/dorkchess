@@ -3,6 +3,7 @@
 
 import type { Color, GameEndReason, PieceType, Square } from '../engine/index.ts';
 import type { GameRecord } from './record.ts';
+import type { StickerId } from './stickers.ts';
 
 /** A move on the wire: squares (and the promotion piece); the engine fills in the rest. */
 export interface WireMove {
@@ -71,6 +72,8 @@ export interface PublicPlayer {
   readonly provisional: boolean;
   /** What the game changed (rated games, once over). */
   readonly diff: number | null;
+  /** Patches the game earned this player (once over). */
+  readonly newPatches: readonly string[];
 }
 
 /** Everything a client needs to draw the game; sent after every change. */
@@ -112,6 +115,8 @@ export type ClientMessage =
   | { readonly t: 'resign' }
   | { readonly t: 'draw'; readonly action: 'offer' | 'accept' | 'decline' }
   | { readonly t: 'rematch'; readonly action: 'offer' | 'accept' | 'decline' }
+  /** A taunt sticker (src/online/stickers.ts); players only. */
+  | { readonly t: 'sticker'; readonly id: StickerId }
   | { readonly t: 'ping' };
 
 export type ErrorCode = 'illegal' | 'not-your-turn' | 'bad-request' | 'full' | 'not-found' | 'over';
@@ -123,4 +128,6 @@ export type ServerMessage =
   /** A followed local game changed (or the answer to "hello" for one). */
   | { readonly t: 'record'; readonly record: GameRecord }
   /** To the browser playing a stored local game: how many people follow it now. */
-  | { readonly t: 'watchers'; readonly count: number };
+  | { readonly t: 'watchers'; readonly count: number }
+  /** A player flashed a sticker (to everyone in the game, spectators too). */
+  | { readonly t: 'sticker'; readonly from: Color; readonly id: StickerId };

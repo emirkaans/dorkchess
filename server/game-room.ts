@@ -28,6 +28,7 @@ import { previewVersion, renderPreview } from './og.ts';
 import type { Lobby } from './lobby.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import { settleGame, withRatings } from './ratings.ts';
+import { STICKER_GAP_MS, isSticker } from '../src/online/stickers.ts';
 import type { AuthEnv } from './auth.ts';
 
 export interface Env extends AuthEnv {
@@ -52,6 +53,8 @@ const json = (data: unknown, status = 200) =>
 
 export class GameRoom extends DurableObject<Env> {
   private room: Room | null = null;
+  /** When each player last sent a sticker (in memory only: a lost value just allows one more). */
+  private lastSticker: Partial<Record<Color, number>> = {};
   private loaded = false;
 
   private async load(): Promise<Room | null> {
@@ -276,6 +279,14 @@ export class GameRoom extends DurableObject<Env> {
         case 'resign':
           next = resign(room, color, now);
           break;
+        case 'sticker': {
+          // Not stored: passed on to everyone, at most one per player every few seconds.
+          if (!isSticker(msg.id) || (room.phase !== 'playing' && room.phase !== 'over')) return;
+          if (now - (this.lastSticker[color] ?? 0) < STICKER_GAP_MS) return;
+          this.lastSticker[color] = now;
+          for (const s of this.ctx.getWebSockets()) this.send(s, { t: 'sticker', from: color, id: msg.id });
+          return;
+        }
         case 'draw':
           next = draw(room, color, msg.action, now);
           break;

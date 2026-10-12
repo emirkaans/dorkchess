@@ -28,6 +28,8 @@ export interface Prefs {
   /** How the pieces are drawn: the font, or one of the drawn sets. */
   readonly pieceSet: PieceSet;
   readonly sound: boolean;
+  /** Taunt stickers in online games (off: neither shown nor offered). */
+  readonly stickers: boolean;
   readonly locale: Locale;
   /** Board width in px chosen by dragging its corner; null: fit the screen. */
   readonly boardSize: number | null;
@@ -41,6 +43,7 @@ const DEFAULT_PREFS: Omit<Prefs, 'locale'> = {
   pieceTheme: 'punk',
   pieceSet: 'glyph',
   sound: true,
+  stickers: true,
   boardSize: null,
 };
 const KEY = 'prefs';
@@ -63,6 +66,7 @@ export function loadPrefs(): Prefs {
   return {
     ...DEFAULT_PREFS,
     sound: stored.sound ?? DEFAULT_PREFS.sound,
+    stickers: stored.stickers ?? DEFAULT_PREFS.stickers,
     boardTheme,
     pieceTheme,
     pieceSet,

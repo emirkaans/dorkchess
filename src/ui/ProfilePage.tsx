@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { timeControl } from '../clock/clock.ts';
 import { getVariant, listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
@@ -6,6 +6,8 @@ import { outcomeFor } from '../online/profile.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../online/profile.ts';
 import { allCategories, variantOfCategory } from '../rating/categories.ts';
 import { useI18n } from './i18n.tsx';
+import { BattleJacket, PatchMark } from './BattleJacket.tsx';
+import { PATCHES } from '../achievements/patches.ts';
 
 interface Props {
   username: string;
@@ -21,6 +23,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   const [games, setGames] = useState<ProfileGame[]>([]);
   const [more, setMore] = useState(false);
   const [history, setHistory] = useState<RatingPoint[]>([]);
+  const jacket = useRef<SVGSVGElement>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -110,6 +114,47 @@ export function ProfilePage({ username, onOpen }: Props) {
           {t('profile.joined', { date: date(profile.createdAt) })} · {t('profile.games', { n: String(profile.games) })}
         </p>
       </header>
+
+      <section className="jacket-section" aria-label={t('jacket.title')}>
+        <div className="jacket-box">
+          <BattleJacket ref={jacket} username={profile.username} patches={profile.patches.map((p) => p.id)} />
+          <button
+            className="jacket-share"
+            disabled={sharing}
+            onClick={() => {
+              if (!jacket.current) return;
+              setSharing(true);
+              void shareJacket(jacket.current, profile.username, t('jacket.shareText')).finally(() =>
+                setSharing(false),
+              );
+            }}
+          >
+            {t('jacket.share')}
+          </button>
+        </div>
+        <div className="patch-list">
+          <h2>
+            {t('jacket.title')} · {profile.patches.length}/{PATCHES.length}
+          </h2>
+          <ul>
+            {PATCHES.map((patch) => {
+              const got = profile.patches.find((p) => p.id === patch.id);
+              return (
+                <li key={patch.id} className={got ? 'got' : 'locked'}>
+                  <svg viewBox="-36 -36 72 72" aria-hidden="true">
+                    <PatchMark patch={patch} label={t(`patch.${patch.id}` as MessageKey)} locked={!got} />
+                  </svg>
+                  <span>
+                    <strong>{t(`patch.${patch.id}` as MessageKey)}</strong>
+                    <small>{t(`patch.${patch.id}.how` as MessageKey)}</small>
+                    {got && <small className="patch-date">{date(got.earnedAt)}</small>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
 
       <section className="rating-cards" aria-label={t('profile.ratings')}>
         {allCategories()
@@ -247,4 +292,51 @@ function RatingGraph({ points }: { points: readonly RatingPoint[] }) {
       <span className="graph-lo">{Math.round(lo + 20)}</span>
     </div>
   );
+}
+
+/**
+ * The jacket as a picture to post (a story-sized PNG): shared through the
+ * phone's share sheet when it can take files, otherwise downloaded.
+ */
+async function shareJacket(svg: SVGSVGElement, username: string, text: string): Promise<void> {
+  const source = new XMLSerializer().serializeToString(svg);
+  const url = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    await new Promise<void>((done, fail) => {
+      img.onload = () => done();
+      img.onerror = () => fail(new Error('jacket image'));
+      img.src = url;
+    });
+    const W = 1080;
+    const H = 1350;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#0a0a0b';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff2e93';
+    ctx.font = 'bold 72px Impact, "Arial Black", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(username, W / 2, 130);
+    ctx.drawImage(img, 90, 170, 900, 990);
+    ctx.fillStyle = '#c6ff3d';
+    ctx.font = 'bold 44px Impact, "Arial Black", sans-serif';
+    ctx.fillText('punkchess.com', W / 2, H - 70);
+    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/png'));
+    if (!blob) return;
+    const file = new File([blob], `${username}-punkchess.png`, { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text }).catch(() => {});
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

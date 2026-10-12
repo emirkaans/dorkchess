@@ -161,6 +161,15 @@ export function SettingsDialog({ prefs, onPrefs, onClose }: Props) {
         <span className="switch" aria-hidden="true" />
         {t('toolbar.sound')}
       </label>
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          checked={prefs.stickers}
+          onChange={() => onPrefs((p) => ({ ...p, stickers: !p.stickers }))}
+        />
+        <span className="switch" aria-hidden="true" />
+        {t('settings.stickers')}
+      </label>
       <div className="modal-actions">
         <button className="primary" onClick={onClose} data-autofocus>
           {t('close')}
