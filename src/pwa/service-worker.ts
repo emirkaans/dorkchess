@@ -38,9 +38,11 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    // The privacy policy and terms are plain pages of their own, not the app: straight from the
-    // network (a cached copy would be a redirect from privacy.html, which a navigation refuses).
-    if (['/privacy', '/privacy/', '/terms', '/terms/'].includes(new URL(request.url).pathname)) return;
+    // Pages the server answers itself go straight to the network: sign-in (/auth/…, which
+    // redirects to Google), the API, and the privacy policy and terms (plain pages; a cached
+    // copy would be a redirect from privacy.html, which a navigation refuses).
+    const path = new URL(request.url).pathname;
+    if (path.startsWith('/auth/') || path.startsWith('/api/') || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path)) return;
     event.respondWith(caches.match('./', { ignoreVary: true }).then((page) => page || fetch(request)));
     return;
   }
