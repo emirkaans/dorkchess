@@ -34,7 +34,7 @@ export interface LobbyLink {
   readonly online: number;
   readonly mySeek: string | null;
   readonly error: LobbyErrorCode | null;
-  readonly seek: (req: { variantId: string; timeControlId: string; color: Color | 'random' }) => void;
+  readonly seek: (req: { variantId: string; timeControlId: string; color: Color | 'random'; rated?: boolean }) => void;
   readonly quick: (timeControlId: string) => void;
   readonly cancel: () => void;
   readonly accept: (seekId: string) => void;

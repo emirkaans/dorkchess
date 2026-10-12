@@ -7,6 +7,7 @@
 //   GET  /api/games/:id           what the game link shows (online room or stored local game)
 //   GET  /api/lobby/ws            WebSocket to the lobby (open seeks, quick pairing)
 //   /auth/*, /api/me, /api/auth/*  accounts (server/auth.ts)
+//   /api/users/:username[/games|/history]  public profiles (server/profiles.ts)
 //   PUT  /api/games/:id/record    stores a local game (bot / two players) so its link works anywhere
 //   GET  /og/:id.png              link-preview picture of a game
 // Game pages (/<id>, /<id>/analysis) get link-preview tags for that game.
@@ -16,10 +17,11 @@ import type { Env } from './game-room.ts';
 import type { GameInfo } from '../src/online/record.ts';
 import { previewTags, previewVersion } from './og.ts';
 import { currentUser, handleAuth } from './auth.ts';
+import { handleProfiles } from './profiles.ts';
 
 export { GameRoom } from './game-room.ts';
 export { Lobby } from './lobby.ts';
-import { ACCOUNT_ID, ACCOUNT_NAME, ACCOUNT_RATING } from './lobby.ts';
+import { withAccountHeaders } from './account-headers.ts';
 
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
@@ -86,29 +88,28 @@ export default {
 
     const auth = await handleAuth(request, env, url);
     if (auth) return auth;
+    const profile = await handleProfiles(request, env, url);
+    if (profile) return profile;
 
     if (url.pathname === '/api/lobby/ws') {
       // One lobby for the whole site. A signed-in player is told to it by these headers
       // (never taken from the browser), so nobody can play under someone else's username.
-      const headers = new Headers(request.headers);
-      headers.delete(ACCOUNT_ID);
-      headers.delete(ACCOUNT_NAME);
-      headers.delete(ACCOUNT_RATING);
       const user = await currentUser(request, env).catch(() => null);
-      if (user) {
-        headers.set(ACCOUNT_ID, user.id);
-        headers.set(ACCOUNT_NAME, user.username);
-        if (user.rating !== null) headers.set(ACCOUNT_RATING, String(user.rating));
-      }
-      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(new Request(request, { headers }));
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(withAccountHeaders(request, user));
     }
     if (url.pathname === '/api/games' && request.method === 'POST') {
-      return toRoom(env, request, newGameId(), '/create');
+      // The creator's account goes along (a rated game needs two signed-in players).
+      const user = await currentUser(request, env).catch(() => null);
+      return toRoom(env, withAccountHeaders(request, user), newGameId(), '/create');
     }
     const m = /^\/api\/games\/([^/]+)(?:\/(join|ws|record))?$/.exec(url.pathname);
     if (m) {
       if (!GAME_ID.test(m[1])) return notFound();
-      return toRoom(env, request, m[1], `/${m[2] ?? 'info'}`);
+      if (m[2] === 'join') {
+        const user = await currentUser(request, env).catch(() => null);
+        return toRoom(env, withAccountHeaders(request, user), m[1], '/join');
+      }
+      return toRoom(env, withAccountHeaders(request, null), m[1], `/${m[2] ?? 'info'}`);
     }
     if (url.pathname.startsWith('/api/')) return notFound();
 

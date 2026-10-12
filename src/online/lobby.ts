@@ -7,6 +7,7 @@ import { timeControl } from '../clock/clock.ts';
 import { listVariants } from '../engine/index.ts';
 import type { Color } from '../engine/index.ts';
 import { cleanName } from './room.ts';
+import { ratingCategory } from '../rating/categories.ts';
 import type { CreateRequest, SeatTicket } from './protocol.ts';
 
 /**
@@ -17,7 +18,11 @@ import type { CreateRequest, SeatTicket } from './protocol.ts';
 export interface LobbyPlayer {
   readonly id: string;
   readonly name: string;
+  /** Rating in the seek's category (signed-in players), else null. */
   readonly rating: number | null;
+  readonly provisional?: boolean;
+  /** Signed in: the account (rated games need two). */
+  readonly account?: boolean;
 }
 
 /** An open game offer. */
@@ -30,6 +35,8 @@ export interface Seek {
   readonly color: Color | 'random';
   /** Made by quick pairing (standard chess; pairs with the next quick seek of the same time control). */
   readonly quick: boolean;
+  /** Counts for ratings (only signed-in players can post or take one). */
+  readonly rated: boolean;
   readonly createdAt: number;
 }
 
@@ -41,13 +48,14 @@ export type LobbyClientMessage =
       readonly variantId: string;
       readonly timeControlId: string;
       readonly color: Color | 'random';
+      readonly rated?: boolean;
     }
   | { readonly t: 'quick'; readonly timeControlId: string }
   | { readonly t: 'cancel' }
   | { readonly t: 'accept'; readonly seekId: string }
   | { readonly t: 'ping' };
 
-export type LobbyErrorCode = 'bad-request' | 'gone' | 'own-seek';
+export type LobbyErrorCode = 'bad-request' | 'gone' | 'own-seek' | 'rated-needs-account';
 
 export type LobbyServerMessage =
   | {
@@ -81,7 +89,7 @@ export function cleanPlayer(id: unknown, name: unknown): LobbyPlayer | null {
 export function makeSeek(
   id: string,
   player: LobbyPlayer,
-  req: { variantId: unknown; timeControlId: unknown; color: unknown },
+  req: { variantId: unknown; timeControlId: unknown; color: unknown; rated?: unknown },
   quick: boolean,
   now: number,
 ): Seek | null {
@@ -95,15 +103,26 @@ export function makeSeek(
     timeControlId: req.timeControlId,
     color,
     quick,
+    // Rated only for signed-in players and games with a clock.
+    rated: req.rated === true && !!player.account && ratingCategory(req.variantId, req.timeControlId) !== null,
     createdAt: now,
   };
 }
 
-/** For quick pairing: the oldest quick seek of that time control by someone else. */
-export function quickMatch(seeks: readonly Seek[], timeControlId: string, playerId: string): Seek | null {
+/**
+ * For quick pairing: the oldest quick seek of that time control by someone
+ * else, of the same kind (signed-in players play rated among themselves,
+ * guests casual).
+ */
+export function quickMatch(
+  seeks: readonly Seek[],
+  timeControlId: string,
+  playerId: string,
+  rated = false,
+): Seek | null {
   let best: Seek | null = null;
   for (const s of seeks) {
-    if (!s.quick || s.timeControlId !== timeControlId || s.player.id === playerId) continue;
+    if (!s.quick || s.timeControlId !== timeControlId || s.player.id === playerId || s.rated !== rated) continue;
     if (!best || s.createdAt < best.createdAt) best = s;
   }
   return best;
@@ -112,7 +131,13 @@ export function quickMatch(seeks: readonly Seek[], timeControlId: string, player
 /** The game request of a seek: the seeker's side ('random' decided by `random`). */
 export function gameRequest(seek: Seek, random: () => number): CreateRequest & { color: Color } {
   const color: Color = seek.color === 'random' ? (random() < 0.5 ? 'w' : 'b') : seek.color;
-  return { variantId: seek.variantId, timeControlId: seek.timeControlId, color, name: seek.player.name };
+  return {
+    variantId: seek.variantId,
+    timeControlId: seek.timeControlId,
+    color,
+    name: seek.player.name,
+    rated: seek.rated,
+  };
 }
 
 /** Seeks shown in the lobby: oldest first. */

@@ -3,6 +3,7 @@
 //   /analysis         analysis board (board editor)
 //   /online           create an online game
 //   /signup           pick a username after the first sign-in
+//   /@/<username>     a player's profile
 //   /<gameId>         a game (being played, or finished)
 //   /<gameId>/analysis   analysis of that game
 // Pure: no React, no DOM.
@@ -12,6 +13,7 @@ export type Route =
   | { readonly kind: 'analysis' }
   | { readonly kind: 'online' }
   | { readonly kind: 'signup' }
+  | { readonly kind: 'profile'; readonly username: string }
   | { readonly kind: 'game'; readonly id: string }
   | { readonly kind: 'review'; readonly id: string };
 
@@ -21,11 +23,20 @@ const RESERVED = new Set(['analysis', 'online', 'signup', 'auth', 'assets', 'ico
 const GAME = /^\/([A-Za-z0-9][A-Za-z0-9-]{3,39})(\/analysis)?$/;
 
 export function parseRoute(pathname: string): Route {
-  const p = pathname.replace(/\/+$/, '') || '/';
+  // Browsers may send '@' as '%40' (and other characters escaped).
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    // a malformed escape: match the path as it is
+  }
+  const p = decoded.replace(/\/+$/, '') || '/';
   if (p === '/') return { kind: 'home' };
   if (p === '/analysis') return { kind: 'analysis' };
   if (p === '/online') return { kind: 'online' };
   if (p === '/signup') return { kind: 'signup' };
+  const profile = /^\/@\/([A-Za-z][A-Za-z0-9_-]{2,19})$/.exec(p);
+  if (profile) return { kind: 'profile', username: profile[1] };
   const m = GAME.exec(p);
   if (m && !RESERVED.has(m[1])) return m[2] ? { kind: 'review', id: m[1] } : { kind: 'game', id: m[1] };
   return { kind: 'home' };
@@ -41,6 +52,8 @@ export function pathOf(r: Route): string {
       return '/online';
     case 'signup':
       return '/signup';
+    case 'profile':
+      return `/@/${r.username}`;
     case 'game':
       return `/${r.id}`;
     case 'review':

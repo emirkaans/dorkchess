@@ -44,6 +44,8 @@ export interface CreateRequest {
   /** Colour the creator plays, or 'random'. */
   readonly color: Color | 'random';
   readonly name: string;
+  /** Asks for a rated game (it only is when both players are signed in and the game has a clock). */
+  readonly rated?: boolean;
 }
 
 export interface JoinRequest {
@@ -62,6 +64,13 @@ export interface PublicPlayer {
   readonly connected: boolean;
   /** Server time by which a disconnected player must be back (playing phase only). */
   readonly deadline: number | null;
+  /** The account's username (links to the profile), or null for a guest. */
+  readonly username: string | null;
+  /** Rating in this game's category before the game (rated games). */
+  readonly rating: number | null;
+  readonly provisional: boolean;
+  /** What the game changed (rated games, once over). */
+  readonly diff: number | null;
 }
 
 /** Everything a client needs to draw the game; sent after every change. */
@@ -71,6 +80,8 @@ export interface GameView {
   readonly timeControlId: string;
   readonly phase: Phase;
   readonly players: Readonly<Record<Color, PublicPlayer | null>>;
+  /** The game counts for ratings. */
+  readonly rated: boolean;
   /** The receiver's colour, or null for a spectator. */
   readonly you: Color | null;
   /** Start position once the setup is done. */

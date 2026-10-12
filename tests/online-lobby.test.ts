@@ -81,4 +81,28 @@ describe('lobi', () => {
     const list = sortSeeks([seek('n', alice, '1+0', false, 9), seek('o', bob, '1+0', false, 2)]);
     expect(list.map((s) => s.id)).toEqual(['o', 'n']);
   });
+
+  it('puanlı ilan yalnızca hesaplı oyuncudan ve saatli oyunda; hızlı eşleşme hesaplıyı hesaplıyla eşler', () => {
+    const acc = { ...alice, account: true };
+    const v = QUICK_VARIANT();
+    expect(makeSeek('r1', acc, { variantId: v, timeControlId: '3+2', color: 'w', rated: true }, false, 1)?.rated).toBe(
+      true,
+    );
+    expect(
+      makeSeek('r2', alice, { variantId: v, timeControlId: '3+2', color: 'w', rated: true }, false, 1)?.rated,
+    ).toBe(false);
+    expect(makeSeek('r3', acc, { variantId: v, timeControlId: 'none', color: 'w', rated: true }, false, 1)?.rated).toBe(
+      false,
+    );
+    const guest = seek('g', bob, '1+0', true, 1);
+    const ratedQuick = makeSeek(
+      'q',
+      acc,
+      { variantId: v, timeControlId: '1+0', color: 'random', rated: true },
+      true,
+      2,
+    )!;
+    expect(quickMatch([guest, ratedQuick], '1+0', 'someone', true)?.id).toBe('q');
+    expect(quickMatch([guest, ratedQuick], '1+0', 'someone', false)?.id).toBe('g');
+  });
 });

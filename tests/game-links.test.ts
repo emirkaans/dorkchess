@@ -71,3 +71,14 @@ describe('sunucudaki oyun kaydı', () => {
     expect(r).toMatchObject({ white: 'Ayşe', black: 'Bora', mode: 'online', moves: ['e4'], result: '*' });
   });
 });
+
+import { parseRoute as parseRouteForProfile, pathOf as pathOfForProfile } from '../src/ui/routes.ts';
+
+describe('profil adresi', () => {
+  it("/@/<kullanıcı adı> profil sayfasıdır; '@' kodlanmış gelse de", () => {
+    expect(parseRouteForProfile('/@/PunkKid')).toEqual({ kind: 'profile', username: 'PunkKid' });
+    expect(parseRouteForProfile('/%40/PunkKid')).toEqual({ kind: 'profile', username: 'PunkKid' });
+    expect(parseRouteForProfile('/@/7bad')).toEqual({ kind: 'home' });
+    expect(pathOfForProfile({ kind: 'profile', username: 'PunkKid' })).toBe('/@/PunkKid');
+  });
+});

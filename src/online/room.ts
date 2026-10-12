@@ -24,11 +24,25 @@ import {
 } from '../engine/index.ts';
 import type { Color, GameState, SetupQuestion, VariantDefinition } from '../engine/index.ts';
 import { MAX_NAME, reconnectMs } from './protocol.ts';
+import { ratingCategory } from '../rating/categories.ts';
 import type { CreateRequest, ErrorCode, GameView, OnlineOutcome, Phase, WireMove } from './protocol.ts';
+
+/** A signed-in player in a seat (set by the server from the session, never by the browser). */
+export interface SeatAccount {
+  readonly id: string;
+  readonly username: string;
+}
 
 export interface Seat {
   readonly name: string;
   readonly token: string;
+  readonly account?: SeatAccount | null;
+}
+
+/** A player's rating before a rated game, as shown in it. */
+export interface SeatRating {
+  readonly rating: number;
+  readonly provisional: boolean;
 }
 
 export interface Room {
@@ -49,7 +63,28 @@ export interface Room {
   readonly rematchId?: string | null;
   /** Deadline per disconnected player (playing phase only). */
   readonly gone: Readonly<Partial<Record<Color, number>>>;
+  /** Counts for ratings: asked for, both players signed in, a clock (see ratedRoom). */
+  readonly rated?: boolean;
+  /** Ratings before the game (filled in by the server once both seats are taken). */
+  readonly ratings?: Readonly<Partial<Record<Color, SeatRating>>>;
+  /** Rating changes once the game is over and rated. */
+  readonly ratingDiff?: Readonly<Partial<Record<Color, number>>>;
+  /** The result has been written to the ratings database (or did not need to be). */
+  readonly recorded?: boolean;
 }
+
+/**
+ * Whether a room's game counts for ratings: it was asked for, both players are
+ * signed in (and are different accounts) and the game has a clock.
+ */
+export function ratedRoom(room: Room): boolean {
+  const w = room.seats.w?.account;
+  const b = room.seats.b?.account;
+  return !!room.rated && !!w && !!b && w.id !== b.id && ratingCategory(room.variantId, room.timeControlId) !== null;
+}
+
+/** Fewer moves than this when the game ends: aborted, it does not count. */
+export const ABORT_PLIES = 2;
 
 export class RoomError extends Error {
   constructor(readonly code: ErrorCode) {
@@ -77,12 +112,14 @@ export function createRoom(
   req: CreateRequest,
   token: string,
   random: () => number,
+  account: SeatAccount | null = null,
 ): { room: Room; color: Color } {
   if (!listVariants().some((v) => v.id === req.variantId)) fail('bad-request');
   const control = timeControl(req.timeControlId);
   if (control.id !== req.timeControlId) fail('bad-request');
   const color: Color = req.color === 'w' || req.color === 'b' ? req.color : random() < 0.5 ? 'w' : 'b';
-  const seat = { name: cleanName(req.name), token };
+  // A signed-in player plays under the username.
+  const seat: Seat = { name: account ? account.username : cleanName(req.name), token, account };
   const room: Room = {
     id,
     variantId: req.variantId,
@@ -96,6 +133,7 @@ export function createRoom(
     outcome: null,
     drawOffer: null,
     gone: {},
+    rated: req.rated === true,
   };
   return { room, color };
 }
@@ -107,11 +145,19 @@ function start(room: Room): Room {
 }
 
 /** The second player takes the free seat; without setup questions the game starts right away. */
-export function joinRoom(room: Room, name: string, token: string): { room: Room; color: Color } {
+export function joinRoom(
+  room: Room,
+  name: string,
+  token: string,
+  account: SeatAccount | null = null,
+): { room: Room; color: Color } {
   if (room.phase !== 'waiting') fail('full');
   const color: Color | null = room.seats.w === null ? 'w' : room.seats.b === null ? 'b' : null;
   if (!color) return fail('full');
-  const joined: Room = { ...room, seats: { ...room.seats, [color]: { name: cleanName(name), token } } };
+  const seat: Seat = { name: account ? account.username : cleanName(name), token, account };
+  const seated: Room = { ...room, seats: { ...room.seats, [color]: seat } };
+  // Rated only if both players turned out to be signed in.
+  const joined: Room = { ...seated, rated: ratedRoom(seated) };
   const hasSetup = setupQuestions(getVariant(room.variantId)).length > 0;
   return { room: hasSetup ? { ...joined, phase: 'setup' } : start(joined), color };
 }
@@ -232,6 +278,7 @@ export function rematch(
     outcome: null,
     drawOffer: null,
     gone: {},
+    rated: !!room.rated,
   };
   return { room: { ...room, rematchOffer: null, rematchId: newId }, next: hasSetup ? fresh : start(fresh) };
 }
@@ -271,7 +318,17 @@ export function viewOf(
 ): GameView {
   const player = (c: Color) => {
     const seat = room.seats[c];
-    return seat ? { name: seat.name, connected: connected[c], deadline: room.gone[c] ?? null } : null;
+    if (!seat) return null;
+    const rating = room.ratings?.[c];
+    return {
+      name: seat.name,
+      connected: connected[c],
+      deadline: room.gone[c] ?? null,
+      username: seat.account?.username ?? null,
+      rating: rating ? Math.round(rating.rating) : null,
+      provisional: rating?.provisional ?? false,
+      diff: room.ratingDiff?.[c] ?? null,
+    };
   };
   const finite = (ms: number) => (Number.isFinite(ms) ? ms : null);
   return {
@@ -280,6 +337,7 @@ export function viewOf(
     timeControlId: room.timeControlId,
     phase: room.phase,
     players: { w: player('w'), b: player('b') },
+    rated: !!room.rated,
     you,
     startFen: room.startFen,
     moves: room.moves,

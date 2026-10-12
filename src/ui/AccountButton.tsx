@@ -60,6 +60,9 @@ export function AccountButton() {
       {open && (
         <div className="account-menu" role="menu">
           <p className="account-name">{account.user.username}</p>
+          <a role="menuitem" className="account-profile" href={`/@/${account.user.username}`}>
+            {t('profile.mine')}
+          </a>
           <button
             role="menuitem"
             onClick={() => {

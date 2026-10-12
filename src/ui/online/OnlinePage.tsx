@@ -311,6 +311,13 @@ function OnlineGame({
     const label = p.name || t('online.anon');
     return c === you ? `${label} (${t('online.you')})` : label;
   };
+  /** Name with the rating (rated games), and what the game changed once it is over. */
+  const nameWithRating = (c: Color) => {
+    const p = view.players[c];
+    if (!p || p.rating === null) return nameOf(c);
+    const diff = p.diff === null ? '' : ` ${p.diff >= 0 ? '+' : ''}${p.diff}`;
+    return `${nameOf(c)} · ${p.rating}${p.provisional ? '?' : ''}${diff}`;
+  };
 
   const sized = prefs.boardSize ? ({ '--board-user': `${prefs.boardSize}px` } as CSSProperties) : undefined;
   const away = (['w', 'b'] as const).filter((c) => playing && view.players[c]?.deadline);
@@ -325,7 +332,7 @@ function OnlineGame({
               variant={variant}
               color={c}
               player={HUMAN}
-              label={nameOf(c)}
+              label={nameWithRating(c)}
               start={states[0]?.position ?? shown?.position ?? createGame(variant).position}
               position={shown?.position ?? createGame(variant).position}
               active={playing && state?.position.turn === c}
@@ -414,6 +421,7 @@ function OnlineGame({
             <h2>{texts.name}</h2>
             <span className="game-label">
               {t('online.label')} · {control.initialMs === null ? t('time.none') : control.label}
+              {view.rated && ` · ${t('lobby.rated')}`}
               {!you && ` · ${t('online.spectating')}`}
             </span>
           </div>

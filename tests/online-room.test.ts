@@ -97,7 +97,16 @@ describe('online oda', () => {
     room = setConnected(room, 'b', false, 1000);
     expect(nextDeadline(room)).toBe(1000 + RECONNECT_MS);
     const view = viewOf(room, 'w', { w: true, b: false }, 2000);
-    expect(view.players.b).toEqual({ name: 'Bora', connected: false, deadline: 1000 + RECONNECT_MS });
+    expect(view.players.b).toEqual({
+      name: 'Bora',
+      connected: false,
+      deadline: 1000 + RECONNECT_MS,
+      // A guest: no account, no rating.
+      username: null,
+      rating: null,
+      provisional: false,
+      diff: null,
+    });
     expect(JSON.stringify(view)).not.toContain('tb'); // tokens never leave the server
 
     expect(tick(room, 1000 + RECONNECT_MS - 1).phase).toBe('playing');
@@ -159,5 +168,44 @@ describe('online oda', () => {
   it('kopma süresi tempoya göre: 3+2ye kadar 15 sn, 5 dakikada 30 sn, 10 dakika ve üzerinde 1 dk', () => {
     const secs = (id: string) => reconnectMs(timeControl(id)) / 1000;
     expect(['1+0', '3+2', '5+0', '10+0', '15+10', 'none'].map(secs)).toEqual([15, 15, 30, 60, 60, 60]);
+  });
+});
+
+describe('puanlı oyunlar', () => {
+  const ada = { id: 'u-ada', username: 'Ada' };
+  const bora = { id: 'u-bora', username: 'Bora' };
+  const req = (rated: boolean, timeControlId = '5+0') => ({
+    variantId: 'standard',
+    timeControlId,
+    color: 'w' as const,
+    name: 'takma',
+    rated,
+  });
+
+  it('yalnızca iki hesap, saatli oyun ve istenmişse puanlı; hesap adı takma adın yerine geçer', () => {
+    const both = joinRoom(createRoom('Abcd1234', req(true), 't1', () => 0, ada).room, 'x', 't2', bora).room;
+    expect(both.rated).toBe(true);
+    expect(both.seats.w?.name).toBe('Ada');
+    expect(both.seats.b?.account).toEqual(bora);
+    expect(joinRoom(createRoom('Abcd1234', req(true), 't1', () => 0, ada).room, 'misafir', 't2').room.rated).toBe(
+      false,
+    );
+    expect(joinRoom(createRoom('Abcd1234', req(false), 't1', () => 0, ada).room, 'x', 't2', bora).room.rated).toBe(
+      false,
+    );
+    expect(
+      joinRoom(createRoom('Abcd1234', req(true, 'none'), 't1', () => 0, ada).room, 'x', 't2', bora).room.rated,
+    ).toBe(false);
+    expect(joinRoom(createRoom('Abcd1234', req(true), 't1', () => 0, ada).room, 'x', 't2', ada).room.rated).toBe(false);
+  });
+
+  it('rövanş hesapları ve puanlı oluşu korur', () => {
+    let room = joinRoom(createRoom('Abcd1234', req(true), 't1', () => 0, ada).room, 'x', 't2', bora).room;
+    room = resign(room, 'w', 10);
+    room = rematch(room, 'w', 'offer', 'Efgh5678').room;
+    const next = rematch(room, 'b', 'accept', 'Efgh5678').next!;
+    expect(next.rated).toBe(true);
+    expect(next.seats.w?.account).toEqual(bora);
+    expect(next.seats.b?.account).toEqual(ada);
   });
 });

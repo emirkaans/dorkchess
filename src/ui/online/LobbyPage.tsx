@@ -170,6 +170,9 @@ function QuickPairing({ mine, lobby }: { mine: Seek | null; lobby: Lobby }) {
 function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby: Lobby; defaultVariantId: string }) {
   const { t, vt } = useI18n();
   const me = playerIdentity().id;
+  const account = useAccount();
+  // Signed-in players post rated games by default.
+  const [rated, setRated] = useState(true);
   const [variantId, setVariantId] = useState(defaultVariantId);
   const [timeControlId, setTimeControlId] = useState('5+0');
   const [color, setColor] = useState<Color | 'random'>('random');
@@ -197,12 +200,19 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
                   key={s.id}
                   role="row"
                   className={`seek-row${own ? ' own' : ''}`}
-                  disabled={own || lobby.status !== 'open'}
+                  disabled={own || lobby.status !== 'open' || (s.rated && !account.user)}
                   onClick={() => lobby.accept(s.id)}
-                  title={own ? undefined : t('lobby.join')}
+                  title={own ? undefined : s.rated && !account.user ? t('lobby.ratedSignIn') : t('lobby.join')}
                 >
                   <span role="cell" className="seek-player">
                     {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
+                    {s.player.rating !== null && (
+                      <span className="seek-rating">
+                        {s.player.rating}
+                        {s.player.provisional ? '?' : ''}
+                      </span>
+                    )}
+                    {s.rated && <span className="rated-tag">{t('lobby.rated')}</span>}
                   </span>
                   <span role="cell">{vt(getVariant(s.variantId)).name}</span>
                   <span role="cell">
@@ -227,7 +237,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
             className="seek-form"
             onSubmit={(e) => {
               e.preventDefault();
-              lobby.seek({ variantId, timeControlId, color });
+              lobby.seek({ variantId, timeControlId, color, rated: !!account.user && rated });
               setPosting(false);
             }}
           >
@@ -268,6 +278,17 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
                 </label>
               ))}
             </fieldset>
+            {account.user && (
+              <fieldset className="choice-row choice-grid rated">
+                <legend>{t('lobby.kind')}</legend>
+                {([true, false] as const).map((r) => (
+                  <label key={String(r)} className={`chip${rated === r ? ' on' : ''}`}>
+                    <input type="radio" name="seek-rated" checked={rated === r} onChange={() => setRated(r)} />
+                    {t(r ? 'lobby.rated' : 'lobby.casual')}
+                  </label>
+                ))}
+              </fieldset>
+            )}
           </form>
         )}
       </div>
@@ -297,6 +318,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
 function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string) => void; defaultVariantId: string }) {
   const { t, vt } = useI18n();
   const account = useAccount();
+  const [rated, setRated] = useState(true);
   const [variantId, setVariantId] = useState(defaultVariantId);
   const [timeControlId, setTimeControlId] = useState('5+0');
   const [color, setColor] = useState<Color | 'random'>('random');
@@ -309,7 +331,13 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
     try {
       const name = account.user?.username ?? (loadName() || t('online.anon'));
       saveName(name);
-      const ticket = await createOnlineGame({ variantId, timeControlId, color, name });
+      const ticket = await createOnlineGame({
+        variantId,
+        timeControlId,
+        color,
+        name,
+        rated: !!account.user && rated,
+      });
       onOpenGame(ticket.gameId);
     } catch (e) {
       setError(e instanceof ApiError && e.code !== 'network' ? 'online.error.create' : 'online.error.network');
@@ -364,6 +392,17 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
             </label>
           ))}
         </fieldset>
+        {account.user && (
+          <fieldset className="choice-row choice-grid rated">
+            <legend>{t('lobby.kind')}</legend>
+            {([true, false] as const).map((r) => (
+              <label key={String(r)} className={`chip${rated === r ? ' on' : ''}`}>
+                <input type="radio" name="friend-rated" checked={rated === r} onChange={() => setRated(r)} />
+                {t(r ? 'lobby.rated' : 'lobby.casual')}
+              </label>
+            ))}
+          </fieldset>
+        )}
         {error && <p className="error">{t(error)}</p>}
       </div>
       <div className="lobby-actions">

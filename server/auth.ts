@@ -29,6 +29,8 @@ export interface AuthEnv {
   readonly GOOGLE_CLIENT_ID?: string;
   /** Its secret (set with `wrangler secret put GOOGLE_CLIENT_SECRET`, or .dev.vars locally). */
   readonly GOOGLE_CLIENT_SECRET?: string;
+  /** The site's address when the request's own is not it (local development; see .dev.vars). */
+  readonly PUBLIC_ORIGIN?: string;
 }
 
 const SESSION_COOKIE = 'pc_session';
@@ -49,7 +51,7 @@ const redirect = (to: string, cookies: string[] = []) => {
 };
 
 /** POSTs must come from this site's own pages. */
-const sameOrigin = (request: Request, url: URL) => request.headers.get('origin') === url.origin;
+const sameOrigin = (request: Request, origin: string) => request.headers.get('origin') === origin;
 
 // ---------------------------------------------------------------------------
 // Sessions
@@ -91,7 +93,10 @@ async function pendingSignup(request: Request, env: AuthEnv) {
 /** Answers an account request, or returns null when `url` is not one. */
 export async function handleAuth(request: Request, env: AuthEnv, url: URL): Promise<Response | null> {
   const path = url.pathname;
-  const secure = url.protocol === 'https:';
+  // The address players use. Locally `wrangler dev` reports the production domain (from the
+  // routes), so .dev.vars sets PUBLIC_ORIGIN=http://localhost:5173 there.
+  const origin = env.PUBLIC_ORIGIN || url.origin;
+  const secure = origin.startsWith('https:');
   const isAuthRoute = path.startsWith('/auth/') || path === '/api/me' || path.startsWith('/api/auth/');
   if (!isAuthRoute) return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);
@@ -118,7 +123,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
     const target = new URL(GOOGLE_AUTH);
     target.search = new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID,
-      redirect_uri: `${url.origin}/auth/google/callback`,
+      redirect_uri: `${origin}/auth/google/callback`,
       response_type: 'code',
       scope: 'openid email profile',
       state,
@@ -150,7 +155,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
         code,
         client_id: env.GOOGLE_CLIENT_ID,
         client_secret: env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${url.origin}/auth/google/callback`,
+        redirect_uri: `${origin}/auth/google/callback`,
         grant_type: 'authorization_code',
         code_verifier: saved.verifier,
       }),
@@ -186,7 +191,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/username' && request.method === 'POST') {
-    if (!sameOrigin(request, url)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
     const signup = await pendingSignup(request, env);
     if (!signup) return json({ error: 'no-signup' }, 400);
     const body = (await request.json().catch(() => ({}))) as { username?: unknown };
@@ -218,11 +223,12 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/delete' && request.method === 'POST') {
-    if (!sameOrigin(request, url)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
     const user = await currentUser(request, env);
     if (!user) return json({ error: 'signed-out' }, 401);
     await env.DB.batch([
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(user.id),
+      env.DB.prepare('DELETE FROM ratings WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM identities WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?1').bind(user.id),
     ]);
@@ -230,7 +236,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/logout' && request.method === 'POST') {
-    if (!sameOrigin(request, url)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
     const token = parseCookies(request.headers.get('cookie'))[SESSION_COOKIE];
     if (token)
       await env.DB.prepare('DELETE FROM sessions WHERE id = ?1')

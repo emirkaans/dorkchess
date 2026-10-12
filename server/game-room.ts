@@ -21,11 +21,13 @@ import {
   tick,
   viewOf,
 } from '../src/online/room.ts';
-import type { Room } from '../src/online/room.ts';
+import type { Room, SeatAccount } from '../src/online/room.ts';
 import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record.ts';
 import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../src/online/record.ts';
 import { previewVersion, renderPreview } from './og.ts';
 import type { Lobby } from './lobby.ts';
+import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
+import { settleGame, withRatings } from './ratings.ts';
 import type { AuthEnv } from './auth.ts';
 
 export interface Env extends AuthEnv {
@@ -60,12 +62,32 @@ export class GameRoom extends DurableObject<Env> {
     return this.room;
   }
 
-  private async save(room: Room): Promise<void> {
+  /**
+   * Stores the room; a game that just ended is first recorded (ratings, the
+   * players' game lists). Returns the room as stored, with any rating changes.
+   */
+  private async save(room: Room): Promise<Room> {
+    if (room.phase === 'over' && !room.recorded) {
+      try {
+        room = await settleGame(room, this.env.DB, Date.now());
+      } catch (e) {
+        // Nothing was written: the next save tries again.
+        console.error('recording the game failed', e);
+      }
+    }
     this.room = room;
     await this.ctx.storage.put('room', room);
     const at = nextDeadline(room);
     if (at === null) await this.ctx.storage.deleteAlarm();
     else await this.ctx.storage.setAlarm(at);
+    return room;
+  }
+
+  /** The signed-in player of a request (set by the Worker from the session; see server/index.ts). */
+  private accountOf(request: Request): SeatAccount | null {
+    const id = request.headers.get(ACCOUNT_ID);
+    const username = request.headers.get(ACCOUNT_NAME);
+    return id && username ? { id, username } : null;
   }
 
   /** Which seats have an open socket (`closing` is one being closed right now). */
@@ -117,7 +139,7 @@ export class GameRoom extends DurableObject<Env> {
   private async adopt(request: Request): Promise<Response> {
     if ((await this.load()) || (await this.ctx.storage.get('record'))) return json({ error: 'bad-request' }, 409);
     const room = (await request.json()) as Room;
-    await this.save(room);
+    await this.save(await withRatings(room, this.env.DB, Date.now()));
     return json({ ok: true });
   }
 
@@ -185,7 +207,7 @@ export class GameRoom extends DurableObject<Env> {
     if ((await this.load()) || (await this.ctx.storage.get('record'))) return json({ error: 'bad-request' }, 409);
     const body = (await request.json()) as CreateRequest;
     const token = crypto.randomUUID();
-    const { room, color } = createRoom(id, body, token, Math.random);
+    const { room, color } = createRoom(id, body, token, Math.random, this.accountOf(request));
     await this.save(room);
     return json({ gameId: id, color, token });
   }
@@ -195,9 +217,9 @@ export class GameRoom extends DurableObject<Env> {
     if (!room) return json({ error: 'not-found' }, 404);
     const body = (await request.json()) as { name?: unknown };
     const token = crypto.randomUUID();
-    const joined = joinRoom(room, typeof body.name === 'string' ? body.name : '', token);
-    await this.save(joined.room);
-    this.broadcast(joined.room);
+    const joined = joinRoom(room, typeof body.name === 'string' ? body.name : '', token, this.accountOf(request));
+    const saved = await this.save(await withRatings(joined.room, this.env.DB, Date.now()));
+    this.broadcast(saved);
     return json({ gameId: room.id, color: joined.color, token });
   }
 
@@ -273,7 +295,7 @@ export class GameRoom extends DurableObject<Env> {
         default:
           return this.send(ws, { t: 'error', code: 'bad-request' });
       }
-      await this.save(next);
+      next = await this.save(next);
       this.broadcast(next);
     } catch (e) {
       if (!(e instanceof RoomError)) throw e;
@@ -288,8 +310,7 @@ export class GameRoom extends DurableObject<Env> {
     const color = seatOf(room, typeof token === 'string' ? token : null);
     if (color) {
       ws.serializeAttachment({ color } satisfies Attachment);
-      room = tick(setConnected(room, color, true, now), now);
-      await this.save(room);
+      room = await this.save(tick(setConnected(room, color, true, now), now));
     }
     this.broadcast(room);
   }
@@ -309,8 +330,7 @@ export class GameRoom extends DurableObject<Env> {
     if (!room || !color) return;
     // Another tab of the same player still holds the seat.
     if (this.connected(ws)[color]) return;
-    const next = setConnected(room, color, false, Date.now());
-    await this.save(next);
+    const next = await this.save(setConnected(room, color, false, Date.now()));
     this.broadcast(next, ws);
   }
 
@@ -337,7 +357,7 @@ export class GameRoom extends DurableObject<Env> {
     const room = await this.load();
     if (!room) return;
     const next = tick(room, Date.now());
-    await this.save(next);
-    if (next !== room) this.broadcast(next);
+    const saved = await this.save(next);
+    if (next !== room) this.broadcast(saved);
   }
 }

@@ -26,6 +26,7 @@ import type { SavedGame } from '../storage/games.ts';
 import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
 import { SignupPage } from './SignupPage.tsx';
+import { ProfilePage } from './ProfilePage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
@@ -85,6 +86,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const { t, vt } = useI18n();
   const { session, view, dispatch } = useGame(() => newSession(loadSettings(), 1));
   // A game address opened directly shows a short loading state while the game is looked up.
+  // The profile shown on the profile page (/@/<username>).
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => (parseRoute(location.pathname).kind === 'home' ? 'home' : 'loading'));
   /** Online game shown on the online page (null: its lobby). */
   const [onlineId, setOnlineId] = useState<string | null>(null);
@@ -238,6 +241,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         return setPage('online');
       }
       if (r.kind === 'signup') return setPage('signup');
+      if (r.kind === 'profile') {
+        setProfileName(r.username);
+        return setPage('profile');
+      }
       const id = r.id;
       // This browser's running (or just finished) game.
       if (id === session.gameId && session.key > 1) {
@@ -363,9 +370,11 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       const id = review.review.gameId;
       want = pathOf(review.review.watch ? { kind: 'game', id } : { kind: 'review', id });
     } else if (page === 'review') want = location.pathname;
+    else if (page === 'profile')
+      want = profileName ? pathOf({ kind: 'profile', username: profileName }) : location.pathname;
     else want = pathOf({ kind: page });
     if (want !== location.pathname) history.pushState(null, '', want);
-  }, [page, onlineId, review, session.gameId]);
+  }, [page, onlineId, review, session.gameId, profileName]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -452,6 +461,14 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           onOnline={() => {
             setOnlineId(null);
             setPage('online');
+          }}
+        />
+      ) : page === 'profile' && profileName ? (
+        <ProfilePage
+          username={profileName}
+          onOpen={(path) => {
+            history.pushState(null, '', path);
+            applyRouteRef.current(parseRoute(path));
           }}
         />
       ) : page === 'signup' ? (

@@ -5,7 +5,7 @@ import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
 
-export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'loading';
+export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'profile' | 'loading';
 
 interface Props {
   page: Page;

@@ -11,18 +11,19 @@ import { randomGameId } from '../src/online/record.ts';
 import { QUICK_VARIANT, cleanPlayer, gameRequest, makeSeek, quickMatch, sortSeeks } from '../src/online/lobby.ts';
 import type { LobbyClientMessage, LobbyPlayer, LobbyServerMessage, Seek } from '../src/online/lobby.ts';
 import type { Env } from './game-room.ts';
+import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
+import type { SeatAccount } from '../src/online/room.ts';
+import { ratingCategory } from '../src/rating/categories.ts';
+import { DEFAULT_GLICKO, PROVISIONAL_RD } from '../src/rating/glicko2.ts';
 
 interface Attachment {
   readonly player: LobbyPlayer | null;
   readonly seek: Seek | null;
-  /** The player is a signed-in account (set by the Worker): name and id are fixed. */
-  readonly account?: boolean;
+  /** The signed-in account (set by the Worker): name and id are fixed. */
+  readonly account?: SeatAccount | null;
+  /** Its ratings by category (looked up when the connection opens). */
+  readonly ratings?: Readonly<Record<string, { rating: number; provisional: boolean }>>;
 }
-
-/** Headers the Worker adds for a signed-in player (and strips from what browsers send). */
-export const ACCOUNT_ID = 'x-punkchess-account';
-export const ACCOUNT_NAME = 'x-punkchess-username';
-export const ACCOUNT_RATING = 'x-punkchess-rating';
 
 const MAX_MESSAGE = 1024;
 
@@ -33,13 +34,41 @@ export class Lobby extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
     const accountId = request.headers.get(ACCOUNT_ID);
     const username = request.headers.get(ACCOUNT_NAME);
-    const rating = Number(request.headers.get(ACCOUNT_RATING));
-    const player: LobbyPlayer | null =
-      accountId && username
-        ? { id: `account-${accountId}`, name: username, rating: Number.isFinite(rating) && rating > 0 ? rating : null }
-        : null;
-    server.serializeAttachment({ player, seek: null, account: !!player } satisfies Attachment);
+    const account: SeatAccount | null = accountId && username ? { id: accountId, username } : null;
+    const player: LobbyPlayer | null = account
+      ? { id: `account-${account.id}`, name: account.username, rating: null, account: true }
+      : null;
+    server.serializeAttachment({
+      player,
+      seek: null,
+      account,
+      ratings: account ? await this.ratingsOf(account.id) : undefined,
+    } satisfies Attachment);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** A signed-in player's ratings by category (empty when there are none or the database fails). */
+  private async ratingsOf(userId: string): Promise<Record<string, { rating: number; provisional: boolean }>> {
+    try {
+      const rows = await this.env.DB.prepare('SELECT category, rating, rd FROM ratings WHERE user_id = ?1')
+        .bind(userId)
+        .all<{ category: string; rating: number; rd: number }>();
+      return Object.fromEntries(
+        rows.results.map((r) => [r.category, { rating: Math.round(r.rating), provisional: r.rd > PROVISIONAL_RD }]),
+      );
+    } catch {
+      return {};
+    }
+  }
+
+  /** The player as shown on a seek: with the rating of its category. */
+  private seekPlayer(ws: WebSocket, variantId: string, timeControlId: string): LobbyPlayer | null {
+    const a = this.attachment(ws);
+    if (!a.player) return null;
+    if (!a.account) return a.player;
+    const category = ratingCategory(variantId, timeControlId);
+    const r = category ? (a.ratings?.[category] ?? { rating: DEFAULT_GLICKO.rating, provisional: true }) : null;
+    return { ...a.player, rating: r?.rating ?? null, provisional: r?.provisional ?? false };
   }
 
   private attachment(ws: WebSocket): Attachment {
@@ -95,7 +124,7 @@ export class Lobby extends DurableObject<Env> {
       if (this.attachment(ws).account) return this.broadcast();
       const player = cleanPlayer(msg.playerId, msg.name);
       if (!player) return this.send(ws, { t: 'error', code: 'bad-request' });
-      ws.serializeAttachment({ player, seek: null, account: false } satisfies Attachment);
+      ws.serializeAttachment({ player, seek: null, account: null } satisfies Attachment);
       return this.broadcast();
     }
     const me = this.attachment(ws).player;
@@ -115,19 +144,23 @@ export class Lobby extends DurableObject<Env> {
         return this.broadcast();
       }
       case 'seek': {
-        const seek = makeSeek(crypto.randomUUID(), me, msg, false, Date.now());
+        const player = this.seekPlayer(ws, String(msg.variantId), String(msg.timeControlId)) ?? me;
+        const seek = makeSeek(crypto.randomUUID(), player, msg, false, Date.now());
         if (!seek) return this.send(ws, { t: 'error', code: 'bad-request' });
         this.setSeek(ws, seek);
         return this.broadcast();
       }
       case 'quick': {
         const seeks = this.ctx.getWebSockets().flatMap((s) => this.attachment(s).seek ?? []);
-        const match = quickMatch(seeks, msg.timeControlId, me.id);
+        // Signed-in players are paired rated among themselves; guests casual.
+        const rated = !!this.attachment(ws).account;
+        const match = quickMatch(seeks, msg.timeControlId, me.id, rated);
         if (match) return this.pair(match, ws);
+        const player = this.seekPlayer(ws, QUICK_VARIANT(), String(msg.timeControlId)) ?? me;
         const seek = makeSeek(
           crypto.randomUUID(),
-          me,
-          { variantId: QUICK_VARIANT(), timeControlId: msg.timeControlId, color: 'random' },
+          player,
+          { variantId: QUICK_VARIANT(), timeControlId: msg.timeControlId, color: 'random', rated },
           true,
           Date.now(),
         );
@@ -143,6 +176,8 @@ export class Lobby extends DurableObject<Env> {
         const seek = holder && this.attachment(holder).seek;
         if (!holder || !seek) return this.send(ws, { t: 'error', code: 'gone' });
         if (seek.player.id === me.id) return this.send(ws, { t: 'error', code: 'own-seek' });
+        if (seek.rated && !this.attachment(ws).account)
+          return this.send(ws, { t: 'error', code: 'rated-needs-account' });
         return this.pair(seek, ws);
       }
       default:
@@ -164,8 +199,8 @@ export class Lobby extends DurableObject<Env> {
     const seekerToken = crypto.randomUUID();
     const takerToken = crypto.randomUUID();
     const req = gameRequest(seek, Math.random);
-    const created = createRoom(gameId, req, seekerToken, Math.random);
-    const joined = joinRoom(created.room, me.name, takerToken);
+    const created = createRoom(gameId, req, seekerToken, Math.random, this.attachment(holder).account ?? null);
+    const joined = joinRoom(created.room, me.name, takerToken, this.attachment(taker).account ?? null);
     const stub = this.env.GAME.get(this.env.GAME.idFromName(gameId));
     const res = await stub.fetch(`https://room/adopt?id=${gameId}`, {
       method: 'POST',
