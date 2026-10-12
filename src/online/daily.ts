@@ -69,8 +69,7 @@ export function streakOf(solvedDays: Iterable<string>, today: string): number {
 
 const EMOJI: Record<DailySquare, string> = { h: '🟩', m: '🟥', s: '⬛' };
 
-export const gridEmoji = (grid: string): string =>
-  [...grid].map((c) => EMOJI[c as DailySquare] ?? '').join('');
+export const gridEmoji = (grid: string): string => [...grid].map((c) => EMOJI[c as DailySquare] ?? '').join('');
 
 /** The text to share: "punkchess #12 🟩🟥🟩 🔥3" and a link. */
 export function dailyShareText(number: number, grid: string, streak: number, url: string): string {

@@ -73,7 +73,8 @@ export const tr = {
   'daily.next': 'Sonraki bulmaca {time} sonra',
   'daily.newOne': 'Yeni bulmaca hazır: sayfayı yenile.',
   'daily.note': 'Herkese aynı bulmaca, her gece yarısı yenisi. Bulmaca puanını etkilemez.',
-  'daily.guestNote': 'Herkese aynı bulmaca, her gece yarısı yenisi. Serin bu tarayıcıda tutulur; giriş yaparsan hesabına kaydedilir.',
+  'daily.guestNote':
+    'Herkese aynı bulmaca, her gece yarısı yenisi. Serin bu tarayıcıda tutulur; giriş yaparsan hesabına kaydedilir.',
   'puzzle.daily': 'Günün sabotajı',
   'puzzle.loading': 'Bulmaca hazırlanıyor…',
   'puzzle.empty': 'Bulmaca bulunamadı.',
@@ -574,7 +575,8 @@ export const en: Record<MessageKey, string> = {
   'daily.next': 'Next puzzle in {time}',
   'daily.newOne': 'A new puzzle is out: reload the page.',
   'daily.note': 'The same puzzle for everyone, a new one every midnight. It does not change your puzzle rating.',
-  'daily.guestNote': 'The same puzzle for everyone, a new one every midnight. Your streak is kept in this browser; sign in to keep it on your account.',
+  'daily.guestNote':
+    'The same puzzle for everyone, a new one every midnight. Your streak is kept in this browser; sign in to keep it on your account.',
   'puzzle.daily': 'Daily sabotage',
   'puzzle.loading': 'Setting up the puzzle…',
   'puzzle.empty': 'No puzzle found.',

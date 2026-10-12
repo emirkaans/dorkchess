@@ -53,10 +53,7 @@ async function puzzleOf(db: D1Database, day: string): Promise<PuzzleRow | null> 
   const pool = `FROM puzzles p WHERE p.variant_id = ?1 AND p.rating BETWEEN ?2 AND ?3
     AND p.id NOT IN (SELECT puzzle_id FROM daily_puzzles)`;
   const variantId = listVariants()[0].id;
-  const count = await db
-    .prepare(`SELECT count(*) AS n ${pool}`)
-    .bind(variantId, LOW, HIGH)
-    .first<{ n: number }>();
+  const count = await db.prepare(`SELECT count(*) AS n ${pool}`).bind(variantId, LOW, HIGH).first<{ n: number }>();
   if (!count?.n) return null;
   const picked = await db
     .prepare(`SELECT p.id ${pool} ORDER BY p.id LIMIT 1 OFFSET ?4`)
