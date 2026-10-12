@@ -27,6 +27,7 @@ import { RuleCardModal } from './RuleCardModal.tsx';
 import { SettingsDialog } from './SettingsDialog.tsx';
 import { SignupPage } from './SignupPage.tsx';
 import { ProfilePage } from './ProfilePage.tsx';
+import { PuzzlePage } from './PuzzlePage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
@@ -88,6 +89,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   // A game address opened directly shows a short loading state while the game is looked up.
   // The profile shown on the profile page (/@/<username>).
   const [profileName, setProfileName] = useState<string | null>(null);
+  // The puzzle asked for by the address (/puzzles/<id>), or null for the next one.
+  const [puzzleId, setPuzzleId] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => (parseRoute(location.pathname).kind === 'home' ? 'home' : 'loading'));
   /** Online game shown on the online page (null: its lobby). */
   const [onlineId, setOnlineId] = useState<string | null>(null);
@@ -241,6 +244,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         return setPage('online');
       }
       if (r.kind === 'signup') return setPage('signup');
+      if (r.kind === 'puzzles') {
+        setPuzzleId(r.id);
+        return setPage('puzzles');
+      }
       if (r.kind === 'profile') {
         setProfileName(r.username);
         return setPage('profile');
@@ -370,11 +377,12 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       const id = review.review.gameId;
       want = pathOf(review.review.watch ? { kind: 'game', id } : { kind: 'review', id });
     } else if (page === 'review') want = location.pathname;
+    else if (page === 'puzzles') want = pathOf({ kind: 'puzzles', id: puzzleId });
     else if (page === 'profile')
       want = profileName ? pathOf({ kind: 'profile', username: profileName }) : location.pathname;
     else want = pathOf({ kind: page });
     if (want !== location.pathname) history.pushState(null, '', want);
-  }, [page, onlineId, review, session.gameId, profileName]);
+  }, [page, onlineId, review, session.gameId, profileName, puzzleId]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -438,6 +446,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           setPage('online');
         }}
         onAnalysis={() => setPage('analysis')}
+        onPuzzles={() => {
+          setPuzzleId(null);
+          setPage('puzzles');
+        }}
         onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
       />
@@ -461,6 +473,15 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           onOnline={() => {
             setOnlineId(null);
             setPage('online');
+          }}
+        />
+      ) : page === 'puzzles' ? (
+        <PuzzlePage
+          puzzleId={puzzleId}
+          prefs={prefs}
+          onOpen={(path) => {
+            history.pushState(null, '', path);
+            applyRouteRef.current(parseRoute(path));
           }}
         />
       ) : page === 'profile' && profileName ? (

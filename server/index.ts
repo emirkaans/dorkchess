@@ -8,6 +8,7 @@
 //   GET  /api/lobby/ws            WebSocket to the lobby (open seeks, quick pairing)
 //   /auth/*, /api/me, /api/auth/*  accounts (server/auth.ts)
 //   /api/users/:username[/games|/history]  public profiles (server/profiles.ts)
+//   /api/puzzles/next, /api/puzzles/:id[/result]  puzzles (server/puzzles.ts)
 //   PUT  /api/games/:id/record    stores a local game (bot / two players) so its link works anywhere
 //   GET  /og/:id.png              link-preview picture of a game
 // Game pages (/<id>, /<id>/analysis) get link-preview tags for that game.
@@ -18,6 +19,7 @@ import type { GameInfo } from '../src/online/record.ts';
 import { previewTags, previewVersion } from './og.ts';
 import { currentUser, handleAuth } from './auth.ts';
 import { handleProfiles } from './profiles.ts';
+import { handlePuzzles } from './puzzles.ts';
 
 export { GameRoom } from './game-room.ts';
 export { Lobby } from './lobby.ts';
@@ -90,6 +92,8 @@ export default {
     if (auth) return auth;
     const profile = await handleProfiles(request, env, url);
     if (profile) return profile;
+    const puzzles = await handlePuzzles(request, env, url);
+    if (puzzles) return puzzles;
 
     if (url.pathname === '/api/lobby/ws') {
       // One lobby for the whole site. A signed-in player is told to it by these headers

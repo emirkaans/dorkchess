@@ -3069,6 +3069,59 @@ button.primary:hover:not(:disabled) {
   }
 }
 
+/* Puzzles: the analysis page layout with a status line, the rating and theme filters. */
+.puzzle-status {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font: 400 20px/1.2 var(--marker);
+}
+.puzzle-status.wrong {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.puzzle-status.solved {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+.puzzle-rating {
+  margin: 0;
+}
+.puzzle-rating strong {
+  font: 400 26px/1 var(--display);
+  letter-spacing: 0.02em;
+}
+.puzzle-rating .up {
+  color: var(--lime);
+  font-weight: 700;
+}
+.puzzle-rating .down {
+  color: var(--pink);
+  font-weight: 700;
+}
+.puzzle-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+.puzzle-actions .analysis-go {
+  grid-column: 1 / -1;
+}
+.puzzle-themes .chip {
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.puzzle-info,
+.puzzle-note,
+.puzzle-credit {
+  margin: 0;
+  font-size: 13px;
+}
+.puzzle-credit {
+  font-size: 11px;
+}
+
 /* Profile page (/@/<username>). */
 .profile-page {
   max-width: 900px;

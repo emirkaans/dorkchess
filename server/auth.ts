@@ -51,7 +51,11 @@ const redirect = (to: string, cookies: string[] = []) => {
 };
 
 /** POSTs must come from this site's own pages. */
-const sameOrigin = (request: Request, origin: string) => request.headers.get('origin') === origin;
+/** POSTs must come from this site's own pages (its public address, or the address the request came to). */
+export const sameOrigin = (request: Request, origin: string, url?: URL) => {
+  const from = request.headers.get('origin');
+  return from === origin || (!!url && from === url.origin);
+};
 
 // ---------------------------------------------------------------------------
 // Sessions
@@ -191,7 +195,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/username' && request.method === 'POST') {
-    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin, url)) return json({ error: 'forbidden' }, 403);
     const signup = await pendingSignup(request, env);
     if (!signup) return json({ error: 'no-signup' }, 400);
     const body = (await request.json().catch(() => ({}))) as { username?: unknown };
@@ -223,7 +227,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/delete' && request.method === 'POST') {
-    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin, url)) return json({ error: 'forbidden' }, 403);
     const user = await currentUser(request, env);
     if (!user) return json({ error: 'signed-out' }, 401);
     await env.DB.batch([
@@ -237,7 +241,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   }
 
   if (path === '/api/auth/logout' && request.method === 'POST') {
-    if (!sameOrigin(request, origin)) return json({ error: 'forbidden' }, 403);
+    if (!sameOrigin(request, origin, url)) return json({ error: 'forbidden' }, 403);
     const token = parseCookies(request.headers.get('cookie'))[SESSION_COOKIE];
     if (token)
       await env.DB.prepare('DELETE FROM sessions WHERE id = ?1')

@@ -4,6 +4,7 @@
 //   /online           create an online game
 //   /signup           pick a username after the first sign-in
 //   /@/<username>     a player's profile
+//   /puzzles          puzzles (/puzzles/<id>: one puzzle)
 //   /<gameId>         a game (being played, or finished)
 //   /<gameId>/analysis   analysis of that game
 // Pure: no React, no DOM.
@@ -14,11 +15,12 @@ export type Route =
   | { readonly kind: 'online' }
   | { readonly kind: 'signup' }
   | { readonly kind: 'profile'; readonly username: string }
+  | { readonly kind: 'puzzles'; readonly id: string | null }
   | { readonly kind: 'game'; readonly id: string }
   | { readonly kind: 'review'; readonly id: string };
 
 /** Paths that are pages, not game ids. */
-const RESERVED = new Set(['analysis', 'online', 'signup', 'auth', 'assets', 'icons', 'api']);
+const RESERVED = new Set(['analysis', 'online', 'signup', 'auth', 'puzzles', 'assets', 'icons', 'api']);
 /** Game ids: 8 letters / digits; older history records also have dashes. */
 const GAME = /^\/([A-Za-z0-9][A-Za-z0-9-]{3,39})(\/analysis)?$/;
 
@@ -35,6 +37,9 @@ export function parseRoute(pathname: string): Route {
   if (p === '/analysis') return { kind: 'analysis' };
   if (p === '/online') return { kind: 'online' };
   if (p === '/signup') return { kind: 'signup' };
+  if (p === '/puzzles') return { kind: 'puzzles', id: null };
+  const puzzle = /^\/puzzles\/([A-Za-z0-9]{3,16})$/.exec(p);
+  if (puzzle) return { kind: 'puzzles', id: puzzle[1] };
   const profile = /^\/@\/([A-Za-z][A-Za-z0-9_-]{2,19})$/.exec(p);
   if (profile) return { kind: 'profile', username: profile[1] };
   const m = GAME.exec(p);
@@ -54,6 +59,8 @@ export function pathOf(r: Route): string {
       return '/signup';
     case 'profile':
       return `/@/${r.username}`;
+    case 'puzzles':
+      return r.id ? `/puzzles/${r.id}` : '/puzzles';
     case 'game':
       return `/${r.id}`;
     case 'review':

@@ -5,7 +5,7 @@ import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
 
-export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'profile' | 'loading';
+export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'profile' | 'puzzles' | 'loading';
 
 interface Props {
   page: Page;
@@ -15,12 +15,13 @@ interface Props {
   /** Play: the online lobby (the computer and two-player games are offered there too). */
   onPlay: () => void;
   onAnalysis: () => void;
+  onPuzzles: () => void;
   onHistory: () => void;
   onSettings: () => void;
 }
 
 /** Top bar: logo, main menu (home, play, online, analysis, history), language and settings. */
-export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHistory, onSettings }: Props) {
+export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onPuzzles, onHistory, onSettings }: Props) {
   const { t } = useI18n();
   // Publishes the bar's height as --toolbar-h (the home hero slides under the bar by that much).
   const ref = useRef<HTMLElement>(null);
@@ -70,6 +71,13 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onHi
             onClick={close(onPlay)}
           >
             {t('menu.play')}
+          </button>
+          <button
+            className={page === 'puzzles' ? 'on' : ''}
+            aria-current={page === 'puzzles' ? 'page' : undefined}
+            onClick={close(onPuzzles)}
+          >
+            {t('menu.puzzles')}
           </button>
           <button
             className={page === 'analysis' ? 'on' : ''}

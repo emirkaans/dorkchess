@@ -157,15 +157,15 @@ export function ProfilePage({ username, onOpen }: Props) {
       </section>
 
       <section className="rating-cards" aria-label={t('profile.ratings')}>
-        {allCategories()
-          .filter((c) => listVariants().some((v) => v.id === (variantOfCategory(c) ?? v.id)))
+        {[...allCategories(), 'puzzle']
+          .filter((c) => c === 'puzzle' || listVariants().some((v) => v.id === (variantOfCategory(c as never) ?? v.id)))
           .map((c) => {
             const r = byCategory.get(c);
             return (
               <button
                 key={c}
                 className={`rating-card${r ? '' : ' empty'}${category === c ? ' on' : ''}`}
-                onClick={() => r && setCategory(c)}
+                onClick={() => r && c !== 'puzzle' && setCategory(c)}
                 disabled={!r}
                 aria-pressed={category === c}
               >
@@ -174,7 +174,9 @@ export function ProfilePage({ username, onOpen }: Props) {
                   {r ? r.rating : '—'}
                   {r?.provisional ? '?' : ''}
                 </span>
-                <span className="rating-games">{t('profile.gamesShort', { n: String(r?.games ?? 0) })}</span>
+                <span className="rating-games">
+                  {t(c === 'puzzle' ? 'profile.puzzlesShort' : 'profile.gamesShort', { n: String(r?.games ?? 0) })}
+                </span>
               </button>
             );
           })}
