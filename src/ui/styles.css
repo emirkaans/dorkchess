@@ -3122,6 +3122,82 @@ button.primary:hover:not(:disabled) {
   font-size: 11px;
 }
 
+/* The daily puzzle (/daily) and its box on the home page. */
+.daily-number {
+  color: var(--pink);
+}
+.daily-grid {
+  margin: 0;
+  min-height: 34px;
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  word-break: break-all;
+}
+.daily-grid .muted {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.daily-done {
+  display: grid;
+  gap: 10px;
+}
+.daily-streak {
+  margin: 0;
+}
+.daily-streak strong {
+  font: 400 26px/1 var(--display);
+  color: var(--lime);
+}
+.daily-next {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.daily-link {
+  justify-self: start;
+  min-height: 36px;
+  font-size: 14px;
+}
+.daily-box {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 18px;
+  margin-bottom: 18px;
+  padding: 10px 16px;
+  border: 2px dashed var(--lime);
+  background: rgba(10, 10, 11, 0.6);
+  color: var(--fg);
+  text-align: left;
+}
+.daily-box:hover {
+  border-style: solid;
+  color: var(--lime);
+}
+.daily-box-title {
+  font: 400 24px/1.1 var(--marker);
+}
+.daily-box-title b {
+  color: var(--pink);
+  font-weight: 400;
+}
+.daily-box-sub {
+  grid-column: 1;
+  display: flex;
+  gap: 12px;
+  font-size: 15px;
+}
+.daily-box-streak {
+  color: var(--lime);
+}
+.daily-box .arrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 22px;
+  height: 22px;
+}
+
 /* Profile page (/@/<username>). */
 .profile-page {
   max-width: 900px;

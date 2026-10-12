@@ -28,6 +28,7 @@ import { SettingsDialog } from './SettingsDialog.tsx';
 import { SignupPage } from './SignupPage.tsx';
 import { ProfilePage } from './ProfilePage.tsx';
 import { PuzzlePage } from './PuzzlePage.tsx';
+import { DailyPage } from './DailyPage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
 import { GearIcon, Toolbar } from './Toolbar.tsx';
@@ -238,7 +239,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   useEffect(() => {
     applyRouteRef.current = (r: Route) => {
       setShowHistory(false);
-      if (r.kind === 'home' || r.kind === 'analysis') return setPage(r.kind);
+      if (r.kind === 'home' || r.kind === 'analysis' || r.kind === 'daily') return setPage(r.kind);
       if (r.kind === 'online') {
         setOnlineId(null);
         return setPage('online');
@@ -474,7 +475,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             setOnlineId(null);
             setPage('online');
           }}
+          onDaily={() => setPage('daily')}
         />
+      ) : page === 'daily' ? (
+        <DailyPage prefs={prefs} />
       ) : page === 'puzzles' ? (
         <PuzzlePage
           puzzleId={puzzleId}

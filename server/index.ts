@@ -19,6 +19,7 @@ import type { GameInfo } from '../src/online/record.ts';
 import { previewTags, previewVersion } from './og.ts';
 import { currentUser, handleAuth } from './auth.ts';
 import { handleProfiles } from './profiles.ts';
+import { handleDaily } from './daily.ts';
 import { handlePuzzles } from './puzzles.ts';
 
 export { GameRoom } from './game-room.ts';
@@ -94,6 +95,8 @@ export default {
     if (profile) return profile;
     const puzzles = await handlePuzzles(request, env, url);
     if (puzzles) return puzzles;
+    const daily = await handleDaily(request, env, url);
+    if (daily) return daily;
 
     if (url.pathname === '/api/lobby/ws') {
       // One lobby for the whole site. A signed-in player is told to it by these headers

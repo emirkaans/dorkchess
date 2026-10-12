@@ -1,4 +1,6 @@
 import { listVariants } from '../engine/index.ts';
+import { dailyDay, dailyNumber, gridEmoji } from '../online/daily.ts';
+import { dailyResults, localStreak } from './DailyPage.tsx';
 import type { PieceType, VariantDefinition } from '../engine/index.ts';
 import { useI18n } from './i18n.tsx';
 import { PieceView } from './PieceView.tsx';
@@ -10,6 +12,8 @@ interface Props {
   onPlay: (patch?: Partial<GameSettings>) => void;
   /** Opens online play (the lobby): the main way to play. */
   onOnline: () => void;
+  /** Opens the daily puzzle. */
+  onDaily: () => void;
 }
 
 const STANDARD_TYPES = new Set(['k', 'q', 'r', 'b', 'n', 'p']);
@@ -32,8 +36,11 @@ function Arrow() {
 }
 
 /** Landing page: hero, the variants and the ways to play. */
-export function HomePage({ onPlay, onOnline }: Props) {
+export function HomePage({ onPlay, onOnline, onDaily }: Props) {
   const { t, vt } = useI18n();
+  const today = dailyDay(Date.now());
+  const done = dailyResults()[today];
+  const streak = localStreak(today);
   return (
     <div className="home">
       <section className="hero">
@@ -63,6 +70,16 @@ export function HomePage({ onPlay, onOnline }: Props) {
               {t('home.explore')}
             </a>
           </div>
+          <button className="daily-box" onClick={onDaily}>
+            <span className="daily-box-title">
+              {t('daily.title')} <b>#{dailyNumber(today)}</b>
+            </span>
+            <span className="daily-box-sub">
+              {done ? gridEmoji(done) : t('daily.homeCta')}
+              {streak > 0 && <span className="daily-box-streak">🔥 {streak}</span>}
+            </span>
+            <Arrow />
+          </button>
           <ul className="facts">
             <li>{t('home.fact1')}</li>
             <li>{t('home.fact2')}</li>

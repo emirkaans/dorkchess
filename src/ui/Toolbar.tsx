@@ -5,7 +5,7 @@ import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
 
-export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'profile' | 'puzzles' | 'loading';
+export type Page = 'home' | 'game' | 'analysis' | 'online' | 'review' | 'signup' | 'profile' | 'puzzles' | 'daily' | 'loading';
 
 interface Props {
   page: Page;
@@ -73,7 +73,7 @@ export function Toolbar({ page, prefs, onPrefs, onHome, onPlay, onAnalysis, onPu
             {t('menu.play')}
           </button>
           <button
-            className={page === 'puzzles' ? 'on' : ''}
+            className={page === 'puzzles' || page === 'daily' ? 'on' : ''}
             aria-current={page === 'puzzles' ? 'page' : undefined}
             onClick={close(onPuzzles)}
           >
