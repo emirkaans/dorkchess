@@ -49,7 +49,17 @@ export interface Room {
   readonly rematchId?: string | null;
   /** Deadline per disconnected player (playing phase only). */
   readonly gone: Readonly<Partial<Record<Color, number>>>;
+  /** Network delay each player may still get back on the clock (see LAG). */
+  readonly lagBank?: Readonly<Partial<Record<Color, number>>>;
 }
+
+/**
+ * Lag compensation, as on lichess: a move gets back the sender's reported
+ * network round trip, up to `perMove`, paid from a bank that starts full and
+ * refills a little with every move. A fast connection hardly uses it; a lying
+ * client gains at most `refill` per move.
+ */
+export const LAG = { perMove: 500, bank: 2000, refill: 250 } as const;
 
 export class RoomError extends Error {
   constructor(readonly code: ErrorCode) {
@@ -140,11 +150,27 @@ export function answerSetup(room: Room, color: Color, answers: Readonly<Record<s
 }
 
 /** The game so far, replayed with the engine. */
+// Last replayed position per game, so each move only plays the new moves
+// (replaying a long game from the start on every message is slow).
+const replays = new Map<string, { startFen: string; moves: readonly WireMove[]; state: GameState }>();
+
+/** Is `prefix` the start of `moves`? (Cheap: no move generation.) */
+const startsWith = (moves: readonly WireMove[], prefix: readonly WireMove[]) =>
+  prefix.length <= moves.length &&
+  prefix.every((m, i) => m.from === moves[i].from && m.to === moves[i].to && m.promotion === moves[i].promotion);
+
 export function gameOf(room: Room): GameState | null {
   if (!room.startFen) return null;
   const v = getVariant(room.variantId);
-  let state = createGame(v, room.startFen);
-  for (const m of room.moves) state = makeMove(v, state, findMove(v, state, m.from, m.to, m.promotion)!);
+  const cached = replays.get(room.id);
+  const usable = cached && cached.startFen === room.startFen && startsWith(room.moves, cached.moves);
+  let state = usable ? cached.state : createGame(v, room.startFen);
+  for (let i = usable ? cached.moves.length : 0; i < room.moves.length; i++) {
+    const m = room.moves[i];
+    state = makeMove(v, state, findMove(v, state, m.from, m.to, m.promotion)!);
+  }
+  if (replays.size > 500 && !replays.has(room.id)) replays.delete(replays.keys().next().value!);
+  replays.set(room.id, { startFen: room.startFen, moves: room.moves, state });
   return state;
 }
 
@@ -168,7 +194,7 @@ export function tick(room: Room, now: number, state: GameState | null = gameOf(r
 }
 
 /** `color` plays a move; `ply` is the number of moves the client saw (stale moves are refused). */
-export function playMove(room: Room, color: Color, move: WireMove, ply: number, now: number): Room {
+export function playMove(room: Room, color: Color, move: WireMove, ply: number, now: number, lag = 0): Room {
   const state = gameOf(room);
   room = tick(room, now, state);
   if (room.phase === 'over') return room;
@@ -181,10 +207,13 @@ export function playMove(room: Room, color: Color, move: WireMove, ply: number, 
   const wire: WireMove = legal.promotion
     ? { from: legal.from, to: legal.to, promotion: legal.promotion }
     : { from: legal.from, to: legal.to };
+  const bank = room.lagBank?.[color] ?? LAG.bank;
+  const credit = Number.isFinite(lag) ? Math.max(0, Math.min(lag, LAG.perMove, bank)) : 0;
   const played: Room = {
     ...room,
     moves: [...room.moves, wire],
-    clock: pressClock(room.clock, color, now),
+    clock: pressClock(room.clock, color, now, credit),
+    lagBank: { ...room.lagBank, [color]: Math.min(LAG.bank, bank - credit + LAG.refill) },
     // A move answers a pending draw offer with no.
     drawOffer: null,
   };

@@ -96,7 +96,8 @@ export interface GameView {
 
 export type ClientMessage =
   | { readonly t: 'hello'; readonly token: string | null }
-  | { readonly t: 'move'; readonly move: WireMove; readonly ply: number }
+  /** `lag`: the sender's network round trip in ms (part of it is given back on the clock). */
+  | { readonly t: 'move'; readonly move: WireMove; readonly ply: number; readonly lag?: number }
   | { readonly t: 'setup'; readonly answers: Readonly<Record<string, string>> }
   | { readonly t: 'resign' }
   | { readonly t: 'draw'; readonly action: 'offer' | 'accept' | 'decline' }
