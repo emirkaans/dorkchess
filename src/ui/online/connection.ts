@@ -76,14 +76,38 @@ const wsUrl = (gameId: string) => {
   return `${proto}//${location.host}/api/games/${gameId}/ws`;
 };
 
-/** Keeps a WebSocket to the game open; a token (seat ticket) makes this tab that player. */
-export function useOnlineGame(gameId: string, token: string | null): OnlineLink {
+/** Ping interval while this tab plays a game: keeps the round-trip estimate fresh. */
+const FAST_PING_MS = 3000;
+
+/**
+ * Keeps a WebSocket to the game open; a token (seat ticket) makes this tab that player.
+ * While the player's game is on, the line is pinged often to measure the round
+ * trip, which moves carry so the server can give it back on the clock.
+ */
+export function useOnlineGame(
+  gameId: string,
+  token: string | null,
+  options: { onView?: (view: GameView) => void } = {},
+): OnlineLink {
   const [view, setView] = useState<GameView | null>(null);
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState<LinkStatus>('connecting');
   const [error, setError] = useState<ErrorCode | null>(null);
   const [sticker, setSticker] = useState<OnlineLink['sticker']>(null);
   const socket = useRef<WebSocket | null>(null);
+  // Round trip in ms (smoothed), and when the last ping went out.
+  const rtt = useRef<number | null>(null);
+  const pingSent = useRef<number | null>(null);
+  // Sees every view the moment it arrives, before React draws it (a premove goes out from there).
+  const onView = useRef(options.onView);
+  useEffect(() => {
+    onView.current = options.onView;
+  });
+  const sendPing = (ws: WebSocket | null) => {
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    pingSent.current = performance.now();
+    ws.send(JSON.stringify({ t: 'ping' } satisfies ClientMessage));
+  };
 
   useEffect(() => {
     let closed = false;
@@ -99,8 +123,9 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
         retry = 0;
         setStatus('open');
         ws.send(JSON.stringify({ t: 'hello', token } satisfies ClientMessage));
-        // Keeps proxies from dropping an idle connection.
-        ping = setInterval(() => ws.send(JSON.stringify({ t: 'ping' } satisfies ClientMessage)), 25_000);
+        // Keeps proxies from dropping an idle connection (and measures the round trip).
+        sendPing(ws);
+        ping = setInterval(() => sendPing(ws), 25_000);
       };
       ws.onmessage = (e) => {
         let msg: ServerMessage;
@@ -110,8 +135,15 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
           return;
         }
         if (msg.t === 'view') {
+          onView.current?.(msg.view);
           setOffset(Date.now() - msg.view.now);
           setView(msg.view);
+        } else if (msg.t === 'pong') {
+          if (pingSent.current !== null) {
+            const sample = performance.now() - pingSent.current;
+            pingSent.current = null;
+            rtt.current = rtt.current === null ? sample : 0.7 * rtt.current + 0.3 * sample;
+          }
         } else if (msg.t === 'sticker') {
           const { from, id } = msg;
           setSticker((s) => ({ from, id, key: (s?.key ?? 0) + 1 }));
@@ -140,8 +172,17 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineLink 
     };
   }, [gameId, token]);
 
+  const live = view?.phase === 'playing' && view.you !== null;
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => sendPing(socket.current), FAST_PING_MS);
+    return () => clearInterval(id);
+  }, [live]);
+
   const send = (msg: ClientMessage) => {
-    if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(msg));
+    if (socket.current?.readyState !== WebSocket.OPEN) return;
+    const out = msg.t === 'move' && rtt.current !== null ? { ...msg, lag: Math.round(rtt.current) } : msg;
+    socket.current.send(JSON.stringify(out));
   };
   return { view, offset, status, error, send, sticker };
 }

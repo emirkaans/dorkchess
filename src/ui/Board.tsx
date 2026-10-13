@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   FILES,
@@ -101,6 +101,18 @@ export function Board({
     dragRef.current = d;
     setDrag(d);
   };
+  // The dragged piece follows the pointer by moving its element directly: re-rendering
+  // the board on every pointer move is too slow on phones.
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const placeGhost = () => {
+    const d = dragRef.current;
+    const g = ghostRef.current;
+    const r = boardRef.current?.getBoundingClientRect();
+    if (!d || !g || !r) return;
+    g.style.left = `${d.x - r.left - r.width / 16}px`;
+    g.style.top = `${d.y - r.top - r.height / 16}px`;
+  };
+  useLayoutEffect(placeGhost);
   const [shapes, setShapes] = useState<{ arrows: Arrow[]; circles: Circle[] }>({ arrows: [], circles: [] });
   const [drawing, setDrawing] = useState<Drawing | null>(null);
   const drawingRef = useRef<Drawing | null>(null);
@@ -259,7 +271,13 @@ export function Board({
     const d = dragRef.current;
     if (!d) return;
     const moved = d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4;
-    updateDrag({ ...d, x: e.clientX, y: e.clientY, moved });
+    const next = { ...d, x: e.clientX, y: e.clientY, moved };
+    // Only starting to move needs a render (the piece leaves its square); after that just the ghost moves.
+    if (moved !== d.moved) updateDrag(next);
+    else {
+      dragRef.current = next;
+      placeGhost();
+    }
   };
 
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -376,15 +394,7 @@ export function Board({
         <ShapeLayer arrows={allArrows} circles={shapes.circles} preview={drawing} flipped={flipped} />
       )}
       {dragPiece && drag && rect && (
-        <div
-          className="drag-ghost"
-          style={{
-            width: rect.width / 8,
-            height: rect.height / 8,
-            left: drag.x - rect.left - rect.width / 16,
-            top: drag.y - rect.top - rect.height / 16,
-          }}
-        >
+        <div ref={ghostRef} className="drag-ghost" style={{ width: rect.width / 8, height: rect.height / 8 }}>
           <PieceView variant={variant} piece={dragPiece} position={position} />
         </div>
       )}

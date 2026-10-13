@@ -283,7 +283,7 @@ export class GameRoom extends DurableObject<Env> {
       let next: Room;
       switch (msg.t) {
         case 'move':
-          next = playMove(room, color, msg.move, msg.ply, now);
+          next = playMove(room, color, msg.move, msg.ply, now, typeof msg.lag === 'number' ? msg.lag : 0);
           break;
         case 'setup':
           next = answerSetup(room, color, msg.answers);

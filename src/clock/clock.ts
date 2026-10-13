@@ -72,11 +72,13 @@ export function flagged(c: ClockState, now: number): Color | null {
  * the opponent's starts. The very first move of the game only starts the
  * clock (it costs the mover nothing and adds no increment).
  */
-export function pressClock(c: ClockState, mover: Color, now: number): ClockState {
+export function pressClock(c: ClockState, mover: Color, now: number, creditMs = 0): ClockState {
   if (c.stopped || !isTimed(c)) return c;
   const next = opposite(mover);
   if (c.running === null) return { ...c, running: next, since: now };
-  const left = remainingMs(c, mover, now);
+  // Network delay given back (online play), never more than the move itself took.
+  const credit = Math.max(0, Math.min(creditMs, now - c.since));
+  const left = remainingMs(c, mover, now) + credit;
   return {
     ...c,
     remaining: { ...c.remaining, [mover]: left + c.control.incrementMs },
