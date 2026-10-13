@@ -439,7 +439,7 @@ describe('uygulama: erişilebilirlik', () => {
     expect(status()).toContain('Mat');
   });
 
-  it('geçmişteki oyun analiz sayfasında kendi adresiyle açılır; adres yeniden açılabilir', async () => {
+  it('biten oyunun analizi kendi adresiyle yeniden açılabilir', async () => {
     startGame({ mode: 'hotseat' });
     for (const [a, b] of [
       ['f2', 'f3'],
@@ -450,13 +450,6 @@ describe('uygulama: erişilebilirlik', () => {
       move(a, b);
     expect(location.pathname).toMatch(/^\/[A-Za-z0-9]{8}$/); // the game's own address
     const gamePath = location.pathname;
-    fireEvent.click(screen.getByRole('button', { name: 'Geçmiş' }));
-    fireEvent.click(screen.getByRole('button', { name: 'İzle' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.querySelector('.review-page .viewer')).not.toBeNull();
-    expect(location.pathname).toBe(`${gamePath}/analysis`);
-    fireEvent.click(screen.getByRole('button', { name: '← Geçmişe dön' }));
-    expect(screen.getByRole('dialog', { name: 'Oyun geçmişi' })).toBeTruthy();
     // The address alone opens the game again (reload or a bookmark).
     cleanup();
     history.replaceState(null, '', `${gamePath}/analysis`);
@@ -468,6 +461,11 @@ describe('uygulama: erişilebilirlik', () => {
       'g4',
       'Qh4#',
     ]);
+  });
+
+  it('menüde geçmiş yok', () => {
+    render(<App />);
+    expect(screen.queryByRole('button', { name: 'Geçmiş' })).toBeNull();
   });
 
   it('kural kartı yeni oyunda yalnızca varyantlarda kendiliğinden açılır', () => {

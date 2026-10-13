@@ -9,7 +9,6 @@ import { BoardResizer } from './BoardResizer.tsx';
 import { GameControls, GameTools } from './GameControls.tsx';
 import { GameOverOverlay } from './GameOverOverlay.tsx';
 import { GameViewer } from './GameViewer.tsx';
-import { HistoryModal } from './HistoryModal.tsx';
 import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
@@ -52,7 +51,7 @@ import { I18nProvider, useI18n } from './i18n.tsx';
 import { applyUpdate, onUpdateReady } from '../pwa/register.ts';
 import { decodeLink } from '../storage/share.ts';
 import { isGameId } from '../online/record.ts';
-import { fetchGameInfo, uploadRecord, useRecordFeed } from './online/connection.ts';
+import { fetchGameInfo, useRecordFeed } from './online/connection.ts';
 import { parseRoute, pathOf } from './routes.ts';
 import type { Route } from './routes.ts';
 import type { GameState } from '../engine/index.ts';
@@ -100,10 +99,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   /** Settings the new game dialog opens with (null: closed). */
   const [newGame, setNewGame] = useState<GameSettings | null>(null);
   const [showRules, setShowRules] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   /** Finished game shown on the review (post-game analysis) page, and the page to go back to. */
-  const [review, setReview] = useState<{ review: Review; back: Page | 'history' } | null>(null);
+  const [review, setReview] = useState<{ review: Review; back: Page } | null>(null);
   const [tab, setTab] = useState<Tab>('moves');
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<Move[] | null>(null);
@@ -190,7 +188,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   };
 
   const fen = toFen(variant, game.position);
-  const openReview = (r: Omit<Review, 'key'>, back: Page | 'history') => {
+  const openReview = (r: Omit<Review, 'key'>, back: Page) => {
     setReview({ review: { ...r, key: Date.now() }, back });
     setPage('review');
     window.scrollTo(0, 0);
@@ -211,25 +209,15 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       live: watch && g.result === '*',
     };
   };
-  const openRecord = (id: string, g: SavedGame, back: Page | 'history', watch = false) =>
+  const openRecord = (id: string, g: SavedGame, back: Page, watch = false) =>
     openReview(reviewOfRecord(id, g, watch), back);
-  /** A game from the history; its server copy is refreshed so the link works for others too. */
-  const openSaved = (g: SavedGame) => {
-    setShowHistory(false);
-    if (isGameId(g.id)) void uploadRecord(g.id, { ...g, timeControlId: '' });
-    openRecord(g.id, g, 'history');
-  };
   const leaveReview = () => {
     if (!review) return;
-    if (review.back === 'history') {
-      setPage('home');
-      setShowHistory(true);
-    } else setPage(review.back);
+    setPage(review.back);
   };
   const openAnalysis = (variantId: string, states: readonly GameState[], cursor: number) => {
     setAnalysisSeed({ key: Date.now(), variantId, states, cursor });
     setSharedGame(null);
-    setShowHistory(false);
     setPage('analysis');
   };
 
@@ -240,7 +228,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const applyRouteRef = useRef<(r: Route) => void>(() => {});
   useEffect(() => {
     applyRouteRef.current = (r: Route) => {
-      setShowHistory(false);
       if (
         r.kind === 'home' ||
         r.kind === 'analysis' ||
@@ -295,7 +282,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           history.replaceState(null, '', '/');
           return setPage('home');
         }
-        openRecord(id, record, saved ? 'history' : 'home', r.kind === 'game');
+        openRecord(id, record, 'home', r.kind === 'game');
       })();
     };
   });
@@ -461,7 +448,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           setPage('puzzles');
         }}
         onLeaderboard={() => setPage('leaderboard')}
-        onHistory={() => setShowHistory(true)}
         onSettings={() => setShowSettings(true)}
       />
 
@@ -523,7 +509,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         <ReviewPage
           review={review.review}
           onBack={leaveReview}
-          backLabel={review.back === 'history' ? t('review.backHistory') : t('review.back')}
+          backLabel={t('review.back')}
           onOpenAnalysis={openAnalysis}
         />
       ) : page === 'online' ? (
@@ -768,7 +754,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         </main>
       )}
 
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} onOpenGame={openSaved} />}
       {showSettings && <SettingsDialog prefs={prefs} onPrefs={setPrefs} onClose={() => setShowSettings(false)} />}
       {sharedGame && (
         <Modal label={t('analysis.shared')} className="viewer-modal" onClose={() => setSharedGame(null)}>

@@ -29,7 +29,6 @@ interface Props {
   onAnalysis: () => void;
   onPuzzles: () => void;
   onLeaderboard: () => void;
-  onHistory: () => void;
   onSettings: () => void;
 }
 
@@ -43,7 +42,6 @@ export function Toolbar({
   onAnalysis,
   onPuzzles,
   onLeaderboard,
-  onHistory,
   onSettings,
 }: Props) {
   const { t } = useI18n();
@@ -117,7 +115,6 @@ export function Toolbar({
           >
             {t('menu.analysis')}
           </button>
-          <button onClick={close(onHistory)}>{t('toolbar.history')}</button>
           {menuOpen && (
             <select
               className="lang menu-lang"

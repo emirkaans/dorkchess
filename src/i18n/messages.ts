@@ -53,7 +53,6 @@ export const tr = {
 
   // Toolbar
   'toolbar.rules': 'Kurallar',
-  'toolbar.history': 'Geçmiş',
   'toolbar.language': 'Dil',
   'toolbar.sound': 'Ses',
   'toolbar.settings': 'Ayarlar',
@@ -279,18 +278,6 @@ export const tr = {
   'rules.ok': 'Tamam',
 
   // History and replay
-  'history.title': 'Geçmiş',
-  'history.label': 'Oyun geçmişi',
-  'history.empty': 'Henüz kayıtlı oyun yok. Biten oyunlar burada saklanır (en fazla 200).',
-  'history.date': 'Tarih',
-  'history.variant': 'Varyant',
-  'history.mode': 'Mod',
-  'history.players': 'Oyuncular',
-  'history.result': 'Sonuç',
-  'history.view': 'İzle',
-  'history.import': 'İçe aktar (PGN benzeri metin)',
-  'history.importButton': 'İçe aktar',
-  'history.back': '← Listeye dön',
   'history.imported': 'İçe aktarıldı',
 
   // Analysis and viewer
@@ -521,7 +508,6 @@ export const tr = {
   'tree.promote': 'Ana hat yap',
   'tree.delete': 'Buradan sonrasını sil',
   'review.back': '← Oyuna dön',
-  'review.backHistory': '← Geçmişe dön',
   'notice.gameNotFound': 'Bu linkte bir oyun bulunamadı.',
   'review.game': 'Oyun',
   'share.analysisLink': 'Analiz linki',
@@ -601,7 +587,6 @@ export const en: Record<MessageKey, string> = {
   'time.none': 'Unlimited',
 
   'toolbar.rules': 'Rules',
-  'toolbar.history': 'History',
   'toolbar.language': 'Language',
   'toolbar.sound': 'Sound',
   'toolbar.settings': 'Settings',
@@ -815,18 +800,6 @@ export const en: Record<MessageKey, string> = {
   'rules.dontShow': "Don't show again for this variant",
   'rules.ok': 'OK',
 
-  'history.title': 'History',
-  'history.label': 'Game history',
-  'history.empty': 'No saved games yet. Finished games are kept here (up to 200).',
-  'history.date': 'Date',
-  'history.variant': 'Variant',
-  'history.mode': 'Mode',
-  'history.players': 'Players',
-  'history.result': 'Result',
-  'history.view': 'View',
-  'history.import': 'Import (PGN-like text)',
-  'history.importButton': 'Import',
-  'history.back': '← Back to list',
   'history.imported': 'Imported',
 
   'analysis.button': 'Analyse the game',
@@ -1056,7 +1029,6 @@ export const en: Record<MessageKey, string> = {
   'tree.promote': 'Make main line',
   'tree.delete': 'Delete from here',
   'review.back': '← Back to the game',
-  'review.backHistory': '← Back to history',
   'notice.gameNotFound': 'No game was found at this link.',
   'review.game': 'Game',
   'share.analysisLink': 'Analysis link',
