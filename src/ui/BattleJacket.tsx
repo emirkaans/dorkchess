@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import { patchById } from '../achievements/patches.ts';
 import type { PatchDef, PatchShape } from '../achievements/patches.ts';
 import type { MessageKey } from '../i18n/index.ts';
@@ -30,48 +30,78 @@ function shapePath(shape: PatchShape, r = SIZE / 2): string {
 }
 
 /** A patch's short name, on up to two lines. */
-function lines(text: string): string[] {
-  const words = text.toUpperCase().split(' ');
+function lines(text: string, locale: string): string[] {
+  const words = text.toLocaleUpperCase(locale).split(' ');
   if (words.length < 2) return words;
   const mid = Math.ceil(words.length / 2);
   return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
 }
 
-/** One patch drawn at 0,0 (inside an <svg>). Locked ones are only a dashed outline. */
+/**
+ * One patch drawn at 0,0 (inside an <svg>): a glossy printed dome in the
+ * patch's shape, shaded toward a dark crimped rim, with a highlight kept
+ * inside the shape. Locked ones are only a dashed outline.
+ */
 export function PatchMark({ patch, label, locked = false }: { patch: PatchDef; label: string; locked?: boolean }) {
-  const text = lines(label);
+  const { locale } = useI18n();
+  // Ids for this patch's gradient and clip (useId's colons do not work inside url()).
+  const uid = `p${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const text = lines(label, locale);
   const small = patch.shape === 'star' || patch.shape === 'diamond';
+  const outline = shapePath(patch.shape);
+  const write = (fill: string, size: number) => {
+    // Stars and shields have their middle a little lower or higher.
+    const shift = patch.shape === 'star' ? 2.7 : patch.shape === 'shield' ? -2 : 0;
+    return text.map((line, i) => (
+      <text
+        key={i}
+        x="0"
+        y={(i - (text.length - 1) / 2) * size * 1.02 + size * 0.36 + shift}
+        textAnchor="middle"
+        fontSize={size}
+        fontFamily="'Bebas Neue', 'Oswald', 'Arial Narrow', sans-serif"
+        letterSpacing="0.3"
+        fill={fill}
+      >
+        {line}
+      </text>
+    ));
+  };
+  if (locked) {
+    return (
+      <g className="patch locked">
+        <path d={outline} fill="none" stroke="#55515c" strokeWidth="2.5" />
+        <path
+          d={shapePath(patch.shape, SIZE / 2 - 4)}
+          fill="none"
+          stroke="#55515c"
+          strokeWidth="1.2"
+          strokeDasharray="3 2"
+          opacity="0.6"
+        />
+        {write('#6f6a78', small ? 8 : 9.5)}
+      </g>
+    );
+  }
   return (
-    <g className={locked ? 'patch locked' : 'patch'}>
-      {!locked && <path d={shapePath(patch.shape)} transform="translate(2 3)" fill="rgba(0,0,0,0.45)" />}
-      <path
-        d={shapePath(patch.shape)}
-        fill={locked ? 'none' : patch.fill}
-        stroke={locked ? '#55515c' : '#0a0a0b'}
-        strokeWidth="2.5"
-      />
-      <path
-        d={shapePath(patch.shape, SIZE / 2 - 4)}
-        fill="none"
-        stroke={locked ? '#55515c' : patch.ink}
-        strokeWidth="1.2"
-        strokeDasharray="3 2"
-        opacity={locked ? 0.6 : 0.55}
-      />
-      {text.map((line, i) => (
-        <text
-          key={i}
-          x="0"
-          y={(i - (text.length - 1) / 2) * 10.5 + 3.5}
-          textAnchor="middle"
-          fontSize={small ? 8 : 9.5}
-          fontFamily="'Bebas Neue', 'Oswald', 'Arial Narrow', sans-serif"
-          letterSpacing="0.3"
-          fill={locked ? '#6f6a78' : patch.ink}
-        >
-          {line}
-        </text>
-      ))}
+    <g className="patch">
+      <defs>
+        <radialGradient id={`${uid}-dome`} cx="0.5" cy="0.45" r="0.55">
+          <stop offset="0.75" stopColor="#000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.45" />
+        </radialGradient>
+        <clipPath id={`${uid}-clip`}>
+          <path d={outline} />
+        </clipPath>
+      </defs>
+      <path d={outline} transform="translate(1.5 3.5)" fill="rgba(0,0,0,0.5)" />
+      <path d={outline} fill={patch.fill} />
+      <path d={outline} fill={`url(#${uid}-dome)`} />
+      {write(patch.ink, small ? 9.4 : text.length > 1 ? 10.7 : 13.3)}
+      <path d={outline} fill="none" stroke="#000" strokeOpacity="0.4" strokeWidth="1.5" strokeLinejoin="round" />
+      <g clipPath={`url(#${uid}-clip)`}>
+        <ellipse cx="-10.7" cy="-16" rx="20" ry="10" transform="rotate(-30 -10.7 -16)" fill="#fff" opacity="0.3" />
+      </g>
     </g>
   );
 }
