@@ -25,6 +25,17 @@ export interface LobbyPlayer {
   readonly account?: boolean;
 }
 
+/** What is going on right now (GET /api/stats). */
+export interface LiveStats {
+  /** Online games being played. */
+  readonly games: number;
+  /** Players in the lobby. */
+  readonly players: number;
+}
+
+/** A game that never reports its end (its room lost) stops counting after this long. */
+export const LIVE_GAME_MAX_MS = 6 * 3_600_000;
+
 /** An open game offer. */
 export interface Seek {
   readonly id: string;

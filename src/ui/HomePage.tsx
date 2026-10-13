@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { listVariants } from '../engine/index.ts';
+import type { LiveStats } from '../online/lobby.ts';
 import { dailyDay, dailyNumber, gridEmoji } from '../online/daily.ts';
 import { dailyResults, localStreak } from './DailyPage.tsx';
 import type { PieceType, VariantDefinition } from '../engine/index.ts';
@@ -27,6 +29,28 @@ const OPPONENTS: { mode: Mode; sub: 'home.hotseatSub' | 'home.botSub' | 'home.bo
   { mode: 'hotseat', sub: 'home.hotseatSub' },
 ];
 
+/** What is going on right now, asked again every half minute while the page is open. */
+function useLiveStats(): LiveStats | null {
+  const [stats, setStats] = useState<LiveStats | null>(null);
+  useEffect(() => {
+    let live = true;
+    const ask = () =>
+      fetch('/api/stats')
+        .then((r) => (r.ok ? (r.json() as Promise<LiveStats>) : null))
+        .then((s) => live && s && setStats(s))
+        .catch(() => {});
+    void ask();
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') void ask();
+    }, 30_000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, []);
+  return stats;
+}
+
 function Arrow() {
   return (
     <svg className="ic arrow" viewBox="0 0 24 24" aria-hidden="true">
@@ -41,6 +65,7 @@ export function HomePage({ onPlay, onOnline, onDaily }: Props) {
   const today = dailyDay(Date.now());
   const done = dailyResults()[today];
   const streak = localStreak(today);
+  const stats = useLiveStats();
   return (
     <div className="home">
       <section className="hero">
@@ -80,6 +105,12 @@ export function HomePage({ onPlay, onOnline, onDaily }: Props) {
             </span>
             <Arrow />
           </button>
+          {stats && (
+            <p className="live-stats">
+              <span className="live-dot" aria-hidden="true" />
+              {t('home.liveGames', { n: String(stats.games) })} · {t('home.livePlayers', { n: String(stats.players) })}
+            </p>
+          )}
           <ul className="facts">
             <li>{t('home.fact1')}</li>
             <li>{t('home.fact2')}</li>

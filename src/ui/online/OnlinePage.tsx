@@ -36,6 +36,7 @@ import type { Mode } from '../settings.ts';
 import { moveSound, playSound } from '../sound.ts';
 import { ApiError, joinOnlineGame, loadName, loadTicket, saveName, saveTicket, useOnlineGame } from './connection.ts';
 import { LobbyPage } from './LobbyPage.tsx';
+import { ProfileLink } from '../ProfileLink.tsx';
 
 const HUMAN = { kind: 'human' } as const;
 
@@ -329,9 +330,23 @@ function OnlineGame({
   /** Name with the rating (rated games), and what the game changed once it is over. */
   const nameWithRating = (c: Color) => {
     const p = view.players[c];
-    if (!p || p.rating === null) return nameOf(c);
+    // A player with an account links to their profile (in a new tab while the game is on).
+    const name = p?.username ? (
+      <ProfileLink username={p.username} newTab={playing}>
+        {nameOf(c)}
+      </ProfileLink>
+    ) : (
+      nameOf(c)
+    );
+    if (!p || p.rating === null) return name;
     const diff = p.diff === null ? '' : ` ${p.diff >= 0 ? '+' : ''}${p.diff}`;
-    return `${nameOf(c)} · ${p.rating}${p.provisional ? '?' : ''}${diff}`;
+    return (
+      <>
+        {name} · {p.rating}
+        {p.provisional ? '?' : ''}
+        {diff}
+      </>
+    );
   };
 
   const sized = prefs.boardSize ? ({ '--board-user': `${prefs.boardSize}px` } as CSSProperties) : undefined;

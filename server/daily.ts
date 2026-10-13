@@ -12,6 +12,7 @@ import type { DailyResponse, DailyResult, DailySaved } from '../src/online/daily
 import type { PuzzleData } from '../src/online/puzzle.ts';
 import type { AuthEnv } from './auth.ts';
 import { currentUser, sameOrigin } from './auth.ts';
+import { awardPuzzlePatches } from './puzzle-patches.ts';
 
 /** Daily puzzles are of middling difficulty. */
 const LOW = 1300;
@@ -118,7 +119,8 @@ export async function handleDaily(request: Request, env: AuthEnv, url: URL): Pro
     )
       .bind(user.id, day, gridSolved(body.grid) ? 1 : 0, body.grid, Date.now())
       .run();
-    return json({ streak: await streak(env.DB, user.id, day) } satisfies DailySaved);
+    const newPatches = await awardPuzzlePatches(env.DB, user.id, day, Date.now());
+    return json({ streak: await streak(env.DB, user.id, day), newPatches } satisfies DailySaved);
   }
 
   return json({ error: 'not-found' }, 404);

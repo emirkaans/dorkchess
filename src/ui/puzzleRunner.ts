@@ -46,8 +46,11 @@ export interface PuzzleRunner {
   /** Squares to light up for the hint. */
   readonly hintSquares: readonly number[];
   readonly over: boolean;
-  /** Shows a puzzle; `finished` shows its end at once (a daily puzzle already done). */
-  readonly start: (p: PuzzleData, finished?: 'solved' | 'shown') => void;
+  /**
+   * Shows a puzzle; `finished` shows its end at once (a daily puzzle already done).
+   * The opponent's first move comes after `delay` ms.
+   */
+  readonly start: (p: PuzzleData, finished?: 'solved' | 'shown', delay?: number) => void;
   readonly onMove: (candidates: Move[]) => void;
   readonly showSolution: () => void;
 }
@@ -69,7 +72,7 @@ export function usePuzzleRunner(sound: boolean, events: PuzzleEvents): PuzzleRun
     if (sound) playSound(moveSound(s.moves.at(-1)?.move.captured !== undefined, !!s.result));
   };
 
-  const start = (p: PuzzleData, finished?: 'solved' | 'shown') => {
+  const start = (p: PuzzleData, finished?: 'solved' | 'shown', delay = 700) => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
     setPuzzle(p);
@@ -85,7 +88,7 @@ export function usePuzzleRunner(sound: boolean, events: PuzzleEvents): PuzzleRun
     setState(game);
     setPly(0);
     setStatus('opponent');
-    later(700, () => {
+    later(delay, () => {
       const next = playUci(game, p.moves[0]);
       if (!next) return setStatus('empty');
       setState(next);

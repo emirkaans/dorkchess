@@ -31,6 +31,8 @@ export interface DailyResponse {
 
 export interface DailySaved {
   readonly streak: number;
+  /** Puzzle patches this result earned. */
+  readonly newPatches?: readonly string[];
 }
 
 /** The day at `now`, as 'YYYY-MM-DD'. */

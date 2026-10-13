@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MessageKey } from '../i18n/index.ts';
 import { PUZZLE_THEMES } from '../online/puzzle.ts';
-import type { PuzzleData, PuzzleNext, PuzzleResult, PuzzleTheme } from '../online/puzzle.ts';
+import type { PatchNews, PuzzleData, PuzzleNext, PuzzleResult, PuzzleTheme } from '../online/puzzle.ts';
 import { DEFAULT_GLICKO, PROVISIONAL_RD, update } from '../rating/glicko2.ts';
 import type { Glicko } from '../rating/glicko2.ts';
 import { loadJSON, saveJSON } from '../storage/local.ts';
 import { useAccount } from './account.ts';
 import { Board } from './Board.tsx';
 import { useI18n } from './i18n.tsx';
+import { NewPatches } from './NewPatches.tsx';
 import { usePuzzleRunner } from './puzzleRunner.ts';
 import type { Prefs } from './prefs.ts';
 
@@ -32,6 +33,7 @@ export function PuzzlePage({
   const [theme, setTheme] = useState<PuzzleTheme | null>(null);
   const [rating, setRating] = useState<{ rating: number; provisional: boolean } | null>(null);
   const [diff, setDiff] = useState<number | null>(null);
+  const [patches, setPatches] = useState<readonly string[]>([]);
   const reported = useRef(false);
   // The first result of a puzzle counts (a wrong move or the solution shown is a fail).
   const run = usePuzzleRunner(prefs.sound, {
@@ -60,6 +62,7 @@ export function PuzzlePage({
         if (!data.puzzle) return setStatus('empty');
         reported.current = false;
         setDiff(null);
+        setPatches([]);
         run.start(data.puzzle);
       } catch {
         setStatus('empty');
@@ -86,7 +89,8 @@ export function PuzzlePage({
         body: JSON.stringify({ solved }),
       }).catch(() => null);
       if (!res?.ok) return;
-      const r = (await res.json()) as PuzzleResult;
+      const r = (await res.json()) as PuzzleResult & PatchNews;
+      setPatches(r.newPatches ?? []);
       setRating({ rating: r.rating, provisional: r.provisional });
       setDiff(r.diff);
     } else {
@@ -164,6 +168,8 @@ export function PuzzlePage({
           </p>
         )}
 
+        <NewPatches ids={patches} />
+
         <div className="puzzle-actions">
           {!over && (
             <>
@@ -203,9 +209,14 @@ export function PuzzlePage({
           ))}
         </fieldset>
 
-        <button className="daily-link" onClick={() => onOpen('/daily')}>
-          🔥 {t('puzzle.daily')} →
-        </button>
+        <div className="puzzle-modes">
+          <button className="daily-link" onClick={() => onOpen('/daily')}>
+            🔥 {t('puzzle.daily')} →
+          </button>
+          <button className="daily-link" onClick={() => onOpen('/rush')}>
+            ⚡ {t('rush.title')} →
+          </button>
+        </div>
 
         {guest && <p className="muted puzzle-note">{t('puzzle.guestNote')}</p>}
         <p className="muted puzzle-credit">{t('puzzle.credit')}</p>

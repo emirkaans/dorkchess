@@ -4,13 +4,15 @@
 //   GET  /api/puzzles/:id                     one puzzle (shared links)
 //   POST /api/puzzles/:id/result { solved }   a signed-in player's result: the first try moves the rating
 
-import type { PuzzleData, PuzzleNext, PuzzleResult } from '../src/online/puzzle.ts';
+import type { PatchNews, PuzzleData, PuzzleNext, PuzzleResult } from '../src/online/puzzle.ts';
 import { PUZZLE_THEMES } from '../src/online/puzzle.ts';
 import { DEFAULT_GLICKO, PROVISIONAL_RD, aged, update } from '../src/rating/glicko2.ts';
 import type { Glicko } from '../src/rating/glicko2.ts';
 import { listVariants } from '../src/engine/index.ts';
 import type { AuthEnv } from './auth.ts';
 import { currentUser, sameOrigin } from './auth.ts';
+import { dailyDay } from '../src/online/daily.ts';
+import { awardPuzzlePatches } from './puzzle-patches.ts';
 
 const CATEGORY = 'puzzle';
 const DAY = 86_400_000;
@@ -137,11 +139,13 @@ export async function handlePuzzles(request: Request, env: AuthEnv, url: URL): P
            rating = ?3, rd = ?4, vol = ?5, games = games + 1, wins = wins + ?6, losses = losses + ?7, updated_at = ?8`,
       ).bind(user.id, CATEGORY, after.rating, after.rd, after.vol, solved ? 1 : 0, solved ? 0 : 1, now),
     ]);
+    const newPatches = solved ? await awardPuzzlePatches(env.DB, user.id, dailyDay(now), now) : [];
     return json({
       rating: Math.round(after.rating),
       provisional: after.rd > PROVISIONAL_RD,
       diff: Math.round(after.rating) - Math.round(before.rating),
-    } satisfies PuzzleResult);
+      newPatches,
+    } satisfies PuzzleResult & PatchNews);
   }
 
   return json({ error: 'not-found' }, 404);

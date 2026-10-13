@@ -70,6 +70,18 @@ export class GameRoom extends DurableObject<Env> {
    * players' game lists). Returns the room as stored, with any rating changes.
    */
   private async save(room: Room): Promise<Room> {
+    // The lobby counts the games being played.
+    const before = this.room?.phase;
+    if (before !== room.phase && (room.phase === 'playing' || before === 'playing')) {
+      const on = room.phase === 'playing' ? 1 : 0;
+      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
+      this.ctx.waitUntil(
+        lobby
+          .fetch(`https://lobby/live?id=${encodeURIComponent(room.id)}&on=${on}`, { method: 'POST' })
+          .then(() => undefined)
+          .catch(() => undefined),
+      );
+    }
     if (room.phase === 'over' && !room.recorded) {
       try {
         room = await settleGame(room, this.env.DB, Date.now());

@@ -4,12 +4,16 @@
 // connection and survives the object being hibernated. A pairing makes the
 // game room with both seats taken (GameRoom /adopt) and sends each side its
 // seat ticket.
+//
+// Game rooms also tell the lobby when a game starts and ends (/live), so the
+// home page can show how many games are being played (/stats).
 
 import { DurableObject } from 'cloudflare:workers';
 import { createRoom, joinRoom } from '../src/online/room.ts';
 import { randomGameId } from '../src/online/record.ts';
 import { QUICK_VARIANT, cleanPlayer, gameRequest, makeSeek, quickMatch, sortSeeks } from '../src/online/lobby.ts';
-import type { LobbyClientMessage, LobbyPlayer, LobbyServerMessage, Seek } from '../src/online/lobby.ts';
+import { LIVE_GAME_MAX_MS } from '../src/online/lobby.ts';
+import type { LiveStats, LobbyClientMessage, LobbyPlayer, LobbyServerMessage, Seek } from '../src/online/lobby.ts';
 import type { Env } from './game-room.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import type { SeatAccount } from '../src/online/room.ts';
@@ -29,6 +33,9 @@ const MAX_MESSAGE = 1024;
 
 export class Lobby extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/live' && request.method === 'POST') return this.live(url);
+    if (url.pathname === '/stats' && request.method === 'GET') return this.stats();
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
@@ -45,6 +52,37 @@ export class Lobby extends DurableObject<Env> {
       ratings: account ? await this.ratingsOf(account.id) : undefined,
     } satisfies Attachment);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** Games being played: id → when it started. */
+  private async liveGames(): Promise<Map<string, number>> {
+    const games = (await this.ctx.storage.get<Map<string, number>>('live')) ?? new Map<string, number>();
+    const old = Date.now() - LIVE_GAME_MAX_MS;
+    for (const [id, at] of games) if (at < old) games.delete(id);
+    return games;
+  }
+
+  /** A game room says a game started (on=1) or ended (on=0). */
+  private async live(url: URL): Promise<Response> {
+    const id = url.searchParams.get('id');
+    if (!id) return new Response('bad request', { status: 400 });
+    const games = await this.liveGames();
+    if (url.searchParams.get('on') === '1') games.set(id, Date.now());
+    else games.delete(id);
+    await this.ctx.storage.put('live', games);
+    return new Response(null, { status: 204 });
+  }
+
+  private async stats(): Promise<Response> {
+    const ids = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const p = this.attachment(ws).player;
+      if (p) ids.add(p.id);
+    }
+    const stats: LiveStats = { games: (await this.liveGames()).size, players: ids.size };
+    return new Response(JSON.stringify(stats), {
+      headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=15' },
+    });
   }
 
   /** A signed-in player's ratings by category (empty when there are none or the database fails). */

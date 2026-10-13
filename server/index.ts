@@ -20,6 +20,8 @@ import { previewTags, previewVersion } from './og.ts';
 import { currentUser, handleAuth } from './auth.ts';
 import { handleProfiles } from './profiles.ts';
 import { handleDaily } from './daily.ts';
+import { handleLeaderboard } from './leaderboard.ts';
+import { handleRush } from './rush.ts';
 import { handlePuzzles } from './puzzles.ts';
 
 export { GameRoom } from './game-room.ts';
@@ -97,7 +99,14 @@ export default {
     if (puzzles) return puzzles;
     const daily = await handleDaily(request, env, url);
     if (daily) return daily;
+    const leaders = await handleLeaderboard(request, env, url);
+    if (leaders) return leaders;
+    const rush = await handleRush(request, env, url);
+    if (rush) return rush;
 
+    if (url.pathname === '/api/stats' && request.method === 'GET') {
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch('https://lobby/stats');
+    }
     if (url.pathname === '/api/lobby/ws') {
       // One lobby for the whole site. A signed-in player is told to it by these headers
       // (never taken from the browser), so nobody can play under someone else's username.

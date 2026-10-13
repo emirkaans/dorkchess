@@ -50,3 +50,28 @@ export function isSolutionMove(moves: readonly string[], ply: number, uci: strin
   if (moves[ply] === uci) return true;
   return ply === moves.length - 1 && givesMate;
 }
+
+/** Puzzle Rush: solve as many as you can in the time, the puzzles getting harder; three misses end it. */
+export const RUSH_MS = 180_000;
+export const RUSH_LIVES = 3;
+/** Difficulty of the first puzzle and how much each one adds. */
+export const RUSH_START = 600;
+export const RUSH_STEP = 50;
+export const RUSH_COUNT = 45;
+
+export interface RushResponse {
+  readonly puzzles: readonly PuzzleData[];
+  /** The signed-in player's best score (null for guests: theirs is in the browser). */
+  readonly best: number | null;
+}
+
+export interface RushSaved {
+  readonly best: number;
+  /** Puzzle patches the run earned. */
+  readonly newPatches: readonly string[];
+}
+
+/** A puzzle result's answer may carry new puzzle patches too. */
+export interface PatchNews {
+  readonly newPatches?: readonly string[];
+}

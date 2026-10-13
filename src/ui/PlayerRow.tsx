@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { ClockState } from '../clock/clock.ts';
 import type { Color, PieceType, Position, VariantDefinition } from '../engine/index.ts';
 import { ClockView } from './ClockView.tsx';
@@ -38,7 +39,7 @@ interface Props {
   /** Card above or below in the players column (the clock sits toward the middle). */
   place: 'top' | 'bottom';
   /** Shown under the colour instead of the player kind (e.g. an online player's name). */
-  label?: string;
+  label?: ReactNode;
 }
 
 /** One player card left of the board: skull avatar, who plays, pieces taken, clock. */

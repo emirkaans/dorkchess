@@ -13,6 +13,7 @@ import { loadJSON, saveJSON } from '../storage/local.ts';
 import { useAccount } from './account.ts';
 import { Board } from './Board.tsx';
 import { useI18n } from './i18n.tsx';
+import { NewPatches } from './NewPatches.tsx';
 import { usePuzzleRunner } from './puzzleRunner.ts';
 import type { Prefs } from './prefs.ts';
 
@@ -56,6 +57,7 @@ export function DailyPage({ prefs }: { prefs: Prefs }) {
   const [streak, setStreak] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
+  const [patches, setPatches] = useState<readonly string[]>([]);
   // The current move was missed at least once.
   const missed = useRef(false);
   const gridRef = useRef('');
@@ -76,7 +78,11 @@ export function DailyPage({ prefs }: { prefs: Prefs }) {
         body: JSON.stringify({ grid: final, day: daily.day }),
       })
         .then((res) => (res.ok ? (res.json() as Promise<DailySaved>) : null))
-        .then((r) => r && setStreak(r.streak))
+        .then((r) => {
+          if (!r) return;
+          setStreak(r.streak);
+          setPatches(r.newPatches ?? []);
+        })
         .catch(() => {});
     }
   };
@@ -224,6 +230,7 @@ export function DailyPage({ prefs }: { prefs: Prefs }) {
             <button className="primary analysis-go" onClick={share}>
               {copied ? t('daily.copied') : t('daily.share')}
             </button>
+            <NewPatches ids={patches} />
             <p className="muted daily-next">
               {stale ? t('daily.newOne') : t('daily.next', { time: countdown(nextDailyAt(now) - now) })}
             </p>

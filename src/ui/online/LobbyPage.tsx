@@ -10,6 +10,7 @@ import type { Mode } from '../settings.ts';
 import { ApiError, createOnlineGame, loadName, saveName } from './connection.ts';
 import { playerIdentity, useLobby } from './lobbyConnection.ts';
 import { useAccount } from '../account.ts';
+import { ProfileLink } from '../ProfileLink.tsx';
 
 type Tab = 'quick' | 'seeks' | 'friend';
 
@@ -195,17 +196,13 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
             {lobby.seeks.length === 0 && <p className="muted seek-empty">{t('lobby.empty')}</p>}
             {lobby.seeks.map((s) => {
               const own = s.id === lobby.mySeek || s.player.id === me;
+              const joinable = !own && lobby.status === 'open' && !(s.rated && !account.user);
+              const player = own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name;
+              // The name links to the profile; the rest of the row takes the offer.
               return (
-                <button
-                  key={s.id}
-                  role="row"
-                  className={`seek-row${own ? ' own' : ''}`}
-                  disabled={own || lobby.status !== 'open' || (s.rated && !account.user)}
-                  onClick={() => lobby.accept(s.id)}
-                  title={own ? undefined : s.rated && !account.user ? t('lobby.ratedSignIn') : t('lobby.join')}
-                >
+                <div key={s.id} role="row" className={`seek-row${own ? ' own' : ''}`}>
                   <span role="cell" className="seek-player">
-                    {own ? `${s.player.name} · ${t('lobby.you')}` : s.player.name}
+                    {s.player.account && !own ? <ProfileLink username={s.player.name}>{player}</ProfileLink> : player}
                     {s.player.rating !== null && (
                       <span className="seek-rating">
                         {s.player.rating}
@@ -214,17 +211,24 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
                     )}
                     {s.rated && <span className="rated-tag">{t('lobby.rated')}</span>}
                   </span>
-                  <span role="cell">{vt(getVariant(s.variantId)).name}</span>
-                  <span role="cell">
-                    {timeControl(s.timeControlId).initialMs === null
-                      ? t('time.none')
-                      : timeControl(s.timeControlId).label}
-                  </span>
-                  <span role="cell">
-                    <span className={`seek-color ${s.color}`} aria-hidden="true" />
-                    {colorLabel(s.color)}
-                  </span>
-                </button>
+                  <button
+                    className="seek-join"
+                    disabled={!joinable}
+                    onClick={() => lobby.accept(s.id)}
+                    title={own ? undefined : s.rated && !account.user ? t('lobby.ratedSignIn') : t('lobby.join')}
+                  >
+                    <span role="cell">{vt(getVariant(s.variantId)).name}</span>
+                    <span role="cell">
+                      {timeControl(s.timeControlId).initialMs === null
+                        ? t('time.none')
+                        : timeControl(s.timeControlId).label}
+                    </span>
+                    <span role="cell">
+                      <span className={`seek-color ${s.color}`} aria-hidden="true" />
+                      {colorLabel(s.color)}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>

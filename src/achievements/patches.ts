@@ -1,6 +1,7 @@
 // Patches for the battle jacket on a profile: what each one is for and how
-// it looks. A finished online game is checked for every patch the player does
-// not have yet (server/ratings.ts awards them). Pure.
+// it looks. A finished online game is checked for every game patch the player
+// does not have yet (server/ratings.ts awards them); puzzle results for the
+// puzzle patches (server/puzzle-patches.ts). Pure.
 
 import type { Color } from '../engine/index.ts';
 import { speedOf } from '../rating/categories.ts';
@@ -31,6 +32,16 @@ export interface PatchContext {
   readonly allVariants: readonly string[];
 }
 
+/** A player's puzzle record, after the result just sent. */
+export interface PuzzlePatchContext {
+  /** Puzzles solved on the first try (rated puzzles). */
+  readonly puzzlesSolved: number;
+  /** Daily puzzles solved in a row. */
+  readonly dailyStreak: number;
+  /** Best Puzzle Rush score. */
+  readonly rushBest: number;
+}
+
 export type PatchShape = 'circle' | 'shield' | 'star' | 'diamond' | 'rect';
 
 export interface PatchDef {
@@ -39,7 +50,10 @@ export interface PatchDef {
   /** Fill and text colours. */
   readonly fill: string;
   readonly ink: string;
-  readonly earned: (c: PatchContext) => boolean;
+  /** A game patch: earned by a finished online game. */
+  readonly earned?: (c: PatchContext) => boolean;
+  /** A puzzle patch: earned by a puzzle record. */
+  readonly puzzle?: (c: PuzzlePatchContext) => boolean;
 }
 
 const PINK = '#ff2e93';
@@ -102,10 +116,17 @@ export const PATCHES: readonly PatchDef[] = [
   },
   { id: 'games-10', shape: 'rect', fill: PINK, ink: INK, earned: (c) => c.gamesPlayed >= 10 },
   { id: 'games-100', shape: 'diamond', fill: BONE, ink: INK, earned: (c) => c.gamesPlayed >= 100 },
+  { id: 'puzzles-100', shape: 'circle', fill: LIME, ink: INK, puzzle: (c) => c.puzzlesSolved >= 100 },
+  { id: 'daily-7', shape: 'shield', fill: PINK, ink: INK, puzzle: (c) => c.dailyStreak >= 7 },
+  { id: 'rush-20', shape: 'star', fill: LIME, ink: INK, puzzle: (c) => c.rushBest >= 20 },
 ];
 
 export const patchById = (id: string): PatchDef | undefined => PATCHES.find((p) => p.id === id);
 
 /** Patches this game earns that the player does not have yet. */
 export const newPatches = (c: PatchContext, have: ReadonlySet<string>): string[] =>
-  PATCHES.filter((p) => !have.has(p.id) && p.earned(c)).map((p) => p.id);
+  PATCHES.filter((p) => !have.has(p.id) && p.earned?.(c)).map((p) => p.id);
+
+/** Puzzle patches this record earns that the player does not have yet. */
+export const newPuzzlePatches = (c: PuzzlePatchContext, have: ReadonlySet<string>): string[] =>
+  PATCHES.filter((p) => !have.has(p.id) && p.puzzle?.(c)).map((p) => p.id);

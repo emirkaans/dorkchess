@@ -93,6 +93,9 @@ const SLOTS: readonly [number, number, number][] = [
   [55, 200, -14],
   [345, 200, 14],
   [200, 400, 0],
+  [52, 140, -12],
+  [348, 140, 12],
+  [200, 96, -4],
 ];
 
 interface JacketProps {

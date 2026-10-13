@@ -3154,6 +3154,120 @@ button.primary:hover:not(:disabled) {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+.live-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--fg);
+  text-shadow: 0 1px 4px #000;
+}
+.live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 0 0 rgba(198, 255, 61, 0.7);
+  animation: live-pulse 2s infinite;
+}
+@keyframes live-pulse {
+  70% {
+    box-shadow: 0 0 0 8px rgba(198, 255, 61, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(198, 255, 61, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+/* Puzzle Rush (/rush). */
+.puzzle-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rush-splash {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: repeating-linear-gradient(45deg, rgba(255, 46, 147, 0.08) 0 18px, transparent 18px 36px), var(--panel);
+  border: 1px solid var(--border);
+}
+.rush-splash svg {
+  width: 40%;
+  fill: var(--pink);
+  filter: drop-shadow(6px 6px 0 var(--lime));
+}
+.rush-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.rush-clock {
+  font: 400 30px/1 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+.rush-clock.low {
+  color: var(--pink);
+}
+.rush-score {
+  font: 400 44px/1 var(--display);
+  color: var(--lime);
+}
+.rush-lives {
+  justify-self: end;
+  display: flex;
+  gap: 6px;
+  font-size: 20px;
+  color: var(--muted);
+}
+.rush-lives .lost {
+  color: var(--pink);
+}
+.rush-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+.rush-marks span {
+  width: 14px;
+  height: 14px;
+}
+.rush-marks .ok {
+  background: var(--lime);
+}
+.rush-marks .bad {
+  background: var(--pink);
+}
+.rush-over {
+  display: grid;
+  gap: 10px;
+}
+.rush-final {
+  margin: 0;
+  font: 400 28px/1.1 var(--marker);
+}
+.rush-best-tag {
+  margin-left: 10px;
+  padding: 2px 8px;
+  background: var(--lime);
+  color: var(--on-pink);
+  font: 400 16px/1.2 var(--display);
+  vertical-align: middle;
+}
+.rush-rules {
+  margin: 0;
+  font-size: 14px;
+}
 .daily-link {
   justify-self: start;
   min-height: 36px;
@@ -3190,12 +3304,82 @@ button.primary:hover:not(:disabled) {
 }
 .daily-box-streak {
   color: var(--lime);
+  white-space: nowrap;
 }
 .daily-box .arrow {
   grid-column: 2;
   grid-row: 1 / span 2;
   width: 22px;
   height: 22px;
+}
+
+/* Leaderboard (/leaderboard): a card per rating category. */
+.leader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.leader-card {
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.leader-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.leader-card h2 {
+  margin: 0;
+  /* Not uppercased: in Turkish "Blitz" would become "BLİTZ". */
+  font: 700 16px/1.2 var(--ui);
+  letter-spacing: 0.02em;
+}
+.leader-card .chip {
+  min-height: 30px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+.leader-card .muted {
+  margin: 0;
+  font-size: 13px;
+}
+.leader-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.leader-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.leader-list li:first-child {
+  border-top: none;
+}
+.leader-list a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leader-place {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.leader-place .crown {
+  width: 20px;
+  height: 20px;
+  color: var(--lime);
+}
+.leader-rating {
+  font: 400 18px/1 var(--display);
+  letter-spacing: 0.02em;
 }
 
 /* Profile page (/@/<username>). */
@@ -3716,12 +3900,37 @@ button.primary:hover:not(:disabled) {
   text-transform: uppercase;
   color: var(--muted);
 }
-button.seek-row {
+/* The name cell links to the profile; the button over the other cells takes the offer. */
+.seek-join {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  align-self: stretch;
+  margin: -8px -12px -8px 0;
+  padding: 8px 12px 8px 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
-button.seek-row:hover:not(:disabled) {
+.seek-join:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.seek-row:has(.seek-join:hover:not(:disabled)) {
   background: var(--panel-2);
   color: var(--pink);
+}
+.profile-link {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.profile-link:hover {
+  color: var(--lime);
 }
 .seek-row.own {
   background: rgba(198, 255, 61, 0.06);
@@ -3817,7 +4026,8 @@ button.seek-row:hover:not(:disabled) {
   .seek-row {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr);
   }
-  .seek-row > :nth-child(4) {
+  .seek-row.head > :nth-child(4),
+  .seek-join > :nth-child(3) {
     display: none;
   }
 }
