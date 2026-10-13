@@ -3,10 +3,14 @@
 //   GET /api/users/:username                       the profile and ratings
 //   GET /api/users/:username/games?before=<ms>     finished games, newest first (20 a page)
 //   GET /api/users/:username/history?category=…    rating after each rated game of a category
+//   POST /api/me/jacket { jacket }                 the signed-in player picks a jacket they have earned
 
 import { PROVISIONAL_RD } from '../src/rating/glicko2.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../src/online/profile.ts';
 import type { AuthEnv } from './auth.ts';
+import { currentUser, sameOrigin } from './auth.ts';
+import { JACKETS, jacketById, jacketOpen, longestRun } from '../src/achievements/jackets.ts';
+import type { JacketStats } from '../src/achievements/jackets.ts';
 
 const PAGE = 20;
 
@@ -16,14 +20,48 @@ const json = (data: unknown, status = 200) =>
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
   });
 
+/** What earns the jackets: patches, games, the best settled rating, Puzzle Rush, daily puzzles. */
+async function jacketStats(db: D1Database, userId: string): Promise<JacketStats> {
+  const [patches, games, rating, rush, daily] = await db.batch([
+    db.prepare('SELECT count(*) AS n FROM user_patches WHERE user_id = ?1').bind(userId),
+    db.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1').bind(userId),
+    db
+      .prepare("SELECT max(rating) AS r FROM ratings WHERE user_id = ?1 AND category != 'puzzle' AND rd <= ?2")
+      .bind(userId, PROVISIONAL_RD),
+    db.prepare('SELECT best FROM rush_scores WHERE user_id = ?1').bind(userId),
+    db.prepare('SELECT day FROM daily_results WHERE user_id = ?1 AND solved = 1').bind(userId),
+  ]);
+  const first = <T>(r: D1Result) => r.results[0] as T | undefined;
+  const best = first<{ r: number | null }>(rating)?.r;
+  return {
+    patches: first<{ n: number }>(patches)?.n ?? 0,
+    games: first<{ n: number }>(games)?.n ?? 0,
+    bestRating: best == null ? null : Math.round(best),
+    rushBest: first<{ best: number }>(rush)?.best ?? 0,
+    dailyBest: longestRun((daily.results as { day: string }[]).map((d) => d.day)),
+  };
+}
+
 /** Answers a profile request, or returns null when `url` is not one. */
 export async function handleProfiles(request: Request, env: AuthEnv, url: URL): Promise<Response | null> {
+  if (url.pathname === '/api/me/jacket' && request.method === 'POST') {
+    if (!env.DB) return json({ error: 'accounts-off' }, 503);
+    if (!sameOrigin(request, env.PUBLIC_ORIGIN || url.origin, url)) return json({ error: 'forbidden' }, 403);
+    const user = await currentUser(request, env);
+    if (!user) return json({ error: 'signed-out' }, 401);
+    const body = (await request.json().catch(() => ({}))) as { jacket?: unknown };
+    const jacket = JACKETS.find((j) => j.id === body.jacket);
+    if (!jacket) return json({ error: 'not-found' }, 404);
+    if (!jacketOpen(jacket, await jacketStats(env.DB, user.id))) return json({ error: 'locked' }, 403);
+    await env.DB.prepare('UPDATE users SET jacket = ?1 WHERE id = ?2').bind(jacket.id, user.id).run();
+    return json({ jacket: jacket.id });
+  }
   const m = /^\/api\/users\/([^/]+)(?:\/(games|history))?$/.exec(url.pathname);
   if (!m || request.method !== 'GET') return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);
-  const user = await env.DB.prepare('SELECT id, username, created_at FROM users WHERE username = ?1')
+  const user = await env.DB.prepare('SELECT id, username, created_at, jacket FROM users WHERE username = ?1')
     .bind(decodeURIComponent(m[1]))
-    .first<{ id: string; username: string; created_at: number }>();
+    .first<{ id: string; username: string; created_at: number; jacket: string | null }>();
   if (!user) return json({ error: 'not-found' }, 404);
 
   if (!m[2]) {
@@ -63,6 +101,8 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
       games: count?.n ?? 0,
       ratings,
       patches: patches.results.map((p) => ({ id: p.patch_id, earnedAt: p.earned_at })),
+      jacket: jacketById(user.jacket).id,
+      stats: await jacketStats(env.DB, user.id),
     } satisfies ProfileResponse);
   }
 

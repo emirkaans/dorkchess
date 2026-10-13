@@ -1,5 +1,7 @@
 // Shapes of the profile API (server/profiles.ts), shared with the browser. Pure.
 
+import type { JacketStats } from '../achievements/jackets.ts';
+
 import type { Color } from '../engine/index.ts';
 
 export interface ProfileRating {
@@ -21,6 +23,10 @@ export interface ProfileResponse {
   readonly ratings: readonly ProfileRating[];
   /** Patches on the battle jacket, oldest first. */
   readonly patches: readonly { readonly id: string; readonly earnedAt: number }[];
+  /** The jacket the player picked. */
+  readonly jacket: string;
+  /** What earns the other jackets. */
+  readonly stats: JacketStats;
 }
 
 /** A finished game, seen from the profile's player. */

@@ -6,7 +6,9 @@ import { outcomeFor } from '../online/profile.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../online/profile.ts';
 import { allCategories, variantOfCategory } from '../rating/categories.ts';
 import { useI18n } from './i18n.tsx';
-import { BattleJacket, PatchMark } from './BattleJacket.tsx';
+import { BattleJacket, PatchMark, jacketSrc } from './BattleJacket.tsx';
+import { JACKETS, jacketOpen, progress } from '../achievements/jackets.ts';
+import { useAccount } from './account.ts';
 import { PATCHES } from '../achievements/patches.ts';
 
 interface Props {
@@ -25,6 +27,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   const [history, setHistory] = useState<RatingPoint[]>([]);
   const jacket = useRef<SVGSVGElement>(null);
   const [sharing, setSharing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const account = useAccount();
 
   useEffect(() => {
     let live = true;
@@ -74,6 +78,19 @@ export function ProfilePage({ username, onOpen }: Props) {
     setMore(g.more);
   };
 
+  const mine = !!account.user && typeof profile === 'object' && profile?.username === account.user.username;
+  const pickJacket = async (id: string) => {
+    const res = await fetch('/api/me/jacket', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jacket: id }),
+    }).catch(() => null);
+    if (!res?.ok) return;
+    setProfile((p) => (p && typeof p === 'object' ? { ...p, jacket: id } : p));
+    setPicking(false);
+  };
+
   const categoryName = (c: string) => {
     const v = variantOfCategory(c as never);
     return v ? vt(getVariant(v)).name : t(`rating.${c}` as MessageKey);
@@ -117,20 +134,59 @@ export function ProfilePage({ username, onOpen }: Props) {
 
       <section className="jacket-section" aria-label={t('jacket.title')}>
         <div className="jacket-box">
-          <BattleJacket ref={jacket} username={profile.username} patches={profile.patches.map((p) => p.id)} />
-          <button
-            className="jacket-share"
-            disabled={sharing}
-            onClick={() => {
-              if (!jacket.current) return;
-              setSharing(true);
-              void shareJacket(jacket.current, profile.username, t('jacket.shareText')).finally(() =>
-                setSharing(false),
-              );
-            }}
-          >
-            {t('jacket.share')}
-          </button>
+          <BattleJacket
+            ref={jacket}
+            username={profile.username}
+            jacket={profile.jacket}
+            patches={profile.patches.map((p) => p.id)}
+          />
+          <div className="jacket-buttons">
+            <button
+              className="jacket-share"
+              disabled={sharing}
+              onClick={() => {
+                if (!jacket.current) return;
+                setSharing(true);
+                void shareJacket(jacket.current, profile.jacket, profile.username, t('jacket.shareText')).finally(() =>
+                  setSharing(false),
+                );
+              }}
+            >
+              {t('jacket.share')}
+            </button>
+            {mine && (
+              <button className="jacket-share" aria-expanded={picking} onClick={() => setPicking(!picking)}>
+                {t('jacket.pick')}
+              </button>
+            )}
+          </div>
+          {mine && picking && (
+            <ul className="jacket-picker" aria-label={t('jacket.pickTitle')}>
+              {JACKETS.map((j) => {
+                const open = jacketOpen(j, profile.stats);
+                const on = j.id === profile.jacket;
+                return (
+                  <li key={j.id}>
+                    <button
+                      className={`jacket-option${on ? ' on' : ''}${open ? '' : ' locked'}`}
+                      disabled={!open || on}
+                      aria-pressed={on}
+                      onClick={() => void pickJacket(j.id)}
+                    >
+                      <img src={jacketSrc(j.id, true)} alt="" loading="lazy" width="120" height="120" />
+                      <strong>{t(`jacket.name.${j.id}` as MessageKey)}</strong>
+                      {j.need && !open && (
+                        <small>
+                          🔒 {t(`jacket.need.${j.need.kind}`, { n: String(j.need.n) })} (
+                          {Math.min(progress(j.need, profile.stats), j.need.n)}/{j.need.n})
+                        </small>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
         <div className="patch-list">
           <h2>
@@ -300,16 +356,19 @@ function RatingGraph({ points }: { points: readonly RatingPoint[] }) {
  * The jacket as a picture to post (a story-sized PNG): shared through the
  * phone's share sheet when it can take files, otherwise downloaded.
  */
-async function shareJacket(svg: SVGSVGElement, username: string, text: string): Promise<void> {
+async function shareJacket(svg: SVGSVGElement, jacketId: string, username: string, text: string): Promise<void> {
+  // The picture first, then the patches over it (a picture inside an SVG drawn as an image does not load).
   const source = new XMLSerializer().serializeToString(svg);
   const url = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }));
-  try {
-    const img = new Image();
-    await new Promise<void>((done, fail) => {
-      img.onload = () => done();
+  const load = (src: string) =>
+    new Promise<HTMLImageElement>((done, fail) => {
+      const img = new Image();
+      img.onload = () => done(img);
       img.onerror = () => fail(new Error('jacket image'));
-      img.src = url;
+      img.src = src;
     });
+  try {
+    const [picture, img] = await Promise.all([load(jacketSrc(jacketId)), load(url)]);
     const W = 1080;
     const H = 1350;
     const canvas = document.createElement('canvas');
@@ -322,7 +381,8 @@ async function shareJacket(svg: SVGSVGElement, username: string, text: string): 
     ctx.font = 'bold 72px Impact, "Arial Black", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(username, W / 2, 130);
-    ctx.drawImage(img, 90, 170, 900, 990);
+    ctx.drawImage(picture, 60, 180, 960, 960);
+    ctx.drawImage(img, 60, 180, 960, 960);
     ctx.fillStyle = '#c6ff3d';
     ctx.font = 'bold 44px Impact, "Arial Black", sans-serif';
     ctx.fillText('punkchess.com', W / 2, H - 70);

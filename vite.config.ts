@@ -22,7 +22,9 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_options, bundle) {
       const built = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
-      const files = ['./', ...[...built, ...filesIn('public')].sort().map((f) => `./${f}`)];
+      // Jacket pictures stay out: each page needs one of them at most, fetched when shown.
+      const offline = filesIn('public').filter((f) => !f.startsWith('jackets/'));
+      const files = ['./', ...[...built, ...offline].sort().map((f) => `./${f}`)];
       // Bundle files carry a content hash in their names; files of public/ do not, so their
       // contents count too (a changed font or icon must make a new cache version).
       const publicHashes = filesIn('public').map(

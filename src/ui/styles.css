@@ -1036,7 +1036,7 @@ button.primary:hover:not(:disabled) {
 
 .side {
   flex: 1 1 340px;
-  max-width: 420px;
+  max-width: 500px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2586,7 +2586,7 @@ button.primary:hover:not(:disabled) {
 
 .analysis-side {
   flex: 1 1 340px;
-  max-width: 420px;
+  max-width: 500px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2991,15 +2991,73 @@ button.primary:hover:not(:disabled) {
 }
 .jacket {
   width: 100%;
-  max-width: 420px;
+  max-width: 500px;
   height: auto;
   display: block;
   margin: 0 auto;
   filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.6));
 }
+.jacket-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.jacket-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jacket-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+.jacket-option img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+.jacket-option:hover:not(:disabled) {
+  border-color: var(--pink);
+}
+.jacket-option.on {
+  border-color: var(--lime);
+  box-shadow: inset 0 -3px 0 var(--lime);
+  cursor: default;
+}
+.jacket-option:disabled {
+  opacity: 1;
+}
+.jacket-option.locked {
+  cursor: default;
+  color: var(--muted);
+}
+.jacket-buttons > button {
+  flex: 1;
+}
+.jacket-option.locked img {
+  filter: grayscale(1) brightness(0.45);
+}
+.jacket-option small {
+  font-size: 11px;
+  color: var(--muted);
+}
 .jacket-share {
   align-self: center;
-  min-width: 200px;
+  min-width: 160px;
 }
 .patch-list ul {
   list-style: none;

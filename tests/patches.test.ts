@@ -65,3 +65,32 @@ describe('yamalar', () => {
     expect(earned({ won: true }, ['first-blood'])).toEqual(['broke-them']);
   });
 });
+
+describe('ceketler', async () => {
+  const { JACKETS, jacketOpen, longestRun, jacketById, DEFAULT_JACKET } =
+    await import('../src/achievements/jackets.ts');
+  const none = { patches: 0, games: 0, bestRating: null, rushBest: 0, dailyBest: 0 };
+
+  it('bazıları baştan açık, kazanılanlar şartı sağlanınca açılır', () => {
+    expect(JACKETS.filter((j) => jacketOpen(j, none)).length).toBeGreaterThanOrEqual(3);
+    const full = JACKETS.find((j) => j.id === 'full-kit')!;
+    expect(jacketOpen(full, { ...none, patches: 9 })).toBe(false);
+    expect(jacketOpen(full, { ...none, patches: 10 })).toBe(true);
+    expect(jacketById('yok').id).toBe(DEFAULT_JACKET);
+    expect(new Set(JACKETS.map((j) => j.id)).size).toBe(JACKETS.length);
+  });
+
+  it('en uzun seri ardışık günlerden sayılır', () => {
+    expect(longestRun([])).toBe(0);
+    expect(longestRun(['2026-10-01', '2026-10-02', '2026-10-04', '2026-10-05', '2026-10-06'])).toBe(3);
+    expect(longestRun(['2026-12-31', '2027-01-01'])).toBe(2);
+  });
+
+  it('her ceketin resmi var', async () => {
+    const { existsSync } = await import('node:fs');
+    for (const j of JACKETS) {
+      expect(existsSync(`public/jackets/${j.id}.webp`)).toBe(true);
+      expect(existsSync(`public/jackets/${j.id}-thumb.webp`)).toBe(true);
+    }
+  });
+});
