@@ -31,6 +31,12 @@ export interface AuthEnv {
   readonly GOOGLE_CLIENT_SECRET?: string;
   /** The site's address when the request's own is not it (local development; see .dev.vars). */
   readonly PUBLIC_ORIGIN?: string;
+  /**
+   * Emergency stop: "1" turns the API and live games off (the site itself still
+   * loads). Set it in the Cloudflare dashboard (Worker → Settings → Variables)
+   * if something runs away; remove it to turn everything back on.
+   */
+  readonly PAUSE_API?: string;
 }
 
 const SESSION_COOKIE = 'pc_session';

@@ -3519,6 +3519,27 @@ button.primary:hover:not(:disabled) {
 }
 .jacket-panel .jacket-picker {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* The cards share the height they get (the pager stays below them, never on top). */
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: stretch;
+  overflow: hidden;
+}
+.jacket-panel .jacket-picker li {
+  min-height: 0;
+}
+.jacket-panel .jacket-option {
+  height: 100%;
+  min-height: 0;
+}
+.jacket-panel .jacket-option img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+.jacket-panel .pager {
+  flex: none;
 }
 .pager {
   display: flex;

@@ -46,6 +46,16 @@ interface Attachment {
 }
 
 const MAX_MESSAGE = 2048;
+/**
+ * Safety limits against a runaway room (each wake-up and message is billed):
+ * an alarm never fires sooner than ALARM_GAP_MS after the last, an alarm that
+ * changes nothing STUCK_ALARMS times in a row stops them, and a connection
+ * sending more than BURST messages in BURST_MS has the rest dropped.
+ */
+const ALARM_GAP_MS = 1000;
+const STUCK_ALARMS = 20;
+const BURST = 40;
+const BURST_MS = 10_000;
 /** A stored local game: about 1000 moves of SAN with room to spare. */
 const MAX_RECORD_BYTES = 32_000;
 
@@ -54,6 +64,18 @@ const json = (data: unknown, status = 200) =>
 
 export class GameRoom extends DurableObject<Env> {
   private room: Room | null = null;
+  // Alarms in a row that changed nothing, and recent message times per connection (in memory).
+  private stuck = 0;
+  private recent = new WeakMap<WebSocket, number[]>();
+
+  /** Too many messages from one connection: the rest of the burst is dropped. */
+  private flooding(ws: WebSocket): boolean {
+    const now = Date.now();
+    const times = (this.recent.get(ws) ?? []).filter((t) => now - t < BURST_MS);
+    times.push(now);
+    this.recent.set(ws, times);
+    return times.length > BURST;
+  }
   /** When each player last sent a sticker (in memory only: a lost value just allows one more). */
   private lastSticker: Partial<Record<Color, number>> = {};
   private loaded = false;
@@ -95,7 +117,8 @@ export class GameRoom extends DurableObject<Env> {
     await this.ctx.storage.put('room', room);
     const at = nextDeadline(room);
     if (at === null) await this.ctx.storage.deleteAlarm();
-    else await this.ctx.storage.setAlarm(at);
+    // A deadline already past (or a bug computing one) cannot make the alarm fire in a tight loop.
+    else await this.ctx.storage.setAlarm(Math.max(at, Date.now() + ALARM_GAP_MS));
     return room;
   }
 
@@ -254,6 +277,7 @@ export class GameRoom extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, data: string | ArrayBuffer): Promise<void> {
     if (typeof data !== 'string' || data.length > MAX_MESSAGE) return;
+    if (this.flooding(ws)) return;
     let msg: ClientMessage;
     try {
       msg = JSON.parse(data) as ClientMessage;
@@ -381,6 +405,14 @@ export class GameRoom extends DurableObject<Env> {
     const room = await this.load();
     if (!room) return;
     const next = tick(room, Date.now());
+    if (next === room) {
+      // A deadline that ends nothing: try again a few times, then stop rather than loop.
+      if (++this.stuck >= STUCK_ALARMS) {
+        console.error('alarm changes nothing, stopped', room.id);
+        await this.ctx.storage.deleteAlarm();
+        return;
+      }
+    } else this.stuck = 0;
     const saved = await this.save(next);
     if (next !== room) this.broadcast(saved);
   }

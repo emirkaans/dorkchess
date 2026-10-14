@@ -92,6 +92,18 @@ export default {
       return Response.redirect(url.toString(), 301);
     }
 
+    // Emergency stop (see AuthEnv.PAUSE_API): no API, no game rooms, no database.
+    const paused = env.PAUSE_API === '1';
+    if (
+      paused &&
+      (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/') || url.pathname.startsWith('/og/'))
+    ) {
+      return new Response(JSON.stringify({ error: 'paused' }), {
+        status: 503,
+        headers: { 'content-type': 'application/json', 'retry-after': '600' },
+      });
+    }
+
     const limited = await overLimit(request, env, url.pathname);
     if (limited) return limited;
 
@@ -137,7 +149,7 @@ export default {
     if (og) return toRoom(env, request, og[1], '/og');
 
     const page = /^\/([A-Za-z0-9]{8})(?:\/analysis)?\/?$/.exec(url.pathname);
-    if (page && request.method === 'GET') return gamePage(env, request, url, page[1]);
+    if (page && request.method === 'GET' && !paused) return gamePage(env, request, url, page[1]);
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
