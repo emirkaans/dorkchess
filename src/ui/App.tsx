@@ -16,7 +16,7 @@ import { NewGameDialog } from './NewGameDialog.tsx';
 import { OnlinePage } from './online/OnlinePage.tsx';
 import { PlayerRow } from './PlayerRow.tsx';
 import { PromotionDialog } from './PromotionDialog.tsx';
-import { Splatter } from './Punk.tsx';
+import { GearIcon, Splatter } from './Punk.tsx';
 import { ReviewPage } from './ReviewPage.tsx';
 import type { Review } from './ReviewPage.tsx';
 import { recordTexts } from '../i18n/records.ts';
@@ -32,7 +32,7 @@ import { LeaderboardPage } from './LeaderboardPage.tsx';
 import { RushPage } from './RushPage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
-import { GearIcon, Toolbar } from './Toolbar.tsx';
+import { Toolbar } from './Toolbar.tsx';
 import type { Page } from './Toolbar.tsx';
 import {
   useAssistant,

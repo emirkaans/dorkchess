@@ -482,7 +482,10 @@ describe('uygulama: erişilebilirlik', () => {
 describe('uygulama: dil', () => {
   it('İngilizceye geçince arayüz, varyant metinleri ve ekran okuyucu etiketleri İngilizce olur', () => {
     startGame({ mode: 'hotseat' });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Dil' }), { target: { value: 'en' } });
+    // Language is in the settings menu (the gear, or the username when signed in).
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ayarlar' }).find((b) => b.hasAttribute('aria-haspopup'))!);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Dil/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }));
     expect(screen.getByRole('button', { name: 'New game' })).toBeTruthy();
     expect(status()).toBe('White to move');
     expect(document.documentElement.lang).toBe('en');

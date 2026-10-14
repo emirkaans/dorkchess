@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccountButton } from './AccountButton.tsx';
-import { LOCALES, isLocale } from '../i18n/index.ts';
 import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
@@ -32,7 +31,7 @@ interface Props {
   onSettings: () => void;
 }
 
-/** Top bar: logo, main menu (home, play, online, analysis, history), language and settings. */
+/** Top bar: logo, main menu, and the account menu (profile, language, settings). */
 export function Toolbar({
   page,
   prefs,
@@ -115,49 +114,13 @@ export function Toolbar({
           >
             {t('menu.analysis')}
           </button>
-          {menuOpen && (
-            <select
-              className="lang menu-lang"
-              aria-label={t('toolbar.language')}
-              value={prefs.locale}
-              onChange={(e) => {
-                const locale = e.target.value;
-                if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
-              }}
-            >
-              {Object.entries(LOCALES).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          )}
         </nav>
         <div className="toolbar-end">
-          <AccountButton />
-          <select
-            className="lang"
-            aria-label={t('toolbar.language')}
-            value={prefs.locale}
-            onChange={(e) => {
-              const locale = e.target.value;
-              if (isLocale(locale)) onPrefs((p) => ({ ...p, locale }));
-            }}
-          >
-            {Object.entries(LOCALES).map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <button
-            className="icon-button"
-            onClick={onSettings}
-            aria-label={t('toolbar.settings')}
-            title={t('toolbar.settings')}
-          >
-            <GearIcon />
-          </button>
+          <AccountButton
+            locale={prefs.locale}
+            onLocale={(locale) => onPrefs((p) => ({ ...p, locale }))}
+            onSettings={onSettings}
+          />
           <button
             className="icon-button menu-toggle"
             aria-label={t('menu.label')}
@@ -172,14 +135,5 @@ export function Toolbar({
         </div>
       </div>
     </header>
-  );
-}
-
-export function GearIcon() {
-  return (
-    <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" />
-    </svg>
   );
 }
