@@ -413,7 +413,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
 
   const top: Color = flipped ? 'w' : 'b';
   const bottom: Color = flipped ? 'b' : 'w';
-  const start = timeline.states[0].position;
   const timeControl = TIME_CONTROLS.find((tc) => tc.id === settings.timeControl);
   const gameLabel = [
     texts.name,
@@ -537,7 +536,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 variant={variant}
                 color={top}
                 player={players[top]}
-                start={start}
                 position={game.position}
                 active={!outcome && !setup && turn === top}
                 clock={timed ? session.clock : null}
@@ -547,7 +545,6 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                 variant={variant}
                 color={bottom}
                 player={players[bottom]}
-                start={start}
                 position={game.position}
                 active={!outcome && !setup && turn === bottom}
                 clock={timed ? session.clock : null}

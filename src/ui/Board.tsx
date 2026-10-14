@@ -63,7 +63,13 @@ interface Drag {
   x: number;
   y: number;
   moved: boolean;
+  /** Started with a finger: the piece is lifted at once, larger and above the finger. */
+  touch: boolean;
 }
+
+/** On touch screens the dragged piece is this much larger than a square and sits this far above the finger. */
+const TOUCH_SCALE = 1.6;
+const TOUCH_LIFT = 0.55;
 
 /** Right-button drag in progress: from where, to where now, in which colour. */
 interface Drawing {
@@ -104,13 +110,29 @@ export function Board({
   // The dragged piece follows the pointer by moving its element directly: re-rendering
   // the board on every pointer move is too slow on phones.
   const ghostRef = useRef<HTMLDivElement>(null);
+  // The square under the pointer while dragging (a finger hides it).
+  const overRef = useRef<HTMLDivElement>(null);
   const placeGhost = () => {
     const d = dragRef.current;
     const g = ghostRef.current;
     const r = boardRef.current?.getBoundingClientRect();
     if (!d || !g || !r) return;
-    g.style.left = `${d.x - r.left - r.width / 16}px`;
-    g.style.top = `${d.y - r.top - r.height / 16}px`;
+    const sq = r.width / 8;
+    const size = d.touch ? sq * TOUCH_SCALE : sq;
+    g.style.width = `${size}px`;
+    g.style.height = `${size}px`;
+    // Glyph pieces take their size from --board.
+    g.style.setProperty('--board', `${size * 8}px`);
+    g.style.left = `${d.x - r.left - size / 2}px`;
+    g.style.top = `${d.y - r.top - size / 2 - (d.touch ? sq * TOUCH_LIFT : 0)}px`;
+    const o = overRef.current;
+    if (!o) return;
+    const col = Math.floor((d.x - r.left) / sq);
+    const row = Math.floor((d.y - r.top) / sq);
+    const inside = col >= 0 && col < 8 && row >= 0 && row < 8;
+    o.style.display = inside ? 'block' : 'none';
+    o.style.left = `${col * 12.5}%`;
+    o.style.top = `${row * 12.5}%`;
   };
   useLayoutEffect(placeGhost);
   const [shapes, setShapes] = useState<{ arrows: Arrow[]; circles: Circle[] }>({ arrows: [], circles: [] });
@@ -256,7 +278,9 @@ export function Board({
     if (shapes.arrows.length || shapes.circles.length) setShapes({ arrows: [], circles: [] });
     if (sq === null) return;
     if (activate(sq)) {
-      updateDrag({ from: sq, x: e.clientX, y: e.clientY, moved: false });
+      // A finger lifts the piece at once (as on lichess); a mouse waits for a few pixels of movement.
+      const touch = e.pointerType !== 'mouse';
+      updateDrag({ from: sq, x: e.clientX, y: e.clientY, moved: touch, touch });
       e.currentTarget.setPointerCapture(e.pointerId);
     }
   };
@@ -394,9 +418,12 @@ export function Board({
         <ShapeLayer arrows={allArrows} circles={shapes.circles} preview={drawing} flipped={flipped} />
       )}
       {dragPiece && drag && rect && (
-        <div ref={ghostRef} className="drag-ghost" style={{ width: rect.width / 8, height: rect.height / 8 }}>
-          <PieceView variant={variant} piece={dragPiece} position={position} />
-        </div>
+        <>
+          <div ref={overRef} className="drag-over" aria-hidden="true" />
+          <div ref={ghostRef} className={`drag-ghost${drag.touch ? ' touch' : ''}`}>
+            <PieceView variant={variant} piece={dragPiece} position={position} />
+          </div>
+        </>
       )}
     </div>
   );

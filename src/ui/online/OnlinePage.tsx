@@ -422,7 +422,6 @@ function OnlineGame({
               color={c}
               player={HUMAN}
               label={nameWithRating(c)}
-              start={states[0]?.position ?? shown?.position ?? createGame(variant).position}
               position={shown?.position ?? createGame(variant).position}
               active={playing && state?.position.turn === c}
               clock={timed ? clock : null}

@@ -9,6 +9,7 @@ import { useI18n } from './i18n.tsx';
 import { BattleJacket, PatchMark, jacketSrc } from './BattleJacket.tsx';
 import { JACKETS, jacketOpen, progress } from '../achievements/jackets.ts';
 import { useAccount } from './account.ts';
+import { Modal } from './Modal.tsx';
 import { PATCHES } from '../achievements/patches.ts';
 
 interface Props {
@@ -28,6 +29,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   const jacket = useRef<SVGSVGElement>(null);
   const [sharing, setSharing] = useState(false);
   const [picking, setPicking] = useState(false);
+  // The big jacket with every patch opens in a window; the page shows it small.
+  const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
 
   useEffect(() => {
@@ -116,101 +119,131 @@ export function ProfilePage({ username, onOpen }: Props) {
 
   const byCategory = new Map(profile.ratings.map((r) => [r.category, r]));
   const selected: ProfileRating | undefined = category ? byCategory.get(category) : undefined;
-  const totals = profile.ratings.reduce(
-    (s, r) => ({ wins: s.wins + r.wins, losses: s.losses + r.losses, draws: s.draws + r.draws }),
-    { wins: 0, losses: 0, draws: 0 },
-  );
+  // Without a category picked: game results only (puzzles are solved or missed, not won).
+  const totals = profile.ratings
+    .filter((r) => r.category !== 'puzzle')
+    .reduce((s, r) => ({ wins: s.wins + r.wins, losses: s.losses + r.losses, draws: s.draws + r.draws }), {
+      wins: 0,
+      losses: 0,
+      draws: 0,
+    });
   const stats = selected ?? totals;
   const played = stats.wins + stats.losses + stats.draws;
 
   return (
     <main className="profile-page">
       <header className="profile-head">
-        <h1 className="profile-name">{profile.username}</h1>
-        <p className="muted">
-          {t('profile.joined', { date: date(profile.createdAt) })} · {t('profile.games', { n: String(profile.games) })}
-        </p>
-      </header>
-
-      <section className="jacket-section" aria-label={t('jacket.title')}>
-        <div className="jacket-box">
+        <button
+          className="jacket-thumb"
+          onClick={() => setShowJacket(true)}
+          aria-label={t('jacket.open', { n: String(profile.patches.length) })}
+        >
           <BattleJacket
-            ref={jacket}
             username={profile.username}
             jacket={profile.jacket}
             patches={profile.patches.map((p) => p.id)}
           />
-          <div className="jacket-buttons">
-            <button
-              className="jacket-share"
-              disabled={sharing}
-              onClick={() => {
-                if (!jacket.current) return;
-                setSharing(true);
-                void shareJacket(jacket.current, profile.jacket, profile.username, t('jacket.shareText')).finally(() =>
-                  setSharing(false),
-                );
-              }}
-            >
-              {t('jacket.share')}
+          <span className="jacket-thumb-count">
+            {profile.patches.length}/{PATCHES.length}
+          </span>
+        </button>
+        <div className="profile-title">
+          <h1 className="profile-name">{profile.username}</h1>
+          <p className="muted">
+            {t('profile.joined', { date: date(profile.createdAt) })} ·{' '}
+            {t('profile.games', { n: String(profile.games) })}
+          </p>
+        </div>
+      </header>
+
+      {showJacket && (
+        <Modal label={t('jacket.title')} className="jacket-modal" onClose={() => setShowJacket(false)}>
+          <section className="jacket-section" aria-label={t('jacket.title')}>
+            <div className="jacket-box">
+              <BattleJacket
+                ref={jacket}
+                username={profile.username}
+                jacket={profile.jacket}
+                patches={profile.patches.map((p) => p.id)}
+              />
+              <div className="jacket-buttons">
+                <button
+                  className="jacket-share"
+                  disabled={sharing}
+                  onClick={() => {
+                    if (!jacket.current) return;
+                    setSharing(true);
+                    void shareJacket(jacket.current, profile.jacket, profile.username, t('jacket.shareText')).finally(
+                      () => setSharing(false),
+                    );
+                  }}
+                >
+                  {t('jacket.share')}
+                </button>
+                {mine && (
+                  <button className="jacket-share" aria-expanded={picking} onClick={() => setPicking(!picking)}>
+                    {t('jacket.pick')}
+                  </button>
+                )}
+              </div>
+              {mine && picking && (
+                <ul className="jacket-picker" aria-label={t('jacket.pickTitle')}>
+                  {JACKETS.map((j) => {
+                    const open = jacketOpen(j, profile.stats);
+                    const on = j.id === profile.jacket;
+                    return (
+                      <li key={j.id}>
+                        <button
+                          className={`jacket-option${on ? ' on' : ''}${open ? '' : ' locked'}`}
+                          disabled={!open || on}
+                          aria-pressed={on}
+                          onClick={() => void pickJacket(j.id)}
+                        >
+                          <img src={jacketSrc(j.id, true)} alt="" loading="lazy" width="120" height="120" />
+                          <strong>{t(`jacket.name.${j.id}` as MessageKey)}</strong>
+                          {j.need && !open && (
+                            <small>
+                              🔒 {t(`jacket.need.${j.need.kind}`, { n: String(j.need.n) })} (
+                              {Math.min(progress(j.need, profile.stats), j.need.n)}/{j.need.n})
+                            </small>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="patch-list">
+              <h2>
+                {t('jacket.title')} · {profile.patches.length}/{PATCHES.length}
+              </h2>
+              <ul>
+                {PATCHES.map((patch) => {
+                  const got = profile.patches.find((p) => p.id === patch.id);
+                  return (
+                    <li key={patch.id} className={got ? 'got' : 'locked'}>
+                      <svg viewBox="-36 -36 72 72" aria-hidden="true">
+                        <PatchMark patch={patch} label={t(`patch.${patch.id}` as MessageKey)} locked={!got} />
+                      </svg>
+                      <span>
+                        <strong>{t(`patch.${patch.id}` as MessageKey)}</strong>
+                        <small>{t(`patch.${patch.id}.how` as MessageKey)}</small>
+                        {got && <small className="patch-date">{date(got.earnedAt)}</small>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+          <div className="modal-actions">
+            <button className="primary" onClick={() => setShowJacket(false)} data-autofocus>
+              {t('close')}
             </button>
-            {mine && (
-              <button className="jacket-share" aria-expanded={picking} onClick={() => setPicking(!picking)}>
-                {t('jacket.pick')}
-              </button>
-            )}
           </div>
-          {mine && picking && (
-            <ul className="jacket-picker" aria-label={t('jacket.pickTitle')}>
-              {JACKETS.map((j) => {
-                const open = jacketOpen(j, profile.stats);
-                const on = j.id === profile.jacket;
-                return (
-                  <li key={j.id}>
-                    <button
-                      className={`jacket-option${on ? ' on' : ''}${open ? '' : ' locked'}`}
-                      disabled={!open || on}
-                      aria-pressed={on}
-                      onClick={() => void pickJacket(j.id)}
-                    >
-                      <img src={jacketSrc(j.id, true)} alt="" loading="lazy" width="120" height="120" />
-                      <strong>{t(`jacket.name.${j.id}` as MessageKey)}</strong>
-                      {j.need && !open && (
-                        <small>
-                          🔒 {t(`jacket.need.${j.need.kind}`, { n: String(j.need.n) })} (
-                          {Math.min(progress(j.need, profile.stats), j.need.n)}/{j.need.n})
-                        </small>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-        <div className="patch-list">
-          <h2>
-            {t('jacket.title')} · {profile.patches.length}/{PATCHES.length}
-          </h2>
-          <ul>
-            {PATCHES.map((patch) => {
-              const got = profile.patches.find((p) => p.id === patch.id);
-              return (
-                <li key={patch.id} className={got ? 'got' : 'locked'}>
-                  <svg viewBox="-36 -36 72 72" aria-hidden="true">
-                    <PatchMark patch={patch} label={t(`patch.${patch.id}` as MessageKey)} locked={!got} />
-                  </svg>
-                  <span>
-                    <strong>{t(`patch.${patch.id}` as MessageKey)}</strong>
-                    <small>{t(`patch.${patch.id}.how` as MessageKey)}</small>
-                    {got && <small className="patch-date">{date(got.earnedAt)}</small>}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </section>
+        </Modal>
+      )}
 
       <section className="rating-cards" aria-label={t('profile.ratings')}>
         {[...allCategories(), 'puzzle']
@@ -221,7 +254,7 @@ export function ProfilePage({ username, onOpen }: Props) {
               <button
                 key={c}
                 className={`rating-card${r ? '' : ' empty'}${category === c ? ' on' : ''}`}
-                onClick={() => r && c !== 'puzzle' && setCategory(c)}
+                onClick={() => r && setCategory(c)}
                 disabled={!r}
                 aria-pressed={category === c}
               >
@@ -260,9 +293,18 @@ export function ProfilePage({ username, onOpen }: Props) {
             <span className="loss" style={{ flexGrow: stats.losses }} />
           </div>
           <p className="result-legend">
-            <span className="win">{t('profile.wins', { n: String(stats.wins) })}</span>
-            <span className="draw">{t('profile.draws', { n: String(stats.draws) })}</span>
-            <span className="loss">{t('profile.losses', { n: String(stats.losses) })}</span>
+            {selected?.category === 'puzzle' ? (
+              <>
+                <span className="win">{t('profile.solved', { n: String(stats.wins) })}</span>
+                <span className="loss">{t('profile.missed', { n: String(stats.losses) })}</span>
+              </>
+            ) : (
+              <>
+                <span className="win">{t('profile.wins', { n: String(stats.wins) })}</span>
+                <span className="draw">{t('profile.draws', { n: String(stats.draws) })}</span>
+                <span className="loss">{t('profile.losses', { n: String(stats.losses) })}</span>
+              </>
+            )}
           </p>
         </section>
       )}
