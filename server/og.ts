@@ -3,7 +3,7 @@
 // game's position. Texts are Turkish, the site's main language.
 
 import { getVariant } from '../src/engine/index.ts';
-import { translator } from '../src/i18n/index.ts';
+import { translateOr, translator } from '../src/i18n/index.ts';
 import { playerText } from '../src/i18n/records.ts';
 import { variantTexts } from '../src/i18n/variant.ts';
 import { statesOfRecord } from '../src/online/record.ts';
@@ -40,7 +40,8 @@ export function previewTexts(r: GameRecord): { title: string; description: strin
       : r.result === '1/2-1/2'
         ? 'Berabere'
         : `${r.result === '1-0' ? 'Beyaz' : 'Siyah'} kazandı`;
-  const end = r.termination ? ` (${t(`termination.${r.termination}` as Parameters<typeof t>[0])})` : '';
+  // A reason this server does not know (an older or newer record) is shown as it is.
+  const end = r.termination ? ` (${translateOr(t, `termination.${r.termination}`, r.termination)})` : '';
   return {
     title: `${white} – ${black} · ${variant} · punkchess`,
     description: `${result}${r.result === '*' ? '' : end} · ${moves} hamle. Tahtada aç, analiz et.`,

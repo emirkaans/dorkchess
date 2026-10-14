@@ -115,3 +115,22 @@ describe('hata ve kayıt metinleri', () => {
     });
   });
 });
+
+describe('oyun bitiş nedenleri', () => {
+  it('online oyunun her bitiş nedeninin iki dilde adı var', async () => {
+    const { isMessageKey } = await import('../src/i18n/index.ts');
+    for (const reason of [
+      'checkmate',
+      'stalemate',
+      'fifty-move',
+      'threefold',
+      'insufficient',
+      'resign',
+      'agreement',
+      'timeout',
+      'abandon',
+    ]) {
+      expect(isMessageKey(`termination.${reason}`), reason).toBe(true);
+    }
+  });
+});

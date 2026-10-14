@@ -204,6 +204,7 @@ export const tr = {
   'termination.resign': 'Teslim',
   'termination.agreement': 'Anlaşmalı beraberlik',
   'termination.timeout': 'Süre',
+  'termination.abandon': 'Oyunu terk',
 
   // Notices
   'notice.linkError': 'Link açılamadı: {reason}',
@@ -735,6 +736,7 @@ export const en: Record<MessageKey, string> = {
   'termination.resign': 'Resignation',
   'termination.agreement': 'Draw agreed',
   'termination.timeout': 'Time',
+  'termination.abandon': 'Left the game',
 
   'notice.linkError': 'Could not open the link: {reason}',
   'notice.botError': 'Bot error: {message}',
