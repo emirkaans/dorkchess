@@ -2950,22 +2950,6 @@ button.primary:hover:not(:disabled) {
   letter-spacing: 0;
   color: var(--lime);
 }
-.account-delete,
-.account-confirm .danger {
-  color: var(--pink);
-}
-.account-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-.account-confirm p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-}
 .account-links {
   margin: 4px 0 0;
   padding: 6px 6px 0;
@@ -2990,17 +2974,6 @@ button.primary:hover:not(:disabled) {
   font-size: 13px;
 }
 /* Battle jacket on the profile: the jacket, its share button and every patch (earned or locked). */
-.jacket-section {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 24px;
-  align-items: start;
-}
-.jacket-box {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 .jacket {
   width: 100%;
   max-width: 500px;
@@ -3071,7 +3044,7 @@ button.primary:hover:not(:disabled) {
   align-self: center;
   min-width: 160px;
 }
-.patch-list ul {
+.patch-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3132,11 +3105,6 @@ button.primary:hover:not(:disabled) {
 .new-patches a {
   color: var(--lime);
   font-size: 13px;
-}
-@media (max-width: 760px) {
-  .jacket-section {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Puzzles: the analysis page layout with a status line, the rating and theme filters. */
@@ -3502,11 +3470,157 @@ button.primary:hover:not(:disabled) {
   font: 400 15px/1.2 var(--display);
   letter-spacing: 0.04em;
 }
+/* The jacket window fits the screen: the jacket fills the space it gets, the lists come in pages. */
 .modal.jacket-modal {
   width: min(1040px, 100%);
+  height: min(720px, calc(100svh - 32px));
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  overflow: hidden;
+}
+.jacket-window {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 20px;
+}
+.jacket-stage {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jacket-stage .jacket {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+}
+.jacket-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jacket-panel h2 {
+  margin: 0;
+}
+.jacket-panel .patch-list,
+.jacket-panel .jacket-picker {
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+.jacket-panel .patch-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.jacket-panel .jacket-picker {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.pager button {
+  min-width: 44px;
+  min-height: 40px;
+  font-size: 20px;
+  line-height: 1;
+}
+@media (max-width: 760px) {
+  .modal.jacket-modal {
+    height: calc(100svh - 28px);
+    padding: 12px;
+    gap: 10px;
+  }
+  .jacket-window {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 10px;
+  }
+  .jacket-panel .patch-list svg {
+    width: 44px;
+    height: 44px;
+  }
+  .jacket-stage .jacket-share {
+    min-width: 0;
+  }
+  .jacket-panel .patch-list {
+    grid-template-columns: 1fr;
+  }
+  .jacket-panel .jacket-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .jacket-panel .jacket-option img {
+    max-width: 90px;
+  }
+}
+/* Account settings: at the foot of the player's own profile, out of the way. */
+.profile-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.link-button {
+  min-height: 36px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-button:hover:not(:disabled) {
+  color: var(--fg);
+}
+.modal.account-modal {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--pink);
+}
+.danger-zone h3 {
+  margin: 0;
+  font: 400 20px/1 var(--display);
+  letter-spacing: 0.04em;
+  color: var(--pink);
+}
+.danger-zone p {
+  margin: 0;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.danger-zone label {
+  font-size: 13px;
+}
+.danger-zone input {
+  min-height: 42px;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  font: inherit;
+}
+.danger-zone .danger {
+  align-self: flex-start;
+  border-color: var(--pink);
+  color: var(--pink);
 }
 @media (max-width: 520px) {
   .jacket-thumb {

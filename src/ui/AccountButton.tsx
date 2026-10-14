@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LOCALES } from '../i18n/index.ts';
 import type { Locale } from '../i18n/index.ts';
-import { deleteAccount, signInWithGoogle, signOut, useAccount } from './account.ts';
+import { signInWithGoogle, signOut, useAccount } from './account.ts';
 import { useI18n } from './i18n.tsx';
 import { GearIcon } from './Punk.tsx';
 
@@ -31,8 +31,8 @@ interface Props {
 
 /**
  * Top bar, as on lichess: the signed-in username (or "Sign in" and a gear for
- * guests) opens a menu with the profile, the language, the settings and the
- * account's own actions.
+ * guests) opens a menu with the profile, the language, the settings and
+ * signing out. Deleting the account is in the profile's account settings.
  */
 export function AccountButton({ locale, onLocale, onSettings }: Props) {
   const { t } = useI18n();
@@ -40,9 +40,6 @@ export function AccountButton({ locale, onLocale, onSettings }: Props) {
   const [open, setOpen] = useState(false);
   // The menu itself, or its list of languages.
   const [view, setView] = useState<'main' | 'language'>('main');
-  // Deleting asks once more inside the menu (the viewer may not allow confirm()).
-  const [confirming, setConfirming] = useState(false);
-  const [failed, setFailed] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   // Closes the menu on a click elsewhere.
@@ -60,8 +57,6 @@ export function AccountButton({ locale, onLocale, onSettings }: Props) {
   const toggle = () => {
     setOpen((o) => !o);
     setView('main');
-    setConfirming(false);
-    setFailed(false);
   };
 
   return (
@@ -152,27 +147,6 @@ export function AccountButton({ locale, onLocale, onSettings }: Props) {
               >
                 {t('account.signOut')}
               </button>
-              {confirming ? (
-                <div className="account-confirm">
-                  <p>{failed ? t('account.deleteFailed') : t('account.deleteSure')}</p>
-                  <button
-                    role="menuitem"
-                    className="danger"
-                    onClick={() => {
-                      void deleteAccount().then((ok) => (ok ? location.assign('/') : setFailed(true)));
-                    }}
-                  >
-                    {t('account.deleteYes')}
-                  </button>
-                  <button role="menuitem" onClick={() => setConfirming(false)}>
-                    {t('newGame.cancel')}
-                  </button>
-                </div>
-              ) : (
-                <button role="menuitem" className="account-delete" onClick={() => setConfirming(true)}>
-                  {t('account.delete')}
-                </button>
-              )}
             </div>
           )}
           <p className="account-links">

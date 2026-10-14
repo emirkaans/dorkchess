@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { timeControl } from '../clock/clock.ts';
 import { getVariant, listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
@@ -6,10 +6,10 @@ import { outcomeFor } from '../online/profile.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../online/profile.ts';
 import { allCategories, variantOfCategory } from '../rating/categories.ts';
 import { useI18n } from './i18n.tsx';
-import { BattleJacket, PatchMark, jacketSrc } from './BattleJacket.tsx';
-import { JACKETS, jacketOpen, progress } from '../achievements/jackets.ts';
+import { BattleJacket, jacketSrc } from './BattleJacket.tsx';
 import { useAccount } from './account.ts';
-import { Modal } from './Modal.tsx';
+import { AccountSettings } from './AccountSettings.tsx';
+import { JacketWindow } from './JacketWindow.tsx';
 import { PATCHES } from '../achievements/patches.ts';
 
 interface Props {
@@ -26,9 +26,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   const [games, setGames] = useState<ProfileGame[]>([]);
   const [more, setMore] = useState(false);
   const [history, setHistory] = useState<RatingPoint[]>([]);
-  const jacket = useRef<SVGSVGElement>(null);
-  const [sharing, setSharing] = useState(false);
-  const [picking, setPicking] = useState(false);
+  // Account settings (deleting the account) open from the foot of the player's own profile.
+  const [showAccount, setShowAccount] = useState(false);
   // The big jacket with every patch opens in a window; the page shows it small.
   const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
@@ -91,7 +90,6 @@ export function ProfilePage({ username, onOpen }: Props) {
     }).catch(() => null);
     if (!res?.ok) return;
     setProfile((p) => (p && typeof p === 'object' ? { ...p, jacket: id } : p));
-    setPicking(false);
   };
 
   const categoryName = (c: string) => {
@@ -157,93 +155,16 @@ export function ProfilePage({ username, onOpen }: Props) {
       </header>
 
       {showJacket && (
-        <Modal label={t('jacket.title')} className="jacket-modal" onClose={() => setShowJacket(false)}>
-          <section className="jacket-section" aria-label={t('jacket.title')}>
-            <div className="jacket-box">
-              <BattleJacket
-                ref={jacket}
-                username={profile.username}
-                jacket={profile.jacket}
-                patches={profile.patches.map((p) => p.id)}
-              />
-              <div className="jacket-buttons">
-                <button
-                  className="jacket-share"
-                  disabled={sharing}
-                  onClick={() => {
-                    if (!jacket.current) return;
-                    setSharing(true);
-                    void shareJacket(jacket.current, profile.jacket, profile.username, t('jacket.shareText')).finally(
-                      () => setSharing(false),
-                    );
-                  }}
-                >
-                  {t('jacket.share')}
-                </button>
-                {mine && (
-                  <button className="jacket-share" aria-expanded={picking} onClick={() => setPicking(!picking)}>
-                    {t('jacket.pick')}
-                  </button>
-                )}
-              </div>
-              {mine && picking && (
-                <ul className="jacket-picker" aria-label={t('jacket.pickTitle')}>
-                  {JACKETS.map((j) => {
-                    const open = jacketOpen(j, profile.stats);
-                    const on = j.id === profile.jacket;
-                    return (
-                      <li key={j.id}>
-                        <button
-                          className={`jacket-option${on ? ' on' : ''}${open ? '' : ' locked'}`}
-                          disabled={!open || on}
-                          aria-pressed={on}
-                          onClick={() => void pickJacket(j.id)}
-                        >
-                          <img src={jacketSrc(j.id, true)} alt="" loading="lazy" width="120" height="120" />
-                          <strong>{t(`jacket.name.${j.id}` as MessageKey)}</strong>
-                          {j.need && !open && (
-                            <small>
-                              🔒 {t(`jacket.need.${j.need.kind}`, { n: String(j.need.n) })} (
-                              {Math.min(progress(j.need, profile.stats), j.need.n)}/{j.need.n})
-                            </small>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-            <div className="patch-list">
-              <h2>
-                {t('jacket.title')} · {profile.patches.length}/{PATCHES.length}
-              </h2>
-              <ul>
-                {PATCHES.map((patch) => {
-                  const got = profile.patches.find((p) => p.id === patch.id);
-                  return (
-                    <li key={patch.id} className={got ? 'got' : 'locked'}>
-                      <svg viewBox="-36 -36 72 72" aria-hidden="true">
-                        <PatchMark patch={patch} label={t(`patch.${patch.id}` as MessageKey)} locked={!got} />
-                      </svg>
-                      <span>
-                        <strong>{t(`patch.${patch.id}` as MessageKey)}</strong>
-                        <small>{t(`patch.${patch.id}.how` as MessageKey)}</small>
-                        {got && <small className="patch-date">{date(got.earnedAt)}</small>}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </section>
-          <div className="modal-actions">
-            <button className="primary" onClick={() => setShowJacket(false)} data-autofocus>
-              {t('close')}
-            </button>
-          </div>
-        </Modal>
+        <JacketWindow
+          profile={profile}
+          mine={mine}
+          date={date}
+          onPick={pickJacket}
+          onShare={(svg) => shareJacket(svg, profile.jacket, profile.username, t('jacket.shareText'))}
+          onClose={() => setShowJacket(false)}
+        />
       )}
+      {showAccount && <AccountSettings username={profile.username} onClose={() => setShowAccount(false)} />}
 
       <section className="rating-cards" aria-label={t('profile.ratings')}>
         {[...allCategories(), 'puzzle']
@@ -359,6 +280,14 @@ export function ProfilePage({ username, onOpen }: Props) {
           </button>
         )}
       </section>
+
+      {mine && (
+        <footer className="profile-foot">
+          <button className="link-button" onClick={() => setShowAccount(true)}>
+            {t('account.settings')}
+          </button>
+        </footer>
+      )}
     </main>
   );
 }
