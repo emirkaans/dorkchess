@@ -30,8 +30,23 @@ interface Attachment {
 }
 
 const MAX_MESSAGE = 1024;
+/** Messages a connection may send in BURST_MS (pings aside); each one is sent on to everyone. */
+const BURST = 20;
+const BURST_MS = 10_000;
 
 export class Lobby extends DurableObject<Env> {
+  // Recent message times per connection (kept in memory: a hibernated lobby starts afresh).
+  private recent = new WeakMap<WebSocket, number[]>();
+
+  /** Too many messages from one connection: the rest of the burst is dropped. */
+  private flooding(ws: WebSocket): boolean {
+    const now = Date.now();
+    const times = (this.recent.get(ws) ?? []).filter((t) => now - t < BURST_MS);
+    times.push(now);
+    this.recent.set(ws, times);
+    return times.length > BURST;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/live' && request.method === 'POST') return this.live(url);
@@ -157,6 +172,7 @@ export class Lobby extends DurableObject<Env> {
       return this.send(ws, { t: 'error', code: 'bad-request' });
     }
     if (msg.t === 'ping') return this.send(ws, { t: 'pong' });
+    if (this.flooding(ws)) return;
     if (msg.t === 'hello') {
       // A signed-in player keeps the account's id and username.
       if (this.attachment(ws).account) return this.broadcast();

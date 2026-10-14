@@ -22,6 +22,7 @@ import { handleProfiles } from './profiles.ts';
 import { handleDaily } from './daily.ts';
 import { handleLeaderboard } from './leaderboard.ts';
 import { handleRush } from './rush.ts';
+import { overLimit } from './limits.ts';
 import { handlePuzzles } from './puzzles.ts';
 
 export { GameRoom } from './game-room.ts';
@@ -90,6 +91,9 @@ export default {
       url.hostname = url.hostname.slice(4);
       return Response.redirect(url.toString(), 301);
     }
+
+    const limited = await overLimit(request, env, url.pathname);
+    if (limited) return limited;
 
     const auth = await handleAuth(request, env, url);
     if (auth) return auth;

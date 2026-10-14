@@ -17,6 +17,7 @@
       "!/fonts/*",
       "!/icons/*",
       "!/hero.webp",
+      "!/jackets/*",
       "!/og.png",
       "!/manifest.webmanifest",
       "!/sw.js",
@@ -46,6 +47,12 @@
   "routes": [
     { "pattern": "punkchess.com", "custom_domain": true },
     { "pattern": "www.punkchess.com", "custom_domain": true },
+  ],
+  // Requests per visitor and minute (server/limits.ts). namespace_id: any number unique in the account.
+  "ratelimits": [
+    { "name": "CREATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
+    { "name": "WRITE_LIMIT", "namespace_id": "1002", "simple": { "limit": 90, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "1003", "simple": { "limit": 240, "period": 60 } },
   ],
   "observability": { "enabled": true },
 }

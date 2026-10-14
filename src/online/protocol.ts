@@ -120,7 +120,7 @@ export type ClientMessage =
   | { readonly t: 'sticker'; readonly id: StickerId }
   | { readonly t: 'ping' };
 
-export type ErrorCode = 'illegal' | 'not-your-turn' | 'bad-request' | 'full' | 'not-found' | 'over';
+export type ErrorCode = 'illegal' | 'not-your-turn' | 'bad-request' | 'full' | 'not-found' | 'over' | 'rate-limited';
 
 export type ServerMessage =
   | { readonly t: 'view'; readonly view: GameView }

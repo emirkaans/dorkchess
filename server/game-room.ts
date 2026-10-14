@@ -30,8 +30,9 @@ import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import { settleGame, withRatings } from './ratings.ts';
 import { STICKER_GAP_MS, isSticker } from '../src/online/stickers.ts';
 import type { AuthEnv } from './auth.ts';
+import type { LimitEnv } from './limits.ts';
 
-export interface Env extends AuthEnv {
+export interface Env extends AuthEnv, LimitEnv {
   readonly GAME: DurableObjectNamespace<GameRoom>;
   readonly LOBBY: DurableObjectNamespace<Lobby>;
   readonly ASSETS: Fetcher;

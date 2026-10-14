@@ -1,6 +1,8 @@
 // Accounts, shared by the browser and the Worker: the username rules and the
 // shapes of the account API. Pure: no React, no DOM, no storage.
 
+import { offensiveName } from './badwords.ts';
+
 /** A signed-in player. */
 export interface AccountUser {
   readonly id: string;
@@ -58,7 +60,7 @@ export function usernameProblem(name: string): UsernameProblem | null {
   if (name.length < USERNAME_MIN || name.length > USERNAME_MAX) return 'length';
   if (!/^[A-Za-z0-9_-]+$/.test(name)) return 'chars';
   if (!/^[A-Za-z]/.test(name)) return 'start';
-  if (RESERVED.has(name.toLowerCase())) return 'reserved';
+  if (RESERVED.has(name.toLowerCase()) || offensiveName(name)) return 'reserved';
   return null;
 }
 
