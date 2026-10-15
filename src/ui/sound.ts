@@ -2,7 +2,7 @@
 // short wooden "tok"s like a piece put down on a board: a noise click for the
 // contact plus a low body that drops in pitch.
 
-export type SoundKind = 'move' | 'capture' | 'check' | 'captureCheck' | 'end' | 'mate' | 'lowtime';
+export type SoundKind = 'move' | 'capture' | 'check' | 'captureCheck' | 'end' | 'mate' | 'lowtime' | 'start';
 
 /** Sound of a played move: a capture always cracks (with a check ping on top when it also checks). */
 export const moveSound = (captured: boolean, check: boolean): SoundKind =>
@@ -136,6 +136,10 @@ export function playSound(kind: SoundKind): void {
       tone(ac, 98, t + 0.05, 2.2, 'sine', 0.5, 92);
       tone(ac, 147, t + 0.05, 1.8, 'sine', 0.22);
       [392, 311, 262, 196].forEach((f, i) => tone(ac, f, t + 0.12 + i * 0.13, 0.9 + i * 0.2, 'triangle', 0.14));
+      break;
+    case 'start':
+      // A game begins: two rising notes, loud enough to hear from another tab.
+      [523, 784].forEach((f, i) => tone(ac, f, t + i * 0.14, 0.32, 'triangle', 0.2));
       break;
     case 'lowtime':
       tone(ac, 1000, t, 0.07, 'square', 0.08);

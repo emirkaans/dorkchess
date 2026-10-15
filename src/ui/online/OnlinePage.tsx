@@ -37,6 +37,7 @@ import { moveSound, playSound } from '../sound.ts';
 import { ApiError, joinOnlineGame, loadName, loadTicket, saveName, saveTicket, useOnlineGame } from './connection.ts';
 import { LobbyPage } from './LobbyPage.tsx';
 import { ProfileLink } from '../ProfileLink.tsx';
+import { useAttention } from '../attention.ts';
 
 const HUMAN = { kind: 'human' } as const;
 
@@ -287,6 +288,28 @@ function OnlineGame({
   useEffect(() => {
     if (view?.phase === 'over') setPremove(null);
   }, [view?.phase]);
+
+  // Back to a hidden tab: a sound when the game starts, the title flashing while it is our move.
+  const startedRef = useRef(false);
+  const begun = !!view && !!you && (view.phase === 'playing' || view.phase === 'setup') && view.moves.length === 0;
+  const [startFlash, setStartFlash] = useState(false);
+  useEffect(() => {
+    if (!begun || startedRef.current) return;
+    startedRef.current = true;
+    if (typeof document !== 'undefined' && document.hidden) {
+      if (prefs.sound) playSound('start');
+      setStartFlash(true);
+    }
+  }, [begun, prefs.sound]);
+  useEffect(() => {
+    if (!startFlash) return;
+    const seen = () => {
+      if (!document.hidden) setStartFlash(false);
+    };
+    document.addEventListener('visibilitychange', seen);
+    return () => document.removeEventListener('visibilitychange', seen);
+  }, [startFlash]);
+  useAttention(myTurnNow ? t('notify.yourTurn') : startFlash ? t('notify.started') : null);
 
   // Low time: one warning per move when our clock passes ten seconds.
   const warnedAt = useRef(-1);
