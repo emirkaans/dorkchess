@@ -57,6 +57,19 @@ export function LeaderboardPage() {
       <div className="profile-head">
         <h1 className="profile-name">{t('leaders.title')}</h1>
         <p className="muted">{t('leaders.sub', { days: String(LEADERS_ACTIVE_DAYS) })}</p>
+        <p>
+          <a
+            className="gang-link"
+            href="/gangs"
+            onClick={(e) => {
+              e.preventDefault();
+              history.pushState(null, '', '/gangs');
+              dispatchEvent(new PopStateEvent('popstate'));
+            }}
+          >
+            ⚑ {t('gang.title')} →
+          </a>
+        </p>
       </div>
 
       {board === null && <p className="muted">{t('leaders.loading')}</p>}

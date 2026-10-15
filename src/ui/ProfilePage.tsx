@@ -164,6 +164,18 @@ export function ProfilePage({ username, onOpen }: Props) {
         </button>
         <div className="profile-title">
           <h1 className="profile-name">{profile.username}</h1>
+          {profile.gang && (
+            <a
+              className="gang-badge"
+              href={`/gang/${profile.gang.tag}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onOpen(`/gang/${profile.gang!.tag}`);
+              }}
+            >
+              [{profile.gang.tag}] {profile.gang.name}
+            </a>
+          )}
           <p className="muted profile-follows">
             {t('follow.followers', { n: String(profile.followers) })} ·{' '}
             {t('follow.following', { n: String(profile.following) })}

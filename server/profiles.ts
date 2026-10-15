@@ -148,6 +148,12 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
       patches: patches.results.map((p) => ({ id: p.patch_id, earnedAt: p.earned_at })),
       ...(await followInfo(env.DB, user.id, request, env)),
       ...(await rivals(env.DB, user.id)),
+      gang:
+        (await env.DB.prepare(
+          'SELECT g.tag, g.name FROM gang_members m JOIN gangs g ON g.id = m.gang_id WHERE m.user_id = ?1',
+        )
+          .bind(user.id)
+          .first<{ tag: string; name: string }>()) ?? null,
       jacket: jacketById(user.jacket).id,
       stats: await jacketStats(env.DB, user.id),
     } satisfies ProfileResponse);

@@ -38,6 +38,8 @@ export interface ProfileResponse {
   /** The opponent who beat the player most (online games against accounts), and the one they beat most. */
   readonly nemesis: Rival | null;
   readonly victim: Rival | null;
+  /** The player's gang, if any. */
+  readonly gang: { readonly tag: string; readonly name: string } | null;
   /** The jacket the player picked. */
   readonly jacket: string;
   /** What earns the other jackets. */

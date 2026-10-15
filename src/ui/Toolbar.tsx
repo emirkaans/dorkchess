@@ -16,6 +16,7 @@ export type Page =
   | 'daily'
   | 'rush'
   | 'tv'
+  | 'gangs'
   | 'leaderboard'
   | 'loading';
 

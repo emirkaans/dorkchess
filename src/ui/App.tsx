@@ -64,6 +64,7 @@ const ProfilePage = lazy(() => import('./ProfilePage.tsx').then((m) => ({ defaul
 const PuzzlePage = lazy(() => import('./PuzzlePage.tsx').then((m) => ({ default: m.PuzzlePage })));
 const DailyPage = lazy(() => import('./DailyPage.tsx').then((m) => ({ default: m.DailyPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage.tsx').then((m) => ({ default: m.LeaderboardPage })));
+const GangsPage = lazy(() => import('./GangsPage.tsx').then((m) => ({ default: m.GangsPage })));
 const TvPage = lazy(() => import('./TvPage.tsx').then((m) => ({ default: m.TvPage })));
 const RushPage = lazy(() => import('./RushPage.tsx').then((m) => ({ default: m.RushPage })));
 
@@ -97,6 +98,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const [profileName, setProfileName] = useState<string | null>(null);
   // The puzzle asked for by the address (/puzzles/<id>), or null for the next one.
   const [puzzleId, setPuzzleId] = useState<string | null>(null);
+  // The gang asked for by the address (/gang/<TAG>), or null for the list.
+  const [gangTag, setGangTag] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => (parseRoute(location.pathname).kind === 'home' ? 'home' : 'loading'));
   /** Online game shown on the online page (null: its lobby). */
   const [onlineId, setOnlineId] = useState<string | null>(null);
@@ -246,6 +249,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         return setPage('online');
       }
       if (r.kind === 'signup') return setPage('signup');
+      if (r.kind === 'gangs') {
+        setGangTag(r.tag);
+        return setPage('gangs');
+      }
       if (r.kind === 'puzzles') {
         setPuzzleId(r.id);
         return setPage('puzzles');
@@ -380,11 +387,12 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       want = pathOf(review.review.watch ? { kind: 'game', id } : { kind: 'review', id });
     } else if (page === 'review') want = location.pathname;
     else if (page === 'puzzles') want = pathOf({ kind: 'puzzles', id: puzzleId });
+    else if (page === 'gangs') want = pathOf({ kind: 'gangs', tag: gangTag });
     else if (page === 'profile')
       want = profileName ? pathOf({ kind: 'profile', username: profileName }) : location.pathname;
     else want = pathOf({ kind: page });
     if (want !== location.pathname) history.pushState(null, '', want);
-  }, [page, onlineId, review, session.gameId, profileName, puzzleId]);
+  }, [page, onlineId, review, session.gameId, profileName, puzzleId, gangTag]);
 
   const humanToMove = toMove.kind === 'human';
   const boardDisabled =
@@ -494,6 +502,14 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           />
         ) : page === 'leaderboard' ? (
           <LeaderboardPage />
+        ) : page === 'gangs' ? (
+          <GangsPage
+            tag={gangTag}
+            onOpen={(path) => {
+              history.pushState(null, '', path);
+              applyRouteRef.current(parseRoute(path));
+            }}
+          />
         ) : page === 'tv' ? (
           <TvPage
             onPlay={() => {
