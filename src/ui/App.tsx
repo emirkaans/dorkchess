@@ -64,6 +64,7 @@ const ProfilePage = lazy(() => import('./ProfilePage.tsx').then((m) => ({ defaul
 const PuzzlePage = lazy(() => import('./PuzzlePage.tsx').then((m) => ({ default: m.PuzzlePage })));
 const DailyPage = lazy(() => import('./DailyPage.tsx').then((m) => ({ default: m.DailyPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage.tsx').then((m) => ({ default: m.LeaderboardPage })));
+const TvPage = lazy(() => import('./TvPage.tsx').then((m) => ({ default: m.TvPage })));
 const RushPage = lazy(() => import('./RushPage.tsx').then((m) => ({ default: m.RushPage })));
 
 /** Storage key of the running local game (restored after a reload). */
@@ -236,6 +237,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         r.kind === 'analysis' ||
         r.kind === 'daily' ||
         r.kind === 'rush' ||
+        r.kind === 'tv' ||
         r.kind === 'leaderboard'
       )
         return setPage(r.kind);
@@ -450,6 +452,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           setPage('puzzles');
         }}
         onLeaderboard={() => setPage('leaderboard')}
+        onTv={() => setPage('tv')}
         onSettings={() => setShowSettings(true)}
       />
 
@@ -491,6 +494,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           />
         ) : page === 'leaderboard' ? (
           <LeaderboardPage />
+        ) : page === 'tv' ? (
+          <TvPage
+            onPlay={() => {
+              setOnlineId(null);
+              setPage('online');
+            }}
+          />
         ) : page === 'rush' ? (
           <RushPage prefs={prefs} />
         ) : page === 'daily' ? (

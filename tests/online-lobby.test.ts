@@ -106,3 +106,28 @@ describe('lobi', () => {
     expect(quickMatch([guest, ratedQuick], '1+0', 'someone', false)?.id).toBe('g');
   });
 });
+
+describe('canlı izleme (TV)', async () => {
+  const { pickTv } = await import('../src/online/lobby.ts');
+  const g = (id: string, at: number, rating: number | null, rated = rating !== null) => ({
+    id,
+    at,
+    white: 'a',
+    black: 'b',
+    variantId: 'standard',
+    timeControlId: '5+0',
+    rated,
+    rating,
+  });
+
+  it('en yüksek puanlı puanlı oyun seçilir; yoksa en son başlayan', () => {
+    expect(pickTv([g('a', 1, 1500), g('b', 2, 1800), g('c', 3, null)])?.id).toBe('b');
+    expect(pickTv([g('a', 1, null), g('c', 3, null)])?.id).toBe('c');
+    expect(pickTv([])).toBeNull();
+  });
+
+  it('biten oyunun yerine başkası; başka yoksa yine o', () => {
+    expect(pickTv([g('a', 1, 1500), g('b', 2, 1800)], 'b')?.id).toBe('a');
+    expect(pickTv([g('b', 2, 1800)], 'b')).toBeNull();
+  });
+});

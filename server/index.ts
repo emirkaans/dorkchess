@@ -127,6 +127,9 @@ export default {
     const challenges = await handleChallenges(request, env, url);
     if (challenges) return challenges;
 
+    if (url.pathname === '/api/tv' && request.method === 'GET') {
+      return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(`https://lobby/tv${url.search}`);
+    }
     if (url.pathname === '/api/stats' && request.method === 'GET') {
       return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch('https://lobby/stats');
     }

@@ -15,6 +15,7 @@ export type Page =
   | 'puzzles'
   | 'daily'
   | 'rush'
+  | 'tv'
   | 'leaderboard'
   | 'loading';
 
@@ -28,6 +29,7 @@ interface Props {
   onAnalysis: () => void;
   onPuzzles: () => void;
   onLeaderboard: () => void;
+  onTv: () => void;
   onSettings: () => void;
 }
 
@@ -41,6 +43,7 @@ export function Toolbar({
   onAnalysis,
   onPuzzles,
   onLeaderboard,
+  onTv,
   onSettings,
 }: Props) {
   const { t } = useI18n();
@@ -106,6 +109,13 @@ export function Toolbar({
             onClick={close(onLeaderboard)}
           >
             {t('menu.leaderboard')}
+          </button>
+          <button
+            className={page === 'tv' ? 'on' : ''}
+            aria-current={page === 'tv' ? 'page' : undefined}
+            onClick={close(onTv)}
+          >
+            {t('menu.tv')}
           </button>
           <button
             className={page === 'analysis' ? 'on' : ''}

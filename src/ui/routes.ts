@@ -7,6 +7,7 @@
 //   /puzzles          puzzles (/puzzles/<id>: one puzzle)
 //   /daily            the daily puzzle
 //   /rush             Puzzle Rush
+//   /tv               watch the best game being played
 //   /leaderboard      the best players
 //   /<gameId>         a game (being played, or finished)
 //   /<gameId>/analysis   analysis of that game
@@ -21,6 +22,7 @@ export type Route =
   | { readonly kind: 'puzzles'; readonly id: string | null }
   | { readonly kind: 'daily' }
   | { readonly kind: 'rush' }
+  | { readonly kind: 'tv' }
   | { readonly kind: 'leaderboard' }
   | { readonly kind: 'game'; readonly id: string }
   | { readonly kind: 'review'; readonly id: string };
@@ -34,6 +36,7 @@ const RESERVED = new Set([
   'puzzles',
   'daily',
   'rush',
+  'tv',
   'leaderboard',
   'assets',
   'icons',
@@ -58,6 +61,7 @@ export function parseRoute(pathname: string): Route {
   if (p === '/puzzles') return { kind: 'puzzles', id: null };
   if (p === '/daily') return { kind: 'daily' };
   if (p === '/rush') return { kind: 'rush' };
+  if (p === '/tv') return { kind: 'tv' };
   if (p === '/leaderboard') return { kind: 'leaderboard' };
   const puzzle = /^\/puzzles\/([A-Za-z0-9]{3,16})$/.exec(p);
   if (puzzle) return { kind: 'puzzles', id: puzzle[1] };
@@ -86,6 +90,8 @@ export function pathOf(r: Route): string {
       return '/daily';
     case 'rush':
       return '/rush';
+    case 'tv':
+      return '/tv';
     case 'leaderboard':
       return '/leaderboard';
     case 'game':

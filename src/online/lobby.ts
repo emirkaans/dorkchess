@@ -36,6 +36,36 @@ export interface LiveStats {
 /** A game that never reports its end (its room lost) stops counting after this long. */
 export const LIVE_GAME_MAX_MS = 6 * 3_600_000;
 
+/** A game being played, as the lobby knows it (for the counter and TV). */
+export interface LiveGame {
+  readonly id: string;
+  /** When it started (ms). */
+  readonly at: number;
+  readonly white: string;
+  readonly black: string;
+  readonly variantId: string;
+  readonly timeControlId: string;
+  readonly rated: boolean;
+  /** Average rating of the two players (rated games), else null. */
+  readonly rating: number | null;
+}
+
+/** GET /api/tv: the game to watch now, or null when none is being played. */
+export interface TvResponse {
+  readonly game: LiveGame | null;
+}
+
+/** The game TV shows: the best-rated rated game, else the most recently started one. */
+export function pickTv(games: Iterable<LiveGame>, skip: string | null = null): LiveGame | null {
+  let best: LiveGame | null = null;
+  const score = (g: LiveGame) => (g.rated && g.rating !== null ? g.rating : 0);
+  for (const g of games) {
+    if (g.id === skip) continue;
+    if (!best || score(g) > score(best) || (score(g) === score(best) && g.at > best.at)) best = g;
+  }
+  return best;
+}
+
 /** An open game offer. */
 export interface Seek {
   readonly id: string;

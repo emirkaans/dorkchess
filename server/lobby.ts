@@ -12,8 +12,16 @@ import { DurableObject } from 'cloudflare:workers';
 import { createRoom, joinRoom } from '../src/online/room.ts';
 import { randomGameId } from '../src/online/record.ts';
 import { QUICK_VARIANT, cleanPlayer, gameRequest, makeSeek, quickMatch, sortSeeks } from '../src/online/lobby.ts';
-import { LIVE_GAME_MAX_MS } from '../src/online/lobby.ts';
-import type { LiveStats, LobbyClientMessage, LobbyPlayer, LobbyServerMessage, Seek } from '../src/online/lobby.ts';
+import { LIVE_GAME_MAX_MS, pickTv } from '../src/online/lobby.ts';
+import type {
+  LiveGame,
+  LiveStats,
+  LobbyClientMessage,
+  LobbyPlayer,
+  LobbyServerMessage,
+  Seek,
+  TvResponse,
+} from '../src/online/lobby.ts';
 import type { Env } from './game-room.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import type { SeatAccount } from '../src/online/room.ts';
@@ -49,7 +57,8 @@ export class Lobby extends DurableObject<Env> {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/live' && request.method === 'POST') return this.live(url);
+    if (url.pathname === '/live' && request.method === 'POST') return this.live(url, request);
+    if (url.pathname === '/tv' && request.method === 'GET') return this.tv(url);
     if (url.pathname === '/stats' && request.method === 'GET') return this.stats();
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
@@ -69,23 +78,45 @@ export class Lobby extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  /** Games being played: id → when it started. */
-  private async liveGames(): Promise<Map<string, number>> {
-    const games = (await this.ctx.storage.get<Map<string, number>>('live')) ?? new Map<string, number>();
+  /** Games being played, by id (entries from before they carried details are only counted). */
+  private async liveGames(): Promise<Map<string, LiveGame | number>> {
+    const games =
+      (await this.ctx.storage.get<Map<string, LiveGame | number>>('live')) ?? new Map<string, LiveGame | number>();
     const old = Date.now() - LIVE_GAME_MAX_MS;
-    for (const [id, at] of games) if (at < old) games.delete(id);
+    for (const [id, g] of games) if ((typeof g === 'number' ? g : g.at) < old) games.delete(id);
     return games;
   }
 
-  /** A game room says a game started (on=1) or ended (on=0). */
-  private async live(url: URL): Promise<Response> {
+  /** A game room says a game started (on=1, with its players in the body) or ended (on=0). */
+  private async live(url: URL, request: Request): Promise<Response> {
     const id = url.searchParams.get('id');
     if (!id) return new Response('bad request', { status: 400 });
     const games = await this.liveGames();
-    if (url.searchParams.get('on') === '1') games.set(id, Date.now());
-    else games.delete(id);
+    if (url.searchParams.get('on') === '1') {
+      const body = (await request.json().catch(() => null)) as Partial<LiveGame> | null;
+      games.set(id, {
+        id,
+        at: Date.now(),
+        white: String(body?.white ?? ''),
+        black: String(body?.black ?? ''),
+        variantId: String(body?.variantId ?? ''),
+        timeControlId: String(body?.timeControlId ?? ''),
+        rated: body?.rated === true,
+        rating: typeof body?.rating === 'number' ? body.rating : null,
+      });
+    } else games.delete(id);
     await this.ctx.storage.put('live', games);
     return new Response(null, { status: 204 });
+  }
+
+  /** The game to watch now (?skip=<id>: another one than that, when there is one). */
+  private async tv(url: URL): Promise<Response> {
+    const games = [...(await this.liveGames()).values()].filter((g): g is LiveGame => typeof g !== 'number');
+    const skip = url.searchParams.get('skip');
+    const game = pickTv(games, skip) ?? pickTv(games);
+    return new Response(JSON.stringify({ game } satisfies TvResponse), {
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
   }
 
   private async stats(): Promise<Response> {

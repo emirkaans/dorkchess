@@ -109,6 +109,19 @@ export function HomePage({ onPlay, onOnline, onDaily }: Props) {
             <p className="live-stats">
               <span className="live-dot" aria-hidden="true" />
               {t('home.liveGames', { n: String(stats.games) })} · {t('home.livePlayers', { n: String(stats.players) })}
+              {stats.games > 0 && (
+                <a
+                  className="live-watch"
+                  href="/tv"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    history.pushState(null, '', '/tv');
+                    dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  📺 {t('tv.watch')}
+                </a>
+              )}
             </p>
           )}
           <ul className="facts">

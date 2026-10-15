@@ -98,9 +98,22 @@ export class GameRoom extends DurableObject<Env> {
     if (before !== room.phase && (room.phase === 'playing' || before === 'playing')) {
       const on = room.phase === 'playing' ? 1 : 0;
       const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
+      // Who plays what, for TV.
+      const r = room.ratings;
+      const details = {
+        white: room.seats.w?.account?.username ?? room.seats.w?.name ?? '',
+        black: room.seats.b?.account?.username ?? room.seats.b?.name ?? '',
+        variantId: room.variantId,
+        timeControlId: room.timeControlId,
+        rated: !!room.rated,
+        rating: room.rated && r?.w && r?.b ? Math.round((r.w.rating + r.b.rating) / 2) : null,
+      };
       this.ctx.waitUntil(
         lobby
-          .fetch(`https://lobby/live?id=${encodeURIComponent(room.id)}&on=${on}`, { method: 'POST' })
+          .fetch(`https://lobby/live?id=${encodeURIComponent(room.id)}&on=${on}`, {
+            method: 'POST',
+            body: on ? JSON.stringify(details) : null,
+          })
           .then(() => undefined)
           .catch(() => undefined),
       );

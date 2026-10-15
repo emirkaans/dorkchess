@@ -23,6 +23,7 @@ const LIMITED_READS = [
   /^\/api\/puzzles\/next$/,
   /^\/api\/rush$/,
   /^\/api\/daily$/,
+  /^\/api\/tv$/,
   /^\/api\/challenges$/,
   /^\/api\/leaderboard$/,
   /^\/api\/users\//,

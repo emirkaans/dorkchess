@@ -116,6 +116,11 @@ export const tr = {
   'home.liveGames': '{n} oyun oynanıyor',
   'home.livePlayers': 'lobide {n} kişi',
   'menu.leaderboard': 'Liderler',
+  'menu.tv': 'İzle',
+  'tv.title': 'Canlı',
+  'tv.empty': 'Şu an oynanan bir online oyun yok. Bir tane başlatmaya ne dersin?',
+  'tv.over': 'Oyun bitti, sıradakine geçiliyor…',
+  'tv.watch': 'İzle',
   'leaders.title': 'Liderler',
   'leaders.sub':
     'Her kategorinin en iyileri. ? işaretli puanlar henüz oturmadı; {days} gündür oynamayanlar listeden düşer.',
@@ -682,6 +687,11 @@ export const en: Record<MessageKey, string> = {
   'home.liveGames': '{n} games being played',
   'home.livePlayers': '{n} in the lobby',
   'menu.leaderboard': 'Leaders',
+  'menu.tv': 'Watch',
+  'tv.title': 'Live',
+  'tv.empty': 'No online game is being played right now. Why not start one?',
+  'tv.over': 'Game over, moving to the next…',
+  'tv.watch': 'Watch',
   'leaders.title': 'Leaderboard',
   'leaders.sub':
     'The best of each category. Ratings marked ? are not settled yet; players inactive for {days} days drop off.',
