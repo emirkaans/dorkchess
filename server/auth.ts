@@ -244,6 +244,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
       env.DB.prepare('DELETE FROM daily_results WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM rush_scores WHERE user_id = ?1').bind(user.id),
       env.DB.prepare('DELETE FROM challenges WHERE from_user = ?1 OR to_user = ?1').bind(user.id),
+      env.DB.prepare('DELETE FROM follows WHERE follower = ?1 OR followee = ?1').bind(user.id),
       // Played games stay (they are the opponent's too), no longer tied to the account.
       env.DB.prepare('UPDATE games SET white_user = NULL WHERE white_user = ?1').bind(user.id),
       env.DB.prepare('UPDATE games SET black_user = NULL WHERE black_user = ?1').bind(user.id),

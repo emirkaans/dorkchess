@@ -12,6 +12,7 @@ import { playerIdentity, useLobby } from './lobbyConnection.ts';
 import { useAccount } from '../account.ts';
 import type { ChallengeRequest } from '../../online/challenge.ts';
 import { ProfileLink } from '../ProfileLink.tsx';
+import { FollowStrip } from '../FollowStrip.tsx';
 
 type Tab = 'quick' | 'seeks' | 'friend';
 
@@ -71,6 +72,7 @@ export function LobbyPage({
             <span className={`lobby-online${lobby.status === 'open' ? '' : ' off'}`}>
               {lobby.status === 'open' ? t('lobby.online', { n: String(lobby.online) }) : t('lobby.reconnecting')}
             </span>
+            <FollowStrip onOpenGame={onOpenGame} />
           </div>
 
           {account.user ? (

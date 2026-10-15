@@ -42,6 +42,18 @@ async function jacketStats(db: D1Database, userId: string): Promise<JacketStats>
   };
 }
 
+/** How many follow the player and whom they follow, and whether the viewer is one of the first. */
+async function followInfo(db: D1Database, userId: string, request: Request, env: AuthEnv) {
+  const viewer = await currentUser(request, env).catch(() => null);
+  const [followers, following, mine] = await db.batch([
+    db.prepare('SELECT count(*) AS n FROM follows WHERE followee = ?1').bind(userId),
+    db.prepare('SELECT count(*) AS n FROM follows WHERE follower = ?1').bind(userId),
+    db.prepare('SELECT 1 AS x FROM follows WHERE follower = ?1 AND followee = ?2').bind(viewer?.id ?? '', userId),
+  ]);
+  const n = (r: D1Result) => (r.results[0] as { n: number } | undefined)?.n ?? 0;
+  return { followers: n(followers), following: n(following), followed: !!viewer && mine.results.length > 0 };
+}
+
 /** Answers a profile request, or returns null when `url` is not one. */
 export async function handleProfiles(request: Request, env: AuthEnv, url: URL): Promise<Response | null> {
   if (url.pathname === '/api/me/jacket' && request.method === 'POST') {
@@ -101,6 +113,7 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
       games: count?.n ?? 0,
       ratings,
       patches: patches.results.map((p) => ({ id: p.patch_id, earnedAt: p.earned_at })),
+      ...(await followInfo(env.DB, user.id, request, env)),
       jacket: jacketById(user.jacket).id,
       stats: await jacketStats(env.DB, user.id),
     } satisfies ProfileResponse);

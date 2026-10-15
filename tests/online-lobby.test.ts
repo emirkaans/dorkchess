@@ -131,3 +131,16 @@ describe('canlı izleme (TV)', async () => {
     expect(pickTv([g('b', 2, 1800)], 'b')).toBeNull();
   });
 });
+
+describe('takip', async () => {
+  const { sortFollowing } = await import('../src/online/follow.ts');
+  it('oynayanlar önce, sonra lobidekiler, sonra diğerleri; her grupta ada göre', () => {
+    const list = sortFollowing([
+      { username: 'zed', status: 'offline', gameId: null },
+      { username: 'bob', status: 'lobby', gameId: null },
+      { username: 'amy', status: 'playing', gameId: 'AbCd1234' },
+      { username: 'ada', status: 'lobby', gameId: null },
+    ]);
+    expect(list.map((f) => f.username)).toEqual(['amy', 'ada', 'bob', 'zed']);
+  });
+});

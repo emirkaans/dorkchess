@@ -23,6 +23,10 @@ export interface ProfileResponse {
   readonly ratings: readonly ProfileRating[];
   /** Patches on the battle jacket, oldest first. */
   readonly patches: readonly { readonly id: string; readonly earnedAt: number }[];
+  readonly followers: number;
+  readonly following: number;
+  /** The signed-in viewer follows this player. */
+  readonly followed: boolean;
   /** The jacket the player picked. */
   readonly jacket: string;
   /** What earns the other jackets. */

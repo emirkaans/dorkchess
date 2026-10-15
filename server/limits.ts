@@ -25,6 +25,7 @@ const LIMITED_READS = [
   /^\/api\/daily$/,
   /^\/api\/tv$/,
   /^\/api\/challenges$/,
+  /^\/api\/follows$/,
   /^\/api\/leaderboard$/,
   /^\/api\/users\//,
   /^\/api\/auth\/username$/,

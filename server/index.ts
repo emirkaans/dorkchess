@@ -24,6 +24,7 @@ import { handleLeaderboard } from './leaderboard.ts';
 import { handleRush } from './rush.ts';
 import { handleChallenges } from './challenges.ts';
 import { handleErrors } from './errors.ts';
+import { handleFollows } from './follows.ts';
 import { pagePreview, sitemap } from './pages.ts';
 import { overLimit } from './limits.ts';
 import { handlePuzzles } from './puzzles.ts';
@@ -124,6 +125,8 @@ export default {
     if (rush) return rush;
     const errors = await handleErrors(request, url);
     if (errors) return errors;
+    const follows = await handleFollows(request, env, url);
+    if (follows) return follows;
     const challenges = await handleChallenges(request, env, url);
     if (challenges) return challenges;
 

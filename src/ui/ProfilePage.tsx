@@ -84,6 +84,18 @@ export function ProfilePage({ username, onOpen }: Props) {
   };
 
   const mine = !!account.user && typeof profile === 'object' && profile?.username === account.user.username;
+  const toggleFollow = async () => {
+    if (!profile || typeof profile !== 'object') return;
+    const on = !profile.followed;
+    const res = await fetch(`/api/follows/${encodeURIComponent(profile.username)}`, {
+      method: on ? 'POST' : 'DELETE',
+      credentials: 'same-origin',
+    }).catch(() => null);
+    if (!res?.ok) return;
+    setProfile((p) =>
+      p && typeof p === 'object' ? { ...p, followed: on, followers: Math.max(0, p.followers + (on ? 1 : -1)) } : p,
+    );
+  };
   const pickJacket = async (id: string) => {
     const res = await fetch('/api/me/jacket', {
       method: 'POST',
@@ -150,10 +162,19 @@ export function ProfilePage({ username, onOpen }: Props) {
         </button>
         <div className="profile-title">
           <h1 className="profile-name">{profile.username}</h1>
+          <p className="muted profile-follows">
+            {t('follow.followers', { n: String(profile.followers) })} ·{' '}
+            {t('follow.following', { n: String(profile.following) })}
+          </p>
           {account.user && !mine && (
-            <button className="primary challenge-button" onClick={() => setChallenging(true)}>
-              {t('challenge.button')}
-            </button>
+            <div className="profile-actions">
+              <button className="primary challenge-button" onClick={() => setChallenging(true)}>
+                {t('challenge.button')}
+              </button>
+              <button className={`follow-button${profile.followed ? ' on' : ''}`} onClick={() => void toggleFollow()}>
+                {profile.followed ? t('follow.unfollow') : t('follow.follow')}
+              </button>
+            </div>
           )}
           <p className="muted">
             {t('profile.joined', { date: date(profile.createdAt) })} ·{' '}

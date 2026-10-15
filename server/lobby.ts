@@ -9,6 +9,7 @@
 // home page can show how many games are being played (/stats).
 
 import { DurableObject } from 'cloudflare:workers';
+import type { Presence } from '../src/online/follow.ts';
 import { createRoom, joinRoom } from '../src/online/room.ts';
 import { randomGameId } from '../src/online/record.ts';
 import { QUICK_VARIANT, cleanPlayer, gameRequest, makeSeek, quickMatch, sortSeeks } from '../src/online/lobby.ts';
@@ -59,6 +60,7 @@ export class Lobby extends DurableObject<Env> {
     const url = new URL(request.url);
     if (url.pathname === '/live' && request.method === 'POST') return this.live(url, request);
     if (url.pathname === '/tv' && request.method === 'GET') return this.tv(url);
+    if (url.pathname === '/presence' && request.method === 'POST') return this.presence(request);
     if (url.pathname === '/stats' && request.method === 'GET') return this.stats();
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
@@ -107,6 +109,27 @@ export class Lobby extends DurableObject<Env> {
     } else games.delete(id);
     await this.ctx.storage.put('live', games);
     return new Response(null, { status: 204 });
+  }
+
+  /** Which of the asked usernames are in the lobby, and which are playing (and where). */
+  private async presence(request: Request): Promise<Response> {
+    const body = (await request.json().catch(() => null)) as { names?: unknown } | null;
+    const names = new Set(
+      Array.isArray(body?.names) ? body.names.filter((n): n is string => typeof n === 'string') : [],
+    );
+    const lobby = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = this.attachment(ws);
+      if (a.account && names.has(a.account.username)) lobby.add(a.account.username);
+    }
+    const games: Record<string, string> = {};
+    for (const g of (await this.liveGames()).values()) {
+      if (typeof g === 'number') continue;
+      if (names.has(g.white)) games[g.white] = g.id;
+      if (names.has(g.black)) games[g.black] = g.id;
+    }
+    const presence: Presence = { lobby: [...lobby], games };
+    return new Response(JSON.stringify(presence), { headers: { 'content-type': 'application/json' } });
   }
 
   /** The game to watch now (?skip=<id>: another one than that, when there is one). */

@@ -5361,3 +5361,54 @@ a:focus-visible {
   text-decoration: none;
   font-weight: 700;
 }
+
+/* Following: counts and buttons on a profile, the strip of followed players in the lobby. */
+.profile-follows {
+  margin: 0;
+  font-size: 13px;
+}
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.profile-actions .challenge-button {
+  margin-top: 0;
+}
+.follow-button.on {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+.follow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.follow-strip > span {
+  color: var(--muted);
+}
+.follow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+.follow-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+}
+.follow-chip.playing .dot {
+  background: var(--pink);
+}
