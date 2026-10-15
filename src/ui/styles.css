@@ -5201,3 +5201,47 @@ a:focus-visible {
 .engine-credit a {
   color: inherit;
 }
+
+/* A challenge to the signed-in player: a corner card with accept and decline. */
+.challenge-toast {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  width: min(340px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--pink);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  animation: rise 0.22s ease-out;
+}
+.challenge-toast p {
+  margin: 0;
+}
+.challenge-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.challenge-actions button {
+  flex: 1;
+}
+.challenge-button {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+.modal.challenge-modal {
+  width: min(600px, 100%);
+  max-height: calc(100svh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.modal.challenge-modal h2 {
+  margin: 0;
+}

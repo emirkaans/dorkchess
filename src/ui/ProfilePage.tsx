@@ -10,6 +10,8 @@ import { BattleJacket, jacketSrc } from './BattleJacket.tsx';
 import { useAccount } from './account.ts';
 import { AccountSettings } from './AccountSettings.tsx';
 import { JacketWindow } from './JacketWindow.tsx';
+import { Modal } from './Modal.tsx';
+import { FriendGame } from './online/LobbyPage.tsx';
 import { PATCHES } from '../achievements/patches.ts';
 
 interface Props {
@@ -28,6 +30,7 @@ export function ProfilePage({ username, onOpen }: Props) {
   const [history, setHistory] = useState<RatingPoint[]>([]);
   // Account settings (deleting the account) open from the foot of the player's own profile.
   const [showAccount, setShowAccount] = useState(false);
+  const [challenging, setChallenging] = useState(false);
   // The big jacket with every patch opens in a window; the page shows it small.
   const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
@@ -147,6 +150,11 @@ export function ProfilePage({ username, onOpen }: Props) {
         </button>
         <div className="profile-title">
           <h1 className="profile-name">{profile.username}</h1>
+          {account.user && !mine && (
+            <button className="primary challenge-button" onClick={() => setChallenging(true)}>
+              {t('challenge.button')}
+            </button>
+          )}
           <p className="muted">
             {t('profile.joined', { date: date(profile.createdAt) })} ·{' '}
             {t('profile.games', { n: String(profile.games) })}
@@ -163,6 +171,19 @@ export function ProfilePage({ username, onOpen }: Props) {
           onShare={(svg) => shareJacket(svg, profile.jacket, profile.username, t('jacket.shareText'))}
           onClose={() => setShowJacket(false)}
         />
+      )}
+      {challenging && (
+        <Modal label={t('challenge.button')} className="challenge-modal" onClose={() => setChallenging(false)}>
+          <h2>{t('challenge.title')}</h2>
+          <FriendGame
+            challenge={profile.username}
+            defaultVariantId={listVariants()[0].id}
+            onOpenGame={(id) => {
+              setChallenging(false);
+              onOpen(`/${id}`);
+            }}
+          />
+        </Modal>
       )}
       {showAccount && <AccountSettings username={profile.username} onClose={() => setShowAccount(false)} />}
 

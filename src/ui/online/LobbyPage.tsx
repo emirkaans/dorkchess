@@ -10,6 +10,7 @@ import type { Mode } from '../settings.ts';
 import { ApiError, createOnlineGame, loadName, saveName } from './connection.ts';
 import { playerIdentity, useLobby } from './lobbyConnection.ts';
 import { useAccount } from '../account.ts';
+import type { ChallengeRequest } from '../../online/challenge.ts';
 import { ProfileLink } from '../ProfileLink.tsx';
 
 type Tab = 'quick' | 'seeks' | 'friend';
@@ -319,7 +320,20 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
 }
 
 /** A private game: made here, started when the friend opens the link. */
-function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string) => void; defaultVariantId: string }) {
+/**
+ * A game for a friend: made here, then its link is sent. With `challenge`, the
+ * game is for that player, who is told about it on the site.
+ */
+export function FriendGame({
+  onOpenGame,
+  defaultVariantId,
+  challenge,
+}: {
+  onOpenGame: (id: string) => void;
+  defaultVariantId: string;
+  /** Username of the challenged player. */
+  challenge?: string;
+}) {
   const { t, vt } = useI18n();
   const account = useAccount();
   const [rated, setRated] = useState(true);
@@ -342,6 +356,22 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
         name,
         rated: !!account.user && rated,
       });
+      if (challenge) {
+        const body: ChallengeRequest = {
+          to: challenge,
+          gameId: ticket.gameId,
+          variantId,
+          timeControlId,
+          rated: !!account.user && rated,
+        };
+        const res = await fetch('/api/challenges', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new ApiError('network');
+      }
       onOpenGame(ticket.gameId);
     } catch (e) {
       setError(e instanceof ApiError && e.code !== 'network' ? 'online.error.create' : 'online.error.network');
@@ -358,7 +388,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
       }}
     >
       <div className="lobby-scroll">
-        <p className="muted online-lede">{t('online.lede')}</p>
+        <p className="muted online-lede">{challenge ? t('challenge.lede', { name: challenge }) : t('online.lede')}</p>
         <fieldset className="choice-row choice-grid">
           <legend>{t('newGame.variant')}</legend>
           {listVariants().map((v) => (
@@ -414,7 +444,7 @@ function FriendGame({ onOpenGame, defaultVariantId }: { onOpenGame: (id: string)
           <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
             <path className="fill" d="M13 2L4 14h7l-1 8 9-12h-7z" />
           </svg>
-          {busy ? t('online.creating') : t('online.create')}
+          {busy ? t('online.creating') : challenge ? t('challenge.send') : t('online.create')}
         </button>
       </div>
     </form>

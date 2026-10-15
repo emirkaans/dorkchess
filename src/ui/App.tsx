@@ -29,6 +29,7 @@ import { ProfilePage } from './ProfilePage.tsx';
 import { PuzzlePage } from './PuzzlePage.tsx';
 import { DailyPage } from './DailyPage.tsx';
 import { LeaderboardPage } from './LeaderboardPage.tsx';
+import { ChallengeInbox } from './ChallengeInbox.tsx';
 import { RushPage } from './RushPage.tsx';
 import { SetupDialog } from './SetupDialog.tsx';
 import { SharePanel } from './ShareTools.tsx';
@@ -451,6 +452,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
       />
 
       {/* Notices outside the game page (e.g. a link to a game that does not exist). */}
+      <ChallengeInbox
+        sound={prefs.sound}
+        onOpenGame={(id) => {
+          history.pushState(null, '', `/${id}`);
+          applyRouteRef.current(parseRoute(`/${id}`));
+        }}
+      />
       {notice && page !== 'game' && (
         <div className="app-notice" role="status">
           {notice}
