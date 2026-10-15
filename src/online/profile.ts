@@ -15,6 +15,14 @@ export interface ProfileRating {
   readonly draws: number;
 }
 
+/** A rival: an opponent with an account, and the record against them. */
+export interface Rival {
+  readonly username: string;
+  readonly wins: number;
+  readonly losses: number;
+  readonly draws: number;
+}
+
 export interface ProfileResponse {
   readonly username: string;
   readonly createdAt: number;
@@ -27,6 +35,9 @@ export interface ProfileResponse {
   readonly following: number;
   /** The signed-in viewer follows this player. */
   readonly followed: boolean;
+  /** The opponent who beat the player most (online games against accounts), and the one they beat most. */
+  readonly nemesis: Rival | null;
+  readonly victim: Rival | null;
   /** The jacket the player picked. */
   readonly jacket: string;
   /** What earns the other jackets. */

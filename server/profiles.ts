@@ -6,7 +6,7 @@
 //   POST /api/me/jacket { jacket }                 the signed-in player picks a jacket they have earned
 
 import { PROVISIONAL_RD } from '../src/rating/glicko2.ts';
-import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../src/online/profile.ts';
+import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint, Rival } from '../src/online/profile.ts';
 import type { AuthEnv } from './auth.ts';
 import { currentUser, sameOrigin } from './auth.ts';
 import { JACKETS, jacketById, jacketOpen, longestRun } from '../src/achievements/jackets.ts';
@@ -40,6 +40,39 @@ async function jacketStats(db: D1Database, userId: string): Promise<JacketStats>
     rushBest: first<{ best: number }>(rush)?.best ?? 0,
     dailyBest: longestRun((daily.results as { day: string }[]).map((d) => d.day)),
   };
+}
+
+/**
+ * Rivals: per opponent with an account, the player's wins, losses and draws;
+ * the nemesis has beaten the player most (and more often than lost to them),
+ * the victim lost to them most (and more often than won).
+ */
+async function rivals(db: D1Database, userId: string): Promise<{ nemesis: Rival | null; victim: Rival | null }> {
+  const rows = await db
+    .prepare(
+      `SELECT u.username, SUM(r.won) AS wins, SUM(r.lost) AS losses, SUM(r.drawn) AS draws FROM (
+         SELECT black_user AS opp, result = '1-0' AS won, result = '0-1' AS lost, result = '1/2-1/2' AS drawn
+           FROM games WHERE white_user = ?1 AND black_user IS NOT NULL
+         UNION ALL
+         SELECT white_user, result = '0-1', result = '1-0', result = '1/2-1/2'
+           FROM games WHERE black_user = ?1 AND white_user IS NOT NULL
+       ) r JOIN users u ON u.id = r.opp
+       GROUP BY r.opp`,
+    )
+    .bind(userId)
+    .all<{ username: string; wins: number; losses: number; draws: number }>();
+  const list: Rival[] = rows.results.map((r) => ({
+    username: r.username,
+    wins: r.wins,
+    losses: r.losses,
+    draws: r.draws,
+  }));
+  // The nemesis leads the head-to-head against the player, the victim trails it.
+  const pick = (key: 'wins' | 'losses') =>
+    list
+      .filter((r) => r[key] > (key === 'wins' ? r.losses : r.wins))
+      .sort((a, b) => b[key] - a[key] || b.wins + b.losses + b.draws - (a.wins + a.losses + a.draws))[0] ?? null;
+  return { nemesis: pick('losses'), victim: pick('wins') };
 }
 
 /** How many follow the player and whom they follow, and whether the viewer is one of the first. */
@@ -114,6 +147,7 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
       ratings,
       patches: patches.results.map((p) => ({ id: p.patch_id, earnedAt: p.earned_at })),
       ...(await followInfo(env.DB, user.id, request, env)),
+      ...(await rivals(env.DB, user.id)),
       jacket: jacketById(user.jacket).id,
       stats: await jacketStats(env.DB, user.id),
     } satisfies ProfileResponse);

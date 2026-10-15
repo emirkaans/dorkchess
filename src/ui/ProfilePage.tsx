@@ -11,6 +11,7 @@ import { useAccount } from './account.ts';
 import { AccountSettings } from './AccountSettings.tsx';
 import { JacketWindow } from './JacketWindow.tsx';
 import { Modal } from './Modal.tsx';
+import { ProfileLink } from './ProfileLink.tsx';
 import { FriendGame } from './online/LobbyPage.tsx';
 import { PATCHES } from '../achievements/patches.ts';
 
@@ -30,7 +31,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   const [history, setHistory] = useState<RatingPoint[]>([]);
   // Account settings (deleting the account) open from the foot of the player's own profile.
   const [showAccount, setShowAccount] = useState(false);
-  const [challenging, setChallenging] = useState(false);
+  // Whom the challenge window challenges (this profile's player, or one's nemesis), or null.
+  const [challenging, setChallenging] = useState<string | null>(null);
   // The big jacket with every patch opens in a window; the page shows it small.
   const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
@@ -168,7 +170,7 @@ export function ProfilePage({ username, onOpen }: Props) {
           </p>
           {account.user && !mine && (
             <div className="profile-actions">
-              <button className="primary challenge-button" onClick={() => setChallenging(true)}>
+              <button className="primary challenge-button" onClick={() => setChallenging(profile.username)}>
                 {t('challenge.button')}
               </button>
               <button className={`follow-button${profile.followed ? ' on' : ''}`} onClick={() => void toggleFollow()}>
@@ -194,19 +196,55 @@ export function ProfilePage({ username, onOpen }: Props) {
         />
       )}
       {challenging && (
-        <Modal label={t('challenge.button')} className="challenge-modal" onClose={() => setChallenging(false)}>
+        <Modal label={t('challenge.button')} className="challenge-modal" onClose={() => setChallenging(null)}>
           <h2>{t('challenge.title')}</h2>
           <FriendGame
-            challenge={profile.username}
+            challenge={challenging}
             defaultVariantId={listVariants()[0].id}
             onOpenGame={(id) => {
-              setChallenging(false);
+              setChallenging(null);
               onOpen(`/${id}`);
             }}
           />
         </Modal>
       )}
       {showAccount && <AccountSettings username={profile.username} onClose={() => setShowAccount(false)} />}
+
+      {(profile.nemesis || profile.victim) && (
+        <section className="rivals" aria-label={t('rival.title')}>
+          {profile.nemesis && (
+            <div className="rival nemesis">
+              <span className="rival-kind">☠ {t('rival.nemesis')}</span>
+              <ProfileLink username={profile.nemesis.username}>{profile.nemesis.username}</ProfileLink>
+              <span className="rival-record">
+                {t('rival.record', {
+                  w: String(profile.nemesis.wins),
+                  l: String(profile.nemesis.losses),
+                  d: String(profile.nemesis.draws),
+                })}
+              </span>
+              {mine && (
+                <button className="primary" onClick={() => setChallenging(profile.nemesis!.username)}>
+                  {t('rival.revenge')}
+                </button>
+              )}
+            </div>
+          )}
+          {profile.victim && (
+            <div className="rival victim">
+              <span className="rival-kind">🎯 {t('rival.victim')}</span>
+              <ProfileLink username={profile.victim.username}>{profile.victim.username}</ProfileLink>
+              <span className="rival-record">
+                {t('rival.record', {
+                  w: String(profile.victim.wins),
+                  l: String(profile.victim.losses),
+                  d: String(profile.victim.draws),
+                })}
+              </span>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="rating-cards" aria-label={t('profile.ratings')}>
         {[...allCategories(), 'puzzle']

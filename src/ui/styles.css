@@ -5412,3 +5412,45 @@ a:focus-visible {
 .follow-chip.playing .dot {
   background: var(--pink);
 }
+
+/* Rivals on a profile: the nemesis (beat the player most) and the favourite victim. */
+.rivals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.rival {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.rival.nemesis {
+  border-left: 4px solid var(--pink);
+}
+.rival.victim {
+  border-left: 4px solid var(--lime);
+}
+.rival-kind {
+  width: 100%;
+  font: 400 18px/1 var(--display);
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.rival .profile-link {
+  font-weight: 700;
+  font-size: 16px;
+}
+.rival-record {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.rival button {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 4px 12px;
+}
