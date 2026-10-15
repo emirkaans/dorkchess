@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'data', 'node_modules', 'coverage', '.wrangler'] },
+  { ignores: ['dist', 'data', 'node_modules', 'coverage', '.wrangler', 'public/stockfish'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

@@ -6,3 +6,5 @@ package-lock.json
 *.md
 .wrangler
 server/og-assets.ts
+# Stockfish.js, distributed unmodified (see /licenses).
+public/stockfish
