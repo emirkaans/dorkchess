@@ -1726,10 +1726,22 @@ button.primary:hover:not(:disabled) {
   z-index: 2;
   cursor: help;
 }
-.piece.white .badge,
+/* The badge's piece is drawn in the piece's own colour: a white form outlined in black. */
 .piece.black .badge {
   color: #0a0a0b;
   text-shadow: none;
+}
+.piece.white .badge {
+  color: #ffffff;
+  text-shadow:
+    1px 0 0 #0a0a0b,
+    -1px 0 0 #0a0a0b,
+    0 1px 0 #0a0a0b,
+    0 -1px 0 #0a0a0b,
+    1px 1px 0 #0a0a0b,
+    -1px -1px 0 #0a0a0b,
+    1px -1px 0 #0a0a0b,
+    -1px 1px 0 #0a0a0b;
 }
 
 .drag-ghost {
