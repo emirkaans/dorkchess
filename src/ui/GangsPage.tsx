@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { GANG_POINTS, GANG_WEEK_DAYS, cleanTag, gangProblem } from '../online/gang.ts';
-import type { GangDetail, GangList } from '../online/gang.ts';
+import { GANG_POINTS, GANG_SIZE, GANG_WEEK_DAYS, cleanTag, gangProblem } from '../online/gang.ts';
+import type { GangDetail, GangList, GangSummary } from '../online/gang.ts';
 import type { MessageKey } from '../i18n/index.ts';
 import { useAccount } from './account.ts';
 import { useI18n } from './i18n.tsx';
@@ -78,29 +78,6 @@ function GangIndex({ onOpen }: { onOpen: (path: string) => void }) {
         </div>
       </div>
 
-      {!data && <p className="muted">{t('leaders.loading')}</p>}
-      {data && (
-        <ol className="gang-list">
-          {data.gangs.length === 0 && <li className="muted gang-empty">{t('gang.none')}</li>}
-          {data.gangs.map((g, i) => (
-            <li key={g.tag} className={g.tag === data.mine ? 'mine' : ''}>
-              <span className="leader-place">{i === 0 && g.score > 0 ? <Crown /> : i + 1}</span>
-              <a
-                href={`/gang/${g.tag}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onOpen(`/gang/${g.tag}`);
-                }}
-              >
-                <strong>[{g.tag}]</strong> {g.name}
-              </a>
-              <span className="muted">{t('gang.members', { n: String(g.members) })}</span>
-              <span className="gang-score">{g.score}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
       {data && account.user && !data.mine && (
         <form
           className="gang-form"
@@ -124,8 +101,64 @@ function GangIndex({ onOpen }: { onOpen: (path: string) => void }) {
           </button>
         </form>
       )}
+      {!data && <p className="muted">{t('leaders.loading')}</p>}
+      {data && data.gangs.length === 0 && <p className="muted">{t('gang.none')}</p>}
+      {data && (
+        <GangRows
+          title={t('gang.active')}
+          gangs={data.gangs.filter((g) => g.active)}
+          mine={data.mine}
+          onOpen={onOpen}
+        />
+      )}
+      {data && (
+        <GangRows
+          title={t('gang.formingList')}
+          gangs={data.gangs.filter((g) => !g.active)}
+          mine={data.mine}
+          onOpen={onOpen}
+        />
+      )}
       {data && !account.user && !account.loading && <p className="muted">{t('gang.signIn')}</p>}
     </main>
+  );
+}
+
+function GangRows({
+  title,
+  gangs,
+  mine,
+  onOpen,
+}: {
+  title: string;
+  gangs: readonly GangSummary[];
+  mine: string | null;
+  onOpen: (path: string) => void;
+}) {
+  const { t } = useI18n();
+  if (gangs.length === 0) return null;
+  return (
+    <section className="gang-section">
+      <h2>{title}</h2>
+      <ol className="gang-list">
+        {gangs.map((g, i) => (
+          <li key={g.tag} className={g.tag === mine ? 'mine' : ''}>
+            <span className="leader-place">{!g.active ? '·' : i === 0 && g.score > 0 ? <Crown /> : i + 1}</span>
+            <a
+              href={`/gang/${g.tag}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onOpen(`/gang/${g.tag}`);
+              }}
+            >
+              <strong>[{g.tag}]</strong> {g.name}
+            </a>
+            <span className="muted">{t('gang.members', { n: String(g.members), size: String(GANG_SIZE) })}</span>
+            <span className="gang-score">{g.active ? g.score : ''}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -136,6 +169,7 @@ function GangView({ tag, onOpen }: { tag: string; onOpen: (path: string) => void
   const [mine, setMine] = useState<string | null>(null);
   const [error, setError] = useState<MessageKey | null>(null);
   const [reload, setReload] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -185,7 +219,7 @@ function GangView({ tag, onOpen }: { tag: string; onOpen: (path: string) => void
             [{gang.tag}] {gang.name}
           </h1>
           <p className="muted">
-            {t('gang.members', { n: String(gang.members) })} ·{' '}
+            {t('gang.members', { n: String(gang.members), size: String(GANG_SIZE) })} ·{' '}
             {t('gang.since', { date: new Date(gang.createdAt).toLocaleDateString(locale) })} ·{' '}
             <a
               href="/gangs"
@@ -210,11 +244,30 @@ function GangView({ tag, onOpen }: { tag: string; onOpen: (path: string) => void
           )}
           {error && <p className="error">{t(error)}</p>}
         </div>
-        <span className="gang-total">
-          <small>{t('gang.week')}</small>
-          {gang.score}
-        </span>
+        {gang.active ? (
+          <span className="gang-total">
+            <small>{t('gang.week')}</small>
+            {gang.score}
+          </span>
+        ) : (
+          <span className="gang-total forming">
+            <small>{t('gang.forming')}</small>
+            {gang.members}/{GANG_SIZE}
+          </span>
+        )}
       </div>
+      {!gang.active && (
+        <div className="gang-forming">
+          <p>{t('gang.formingNote', { missing: String(GANG_SIZE - gang.members) })}</p>
+          <button
+            onClick={() => {
+              void navigator.clipboard?.writeText(`${location.origin}/gang/${gang.tag}`).then(() => setCopied(true));
+            }}
+          >
+            {copied ? t('gang.copied') : t('gang.copyLink')}
+          </button>
+        </div>
+      )}
       <Rules />
       <ol className="gang-list">
         {gang.list.map((m, i) => (
@@ -222,7 +275,13 @@ function GangView({ tag, onOpen }: { tag: string; onOpen: (path: string) => void
             <span className="leader-place">{i + 1}</span>
             <ProfileLink username={m.username}>{m.username}</ProfileLink>
             <span className="muted">{m.owner ? t('gang.founder') : ''}</span>
-            <span className="gang-score">{m.score}</span>
+            <span className="gang-score">{gang.active ? m.score : ''}</span>
+          </li>
+        ))}
+        {Array.from({ length: Math.max(0, GANG_SIZE - gang.members) }, (_, i) => (
+          <li key={`empty-${i}`} className="gang-slot">
+            <span className="leader-place">{gang.members + i + 1}</span>
+            <span className="muted">{t('gang.emptySlot')}</span>
           </li>
         ))}
       </ol>

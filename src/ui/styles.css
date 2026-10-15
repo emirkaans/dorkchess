@@ -5545,3 +5545,25 @@ a:focus-visible {
   display: block;
   padding: 12px;
 }
+.gang-section h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.gang-list li.gang-slot {
+  border-top-style: dashed;
+}
+.gang-total.forming {
+  color: var(--pink);
+}
+.gang-forming {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px;
+  border: 1px dashed var(--pink);
+}
+.gang-forming p {
+  margin: 0;
+  flex: 1 1 240px;
+}

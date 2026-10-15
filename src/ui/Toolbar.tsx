@@ -31,6 +31,7 @@ interface Props {
   onPuzzles: () => void;
   onLeaderboard: () => void;
   onTv: () => void;
+  onGangs: () => void;
   onSettings: () => void;
 }
 
@@ -45,6 +46,7 @@ export function Toolbar({
   onPuzzles,
   onLeaderboard,
   onTv,
+  onGangs,
   onSettings,
 }: Props) {
   const { t } = useI18n();
@@ -110,6 +112,13 @@ export function Toolbar({
             onClick={close(onLeaderboard)}
           >
             {t('menu.leaderboard')}
+          </button>
+          <button
+            className={page === 'gangs' ? 'on' : ''}
+            aria-current={page === 'gangs' ? 'page' : undefined}
+            onClick={close(onGangs)}
+          >
+            {t('menu.gangs')}
           </button>
           <button
             className={page === 'tv' ? 'on' : ''}

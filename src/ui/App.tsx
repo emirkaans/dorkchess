@@ -461,6 +461,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         }}
         onLeaderboard={() => setPage('leaderboard')}
         onTv={() => setPage('tv')}
+        onGangs={() => {
+          setGangTag(null);
+          setPage('gangs');
+        }}
         onSettings={() => setShowSettings(true)}
       />
 

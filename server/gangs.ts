@@ -10,7 +10,7 @@
 // draws and daily puzzles solved in the last week.
 
 import { dailyDay } from '../src/online/daily.ts';
-import { GANG_MAX_MEMBERS, GANG_WEEK_DAYS, cleanTag, gangProblem, gangScore } from '../src/online/gang.ts';
+import { GANG_SIZE, GANG_WEEK_DAYS, cleanTag, gangProblem, gangScore } from '../src/online/gang.ts';
 import type { GangDetail, GangList, GangMember, GangSummary } from '../src/online/gang.ts';
 import type { AuthEnv } from './auth.ts';
 import { currentUser, sameOrigin } from './auth.ts';
@@ -77,10 +77,18 @@ export async function handleGangs(request: Request, env: AuthEnv, url: URL): Pro
           tag: g.tag,
           name: g.name,
           members: own.length,
-          score: own.reduce((s, r) => s + gangScore(r.wins, r.draws, r.dailies), 0),
+          active: own.length >= GANG_SIZE,
+          score: own.length >= GANG_SIZE ? own.reduce((s, r) => s + gangScore(r.wins, r.draws, r.dailies), 0) : 0,
         };
       })
-      .sort((a, b) => b.score - a.score || b.members - a.members || a.tag.localeCompare(b.tag))
+      // Active gangs by score first; then the ones forming, the nearest to full first.
+      .sort(
+        (a, b) =>
+          Number(b.active) - Number(a.active) ||
+          b.score - a.score ||
+          b.members - a.members ||
+          a.tag.localeCompare(b.tag),
+      )
       .slice(0, 100);
     const mine = user ? ((await myGang(db, user.id))?.tag ?? null) : null;
     return json({ gangs: list, mine } satisfies GangList);
@@ -104,6 +112,7 @@ export async function handleGangs(request: Request, env: AuthEnv, url: URL): Pro
       tag: g.tag,
       name: g.name,
       members: list.length,
+      active: list.length >= GANG_SIZE,
       score: list.reduce((s, x) => s + x.score, 0),
       createdAt: g.created_at,
       list,
@@ -147,7 +156,7 @@ export async function handleGangs(request: Request, env: AuthEnv, url: URL): Pro
       .prepare('SELECT count(*) AS n FROM gang_members WHERE gang_id = ?1')
       .bind(g.id)
       .first<{ n: number }>();
-    if ((n?.n ?? 0) >= GANG_MAX_MEMBERS) return json({ error: 'full' }, 409);
+    if ((n?.n ?? 0) >= GANG_SIZE) return json({ error: 'full' }, 409);
     await db
       .prepare('INSERT INTO gang_members (user_id, gang_id, joined_at) VALUES (?1, ?2, ?3)')
       .bind(user.id, g.id, now)

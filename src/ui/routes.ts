@@ -45,6 +45,9 @@ const RESERVED = new Set([
   'assets',
   'icons',
   'api',
+  'licenses',
+  'privacy',
+  'terms',
 ]);
 /** Game ids: 8 letters / digits; older history records also have dashes. */
 const GAME = /^\/([A-Za-z0-9][A-Za-z0-9-]{3,39})(\/analysis)?$/;

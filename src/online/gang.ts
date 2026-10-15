@@ -3,7 +3,8 @@
 
 import { offensiveName } from './badwords.ts';
 
-export const GANG_MAX_MEMBERS = 50;
+/** A gang is exactly this many players: open to join until full; only a full gang is active (ranked, scored). */
+export const GANG_SIZE = 4;
 /** The weekly score counts the last this many days. */
 export const GANG_WEEK_DAYS = 7;
 /** Points per online game won or drawn, and per daily puzzle solved, in the week. */
@@ -13,6 +14,8 @@ export interface GangSummary {
   readonly tag: string;
   readonly name: string;
   readonly members: number;
+  /** Full (GANG_SIZE members): ranked and scored. A gang still forming is open to join. */
+  readonly active: boolean;
   /** Points of the members in the last GANG_WEEK_DAYS days. */
   readonly score: number;
 }

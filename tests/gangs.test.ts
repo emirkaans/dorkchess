@@ -25,3 +25,9 @@ describe('gangs', () => {
     expect(pathOf({ kind: 'gangs', tag: null })).toBe('/gangs');
   });
 });
+
+describe('static pages', () => {
+  it('are not game links, though "licenses" has the length of a game id', () => {
+    for (const p of ['/licenses', '/privacy', '/terms']) expect(parseRoute(p).kind).toBe('home');
+  });
+});
