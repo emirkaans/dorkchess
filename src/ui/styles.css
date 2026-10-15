@@ -5245,3 +5245,27 @@ a:focus-visible {
 .modal.challenge-modal h2 {
   margin: 0;
 }
+
+/* A rule card example to play on ("Try it"). */
+.try-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.try-status {
+  margin: 0;
+  font-weight: 400;
+  text-align: center;
+}
+.try-status.right {
+  color: var(--lime);
+  font-weight: 700;
+}
+.try-status.other {
+  color: var(--pink);
+}
+.example-controls button.on {
+  border-color: var(--lime);
+  color: var(--lime);
+}

@@ -277,6 +277,13 @@ export const tr = {
   'rules.play': '▶ Oynat',
   'rules.dontShow': 'Bu varyant için bir daha gösterme',
   'rules.ok': 'Tamam',
+  'rules.try': '✋ Kendin dene',
+  'rules.tryStop': 'Örneğe dön',
+  'rules.tryTask': 'Okla gösterilen hamlelerden birini oyna.',
+  'rules.tryForbidden': 'Okla gösterilen hamleyi oynamayı dene: kural buna izin vermiyor.',
+  'rules.tryRight': 'Doğru! Kuralı kaptın.',
+  'rules.tryOther': 'Bu da yasal, ama örnekteki hamle değil.',
+  'rules.tryAgain': 'Baştan',
 
   // History and replay
   'history.imported': 'İçe aktarıldı',
@@ -824,6 +831,13 @@ export const en: Record<MessageKey, string> = {
   'rules.play': '▶ Play',
   'rules.dontShow': "Don't show again for this variant",
   'rules.ok': 'OK',
+  'rules.try': '✋ Try it',
+  'rules.tryStop': 'Back to the example',
+  'rules.tryTask': 'Play one of the moves the arrows show.',
+  'rules.tryForbidden': 'Try the move the arrow shows: the rule does not allow it.',
+  'rules.tryRight': 'Right! You got the rule.',
+  'rules.tryOther': 'Legal too, but not the move of the example.',
+  'rules.tryAgain': 'Again',
 
   'history.imported': 'Imported',
 

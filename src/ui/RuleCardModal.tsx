@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import type { VariantDefinition } from '../engine/index.ts';
 import { Diagram } from './Diagram.tsx';
+import { TryDiagram } from './TryDiagram.tsx';
 import { useI18n } from './i18n.tsx';
 import { isRuleCardHidden, setRuleCardHidden } from './settings.ts';
 import { useDialogFocus } from './useDialogFocus.ts';
@@ -22,6 +23,8 @@ export function RuleCardModal({ variant, onClose }: Props) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(examples.length > 1);
   const [hidden, setHidden] = useState(() => isRuleCardHidden(variant.id));
+  // "Try it": the example becomes a board to play on.
+  const [trying, setTrying] = useState(false);
 
   useEffect(() => {
     if (!playing || examples.length < 2) return;
@@ -57,7 +60,11 @@ export function RuleCardModal({ variant, onClose }: Props) {
 
         {example && (
           <figure className="example">
-            <Diagram variant={variant} example={example} size={260} />
+            {trying ? (
+              <TryDiagram key={index} variant={variant} example={example} size={260} />
+            ) : (
+              <Diagram variant={variant} example={example} size={260} />
+            )}
             <figcaption>
               <span className="muted">{t('rules.example', { i: index + 1, n: examples.length })}</span>{' '}
               {example.caption}
@@ -66,8 +73,21 @@ export function RuleCardModal({ variant, onClose }: Props) {
               <button type="button" onClick={() => go(-1)} aria-label={t('rules.previous')}>
                 ◀
               </button>
-              <button type="button" onClick={() => setPlaying((p) => !p)}>
-                {playing ? t('rules.stop') : t('rules.play')}
+              {!trying && (
+                <button type="button" onClick={() => setPlaying((p) => !p)}>
+                  {playing ? t('rules.stop') : t('rules.play')}
+                </button>
+              )}
+              <button
+                type="button"
+                className={trying ? 'on' : ''}
+                aria-pressed={trying}
+                onClick={() => {
+                  setPlaying(false);
+                  setTrying((x) => !x);
+                }}
+              >
+                {trying ? t('rules.tryStop') : t('rules.try')}
               </button>
               <button type="button" onClick={() => go(1)} aria-label={t('rules.next')}>
                 ▶
