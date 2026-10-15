@@ -6,7 +6,8 @@ import type { WhiteScore } from '../../ai/analysis.ts';
 import { BotCancelled } from '../../ai/client.ts';
 import { AnalysisClient } from '../../ai/stockfish.ts';
 import { HINT } from '../../ai/levels.ts';
-import type { GameState, Move, VariantDefinition } from '../../engine/index.ts';
+import { findMove } from '../../engine/index.ts';
+import type { GameState, Move, PieceType, VariantDefinition } from '../../engine/index.ts';
 import type { LineMove } from '../../ai/search.ts';
 
 /**
@@ -53,8 +54,14 @@ export function useLiveAnalysis(variant: VariantDefinition, state: GameState | n
         timeLimitMs: client.usesStockfish(variant.id) ? LIVE_ANALYSIS_MS : LIVE_ANALYSIS_OWN_MS,
         minThinkMs: 0,
         analyse: true,
+        // Each finished depth shows at once (score, line and the arrow); deeper ones replace it.
         onInfo: ({ depth, score, pv }) => {
-          if (current) setLive((l) => ({ ...l, depth, score: toWhite(score, turn), line: pv }));
+          if (!current) return;
+          const first = pv[0];
+          const best = first
+            ? findMove(variant, state, first.from, first.to, first.promotion as PieceType | undefined)
+            : null;
+          setLive((l) => ({ ...l, depth, score: toWhite(score, turn), line: pv, best: best ?? l.best }));
         },
       })
       .then((r) => {
