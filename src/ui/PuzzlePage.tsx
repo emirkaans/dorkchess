@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
 import { PUZZLE_THEMES } from '../online/puzzle.ts';
 import type { PatchNews, PuzzleData, PuzzleNext, PuzzleResult, PuzzleTheme } from '../online/puzzle.ts';
@@ -28,9 +29,12 @@ export function PuzzlePage({
   prefs: Prefs;
   onOpen: (path: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, vt } = useI18n();
   const account = useAccount();
   const [theme, setTheme] = useState<PuzzleTheme | null>(null);
+  // Standard chess, or one of the variants (their puzzles come from our engine).
+  const [variantId, setVariantId] = useState(listVariants()[0].id);
+  const standard = variantId === listVariants()[0].id;
   const [rating, setRating] = useState<{ rating: number; provisional: boolean } | null>(null);
   const [diff, setDiff] = useState<number | null>(null);
   const [patches, setPatches] = useState<readonly string[]>([]);
@@ -48,12 +52,13 @@ export function PuzzlePage({
   const showRating = (g: Glicko) => ({ rating: Math.round(g.rating), provisional: g.rd > PROVISIONAL_RD });
 
   const load = useCallback(
-    async (id: string | null, th: PuzzleTheme | null) => {
+    async (id: string | null, th: PuzzleTheme | null, vid: string = listVariants()[0].id) => {
       setStatus('loading');
       const params = new URLSearchParams();
       if (account.loading) return;
       if (!account.user) params.set('rating', String(Math.round(guestRating().rating)));
       if (th) params.set('theme', th);
+      if (vid !== listVariants()[0].id) params.set('variant', vid);
       try {
         const res = await fetch(id ? `/api/puzzles/${id}` : `/api/puzzles/next?${params}`);
         const data = (await res.json()) as Partial<PuzzleNext> & { puzzle?: PuzzleData | null };
@@ -104,12 +109,18 @@ export function PuzzlePage({
 
   const next = () => {
     if (puzzleId) onOpen('/puzzles');
-    else void load(null, theme);
+    else void load(null, theme, variantId);
   };
   const pickTheme = (th: PuzzleTheme | null) => {
     setTheme(th);
     if (puzzleId) onOpen('/puzzles');
-    void load(null, th);
+    void load(null, th, variantId);
+  };
+  const pickVariant = (vid: string) => {
+    setVariantId(vid);
+    setTheme(null);
+    if (puzzleId) onOpen('/puzzles');
+    void load(null, null, vid);
   };
 
   let line: string;
@@ -198,16 +209,27 @@ export function PuzzlePage({
         )}
 
         <fieldset className="choice-row puzzle-themes">
-          <legend>{t('puzzle.themes')}</legend>
-          <button className={`chip${theme === null ? ' on' : ''}`} onClick={() => pickTheme(null)}>
-            {t('puzzle.theme.all')}
-          </button>
-          {PUZZLE_THEMES.map((th) => (
-            <button key={th} className={`chip${theme === th ? ' on' : ''}`} onClick={() => pickTheme(th)}>
-              {t(`puzzle.theme.${th}`)}
+          <legend>{t('newGame.variant')}</legend>
+          {listVariants().map((v) => (
+            <button key={v.id} className={`chip${variantId === v.id ? ' on' : ''}`} onClick={() => pickVariant(v.id)}>
+              {vt(v).name}
             </button>
           ))}
         </fieldset>
+
+        {standard && (
+          <fieldset className="choice-row puzzle-themes">
+            <legend>{t('puzzle.themes')}</legend>
+            <button className={`chip${theme === null ? ' on' : ''}`} onClick={() => pickTheme(null)}>
+              {t('puzzle.theme.all')}
+            </button>
+            {PUZZLE_THEMES.map((th) => (
+              <button key={th} className={`chip${theme === th ? ' on' : ''}`} onClick={() => pickTheme(th)}>
+                {t(`puzzle.theme.${th}`)}
+              </button>
+            ))}
+          </fieldset>
+        )}
 
         <div className="puzzle-modes">
           <button className="daily-link" onClick={() => onOpen('/daily')}>
@@ -219,7 +241,7 @@ export function PuzzlePage({
         </div>
 
         {guest && <p className="muted puzzle-note">{t('puzzle.guestNote')}</p>}
-        <p className="muted puzzle-credit">{t('puzzle.credit')}</p>
+        <p className="muted puzzle-credit">{t(standard ? 'puzzle.credit' : 'puzzle.creditVariant')}</p>
       </aside>
     </main>
   );

@@ -63,7 +63,9 @@ export async function handlePuzzles(request: Request, env: AuthEnv, url: URL): P
     const target = mine ? mine.rating : Number.isFinite(asked) && asked > 0 ? asked : DEFAULT_GLICKO.rating;
     const theme = url.searchParams.get('theme');
     const themeOk = theme && (PUZZLE_THEMES as readonly string[]).includes(theme);
-    const variantId = listVariants()[0].id;
+    // Standard chess (lichess puzzles) unless a variant is asked for (puzzles made by our engine).
+    const askedVariant = url.searchParams.get('variant');
+    const variantId = listVariants().some((v) => v.id === askedVariant) ? askedVariant! : listVariants()[0].id;
     // Close to the player's rating first, then wider; puzzles already tried are skipped.
     let row: PuzzleRow | null = null;
     for (const width of [100, 250, 600, 5000]) {

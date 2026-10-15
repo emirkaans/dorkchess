@@ -17,6 +17,7 @@
     "match": "node --experimental-strip-types --no-warnings scripts/match.ts",
     "gen-data": "node --experimental-strip-types --no-warnings scripts/gen-data.ts",
     "tune": "node --experimental-strip-types --no-warnings --max-old-space-size=8192 scripts/tune.ts",
+    "gen-variant-puzzles": "node --experimental-strip-types --no-warnings scripts/gen-variant-puzzles.ts",
     "backup:db": "node --experimental-strip-types --no-warnings scripts/backup-db.ts",
     "sf-match": "node --experimental-strip-types --no-warnings scripts/sf-match.ts",
     "sf-label": "node --experimental-strip-types --no-warnings scripts/sf-label.ts",
