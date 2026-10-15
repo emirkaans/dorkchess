@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
-import { getVariant, isInCheck, opposite, toFen } from '../engine/index.ts';
+import { getVariant, isInCheck, listVariants, opposite, toFen } from '../engine/index.ts';
 import type { Color, Move, PieceType } from '../engine/index.ts';
 import type { AnalysisSeed } from './AnalysisPage.tsx';
 import { Board } from './Board.tsx';
@@ -11,6 +11,7 @@ import { GameViewer } from './GameViewer.tsx';
 import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
 import { MoveList } from './MoveList.tsx';
+import { useStepKeys } from './stepKeys.ts';
 import { NewGameDialog } from './NewGameDialog.tsx';
 import { OnlinePage } from './online/OnlinePage.tsx';
 import { PlayerRow } from './PlayerRow.tsx';
@@ -146,6 +147,21 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const { settings, players, timeline, setup } = session;
   const { variant, game, atEnd, outcome, turn, toMove, vsBot, watching, humanColor, timed } = view;
   const now = () => Date.now();
+  // Arrow keys step through a game on this device (not one against a bot, which cannot be browsed).
+  useStepKeys(
+    page === 'game' && !vsBot && !newGame
+      ? (step) => {
+          const last = timeline.states.length - 1;
+          const to =
+            step === 'start'
+              ? 0
+              : step === 'end'
+                ? last
+                : Math.max(0, Math.min(last, timeline.cursor + (step === 'back' ? -1 : 1)));
+          if (to !== timeline.cursor) dispatch({ type: 'goTo', cursor: to });
+        }
+      : null,
+  );
 
   /** The current game for the review page (its address: /<gameId>/analysis). */
   const postGameReview = (): Omit<Review, 'key'> => ({
@@ -159,7 +175,9 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
     },
     gameId: session.gameId,
   });
-  const openNewGame = (patch: Partial<GameSettings> = {}) => setNewGame({ ...settings, ...patch });
+  // Standard chess is offered first; a variant card picks its own variant.
+  const openNewGame = (patch: Partial<GameSettings> = {}) =>
+    setNewGame({ ...settings, variantId: listVariants()[0].id, ...patch });
 
   const startGame = (s: GameSettings) => {
     saveSettings(s);
@@ -503,6 +521,10 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
               setPage('online');
             }}
             onDaily={() => setPage('daily')}
+            onOpenGame={(id) => {
+              setOnlineId(id);
+              setPage('online');
+            }}
           />
         ) : page === 'leaderboard' ? (
           <LeaderboardPage />
@@ -550,7 +572,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             }}
           />
         ) : page === 'analysis' ? (
-          <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={settings.variantId} seed={analysisSeed} />
+          <AnalysisPage key={analysisSeed?.key ?? 0} initialVariantId={listVariants()[0].id} seed={analysisSeed} />
         ) : page === 'review' && review ? (
           <ReviewPage
             review={review.review}
@@ -567,7 +589,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
             onResumeGame={session.key > 1 ? () => setPage('game') : null}
             prefs={prefs}
             setPrefs={setPrefs}
-            defaultVariantId={settings.variantId}
+            defaultVariantId={listVariants()[0].id}
             onOpenAnalysis={openAnalysis}
             onReview={(r) => openReview(r, 'online')}
           />

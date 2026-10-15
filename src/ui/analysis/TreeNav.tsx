@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useI18n } from '../i18n.tsx';
+import { keysTaken } from '../stepKeys.ts';
 import { ROOT, isMainLine, lineEnd, plyOf, promote, removeFrom } from './tree.ts';
 import type { MoveTree } from './tree.ts';
 
@@ -12,9 +13,9 @@ export function useTreeKeys(tree: MoveTree | null, setCurrent: Dispatch<SetState
   useEffect(() => {
     if (!tree) return;
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      if (el?.closest('.board')) return; // the board uses arrow keys itself
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      // Fields, and the board when moved around from the keyboard, use the arrow keys themselves.
+      if (keysTaken(e.target)) return;
       const steps: Record<string, (c: number) => number> = {
         ArrowLeft: (c) => tree.nodes[c].parent ?? c,
         ArrowRight: (c) => tree.nodes[c].children[0] ?? c,

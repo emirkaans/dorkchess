@@ -80,10 +80,15 @@ function startGame(settings: Record<string, unknown>) {
     JSON.stringify({ variantId: 'standard', timeControl: 'none', humanColor: 'w', ...settings }),
   );
   render(<App />);
-  // The app opens on the home page: a variant card opens the new game dialog with the saved settings.
+  // The app opens on the home page: a variant card opens its dialog (online first), whose
+  // "on this device" buttons open the new game dialog with the saved settings.
   const variantId = (settings.variantId as string | undefined) ?? 'standard';
   const card = document.querySelectorAll('.variant-card')[listVariants().findIndex((v) => v.id === variantId)];
   fireEvent.click(card);
+  const mode = (settings.mode as string | undefined) ?? 'hotseat';
+  fireEvent.click(
+    document.querySelectorAll('.variant-play .offline-buttons button')[['bot', 'botvbot', 'hotseat'].indexOf(mode)],
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Oyuna başla' }));
 }
 
@@ -128,6 +133,21 @@ describe('uygulama: iki kişi', () => {
     pointer('pointerMove', 'e5');
     pointer('pointerUp', 'e5');
     expect(moves()).toEqual(['e4', 'e5']);
+  });
+
+  it('ok tuşları hamlelerde geri / ileri gider; tahtaya tıklandıktan sonra da', () => {
+    startGame({ mode: 'hotseat' });
+    move('e2', 'e4');
+    move('e7', 'e5');
+    const e5 = () => document.querySelector(`[data-square="${parseSquare('e5')}"]`)!.getAttribute('aria-label');
+    expect(e5()).toMatch(/piyon/);
+    // The last click focused a square of the board: the arrows still step through the moves.
+    fireEvent.keyDown(document.activeElement ?? window, { key: 'ArrowLeft' });
+    expect(e5()).toMatch(/boş/);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(e5()).toMatch(/piyon/);
+    fireEvent.keyDown(window, { key: 'Home' });
+    expect(document.querySelector(`[data-square="${parseSquare('e4')}"]`)!.getAttribute('aria-label')).toMatch(/boş/);
   });
 
   it('terfi penceresi açılır ve seçilen taşa terfi edilir', () => {
@@ -511,8 +531,9 @@ describe('uygulama: dil', () => {
     localStorage.setItem('dorkchess:hideRules:jester', 'true');
     localStorage.setItem('dorkchess:settings', JSON.stringify({ mode: 'hotseat', variantId: 'jester' }));
     render(<App />);
-    // The Jester card opens the new game dialog ("Play now" opens online play).
+    // The Jester card opens its dialog; "Two players" there opens the new game dialog.
     fireEvent.click(document.querySelectorAll('.variant-card')[listVariants().findIndex((v) => v.id === 'jester')]);
+    fireEvent.click(document.querySelectorAll('.variant-play .offline-buttons button')[2]);
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
     expect(screen.getByRole('dialog', { name: 'White: which piece becomes the Jester?' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Right knight \(g1\)/ })).toBeTruthy();

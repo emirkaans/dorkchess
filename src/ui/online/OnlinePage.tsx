@@ -18,6 +18,7 @@ import { Board } from '../Board.tsx';
 import type { Premove } from '../Board.tsx';
 import { BoardResizer } from '../BoardResizer.tsx';
 import { MoveList } from '../MoveList.tsx';
+import { useStepKeys } from '../stepKeys.ts';
 import { GameOverOverlay } from '../GameOverOverlay.tsx';
 import { PlayerRow } from '../PlayerRow.tsx';
 import { PromotionDialog } from '../PromotionDialog.tsx';
@@ -211,6 +212,16 @@ function OnlineGame({
   const state = states.at(-1) ?? null;
 
   const shownIndex = cursor === null ? states.length - 1 : Math.min(cursor, states.length - 1);
+  useStepKeys((step) => {
+    const last = states.length - 1;
+    const to =
+      step === 'start'
+        ? 0
+        : step === 'end'
+          ? last
+          : Math.max(0, Math.min(last, shownIndex + (step === 'back' ? -1 : 1)));
+    setCursor(to >= last ? null : to);
+  });
   const shown = states[shownIndex] ?? null;
   const atEnd = shownIndex === states.length - 1;
 

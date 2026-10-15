@@ -48,76 +48,10 @@ export function LobbyPage({
   onResumeGame: (() => void) | null;
 }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>('quick');
   const lobby = useLobby((ticket) => onOpenGame(ticket.gameId));
-  const [name, setName] = useState(() => playerIdentity().name);
-  const account = useAccount();
-  const mine = lobby.seeks.find((s) => s.id === lobby.mySeek) ?? null;
-
-  const saveNickname = () => {
-    const clean = name.replace(/\s+/g, ' ').trim();
-    if (!clean) return setName(loadName());
-    if (clean !== loadName()) lobby.rename(clean);
-  };
-
   return (
     <main className="online-lobby">
-      <section className="online-card lobby-card">
-        <div className="lobby-head">
-          <div className="lobby-title">
-            <div className="analysis-head">
-              {BOLT}
-              <h1>{t('online.title')}</h1>
-            </div>
-            <span className={`lobby-online${lobby.status === 'open' ? '' : ' off'}`}>
-              {lobby.status === 'open' ? t('lobby.online', { n: String(lobby.online) }) : t('lobby.reconnecting')}
-            </span>
-            <FollowStrip onOpenGame={onOpenGame} />
-          </div>
-
-          {account.user ? (
-            <div className="analysis-field lobby-name">
-              <span>{t('signup.username')}</span>
-              <strong className="lobby-username">{account.user.username}</strong>
-            </div>
-          ) : (
-            <label className="analysis-field lobby-name">
-              <span>{t('online.name')}</span>
-              <input
-                value={name}
-                maxLength={24}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={saveNickname}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                }}
-                autoComplete="nickname"
-              />
-            </label>
-          )}
-        </div>
-
-        <div className="lobby-tabs" role="tablist">
-          {(['quick', 'seeks', 'friend'] as const).map((id) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              className={tab === id ? 'on' : ''}
-              onClick={() => setTab(id)}
-            >
-              {t(`lobby.tab.${id}`)}
-              {id === 'seeks' && lobby.seeks.length > 0 && <span className="lobby-count">{lobby.seeks.length}</span>}
-            </button>
-          ))}
-        </div>
-
-        {lobby.error && <p className="error">{t(`lobby.error.${lobby.error}`)}</p>}
-
-        {tab === 'quick' && <QuickPairing mine={mine} lobby={lobby} />}
-        {tab === 'seeks' && <SeekList mine={mine} lobby={lobby} defaultVariantId={defaultVariantId} />}
-        {tab === 'friend' && <FriendGame onOpenGame={onOpenGame} defaultVariantId={defaultVariantId} />}
-      </section>
+      <LobbyCard lobby={lobby} onOpenGame={onOpenGame} defaultVariantId={defaultVariantId} />
 
       <section className="offline-play" aria-labelledby="offline-title">
         <h2 id="offline-title">{t('lobby.offline')}</h2>
@@ -138,7 +72,89 @@ export function LobbyPage({
   );
 }
 
-type Lobby = ReturnType<typeof useLobby>;
+/** The lobby: quick pairing, open games, a game for a friend. On /online and the home page. */
+export function LobbyCard({
+  lobby,
+  onOpenGame,
+  defaultVariantId,
+}: {
+  lobby: Lobby;
+  onOpenGame: (id: string) => void;
+  defaultVariantId: string;
+}) {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<Tab>('quick');
+  const [name, setName] = useState(() => playerIdentity().name);
+  const account = useAccount();
+  const mine = lobby.seeks.find((s) => s.id === lobby.mySeek) ?? null;
+
+  const saveNickname = () => {
+    const clean = name.replace(/\s+/g, ' ').trim();
+    if (!clean) return setName(loadName());
+    if (clean !== loadName()) lobby.rename(clean);
+  };
+
+  return (
+    <section className="online-card lobby-card">
+      <div className="lobby-head">
+        <div className="lobby-title">
+          <div className="analysis-head">
+            {BOLT}
+            <h1>{t('online.title')}</h1>
+          </div>
+          <span className={`lobby-online${lobby.status === 'open' ? '' : ' off'}`}>
+            {lobby.status === 'open' ? t('lobby.online', { n: String(lobby.online) }) : t('lobby.reconnecting')}
+          </span>
+          <FollowStrip onOpenGame={onOpenGame} />
+        </div>
+
+        {account.user ? (
+          <div className="analysis-field lobby-name">
+            <span>{t('signup.username')}</span>
+            <strong className="lobby-username">{account.user.username}</strong>
+          </div>
+        ) : (
+          <label className="analysis-field lobby-name">
+            <span>{t('online.name')}</span>
+            <input
+              value={name}
+              maxLength={24}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveNickname}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              autoComplete="nickname"
+            />
+          </label>
+        )}
+      </div>
+
+      <div className="lobby-tabs" role="tablist">
+        {(['quick', 'seeks', 'friend'] as const).map((id) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? 'on' : ''}
+            onClick={() => setTab(id)}
+          >
+            {t(`lobby.tab.${id}`)}
+            {id === 'seeks' && lobby.seeks.length > 0 && <span className="lobby-count">{lobby.seeks.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {lobby.error && <p className="error">{t(`lobby.error.${lobby.error}`)}</p>}
+
+      {tab === 'quick' && <QuickPairing mine={mine} lobby={lobby} />}
+      {tab === 'seeks' && <SeekList mine={mine} lobby={lobby} defaultVariantId={defaultVariantId} />}
+      {tab === 'friend' && <FriendGame onOpenGame={onOpenGame} defaultVariantId={defaultVariantId} />}
+    </section>
+  );
+}
+
+export type Lobby = ReturnType<typeof useLobby>;
 
 function QuickPairing({ mine, lobby }: { mine: Seek | null; lobby: Lobby }) {
   const { t } = useI18n();
@@ -171,7 +187,18 @@ function QuickPairing({ mine, lobby }: { mine: Seek | null; lobby: Lobby }) {
   );
 }
 
-function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby: Lobby; defaultVariantId: string }) {
+export function SeekList({
+  mine,
+  lobby,
+  defaultVariantId,
+  startPosting = false,
+}: {
+  mine: Seek | null;
+  lobby: Lobby;
+  defaultVariantId: string;
+  /** Opens on the form to post a game (the home page's variant dialog). */
+  startPosting?: boolean;
+}) {
   const { t, vt } = useI18n();
   const me = playerIdentity().id;
   const account = useAccount();
@@ -181,7 +208,7 @@ function SeekList({ mine, lobby, defaultVariantId }: { mine: Seek | null; lobby:
   const [timeControlId, setTimeControlId] = useState('5+0');
   const [color, setColor] = useState<Color | 'random'>('random');
   // The list of open games, or the form to post one: shown one at a time so both fit the screen.
-  const [posting, setPosting] = useState(false);
+  const [posting, setPosting] = useState(startPosting);
   const colorLabel = (c: Color | 'random') => (c === 'random' ? t('online.random') : t(`color.${c}`));
   const waiting = !!mine && !mine.quick;
 

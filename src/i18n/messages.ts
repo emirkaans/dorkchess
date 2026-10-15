@@ -454,6 +454,7 @@ export const tr = {
   'lobby.resume': 'Süren oyuna dön',
   'lobby.tab.seeks': 'Lobi',
   'lobby.tab.friend': 'Arkadaşla oyna',
+  'lobby.findOpponent': 'Rakip ara',
   'lobby.online': '{n} oyuncu çevrimiçi',
   'lobby.reconnecting': 'Bağlantı koptu, yeniden bağlanılıyor…',
   'lobby.quickHint':
@@ -1054,6 +1055,7 @@ export const en: Record<MessageKey, string> = {
   'lobby.resume': 'Back to your game',
   'lobby.tab.seeks': 'Lobby',
   'lobby.tab.friend': 'Play a friend',
+  'lobby.findOpponent': 'Find an opponent',
   'lobby.online': '{n} players online',
   'lobby.reconnecting': 'Connection lost, reconnecting…',
   'lobby.quickHint':

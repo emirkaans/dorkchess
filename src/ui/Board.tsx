@@ -14,6 +14,7 @@ import {
 import type { Color, Move, Position, Square, VariantDefinition } from '../engine/index.ts';
 import { PieceView } from './PieceView.tsx';
 import { useI18n } from './i18n.tsx';
+import { keysTaken } from './stepKeys.ts';
 
 /** Colours of drawn shapes, as on lichess: plain right-drag green; Shift red, Alt blue, Ctrl yellow. */
 export type ShapeColor = 'green' | 'red' | 'blue' | 'yellow' | 'hint';
@@ -236,6 +237,10 @@ export function Board({
   // Keyboard: one square is focusable at a time (roving tab index); arrows move it.
   const [focusSq, setFocusSq] = useState<Square>(makeSquare(4, 1));
   const squareRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Moved around from the keyboard (a square focused without a click): the arrow keys
+  // move the focused square. After a click they step through the moves instead (stepKeys.ts).
+  const [keyboard, setKeyboard] = useState(false);
+  const clicking = useRef(false);
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const step: Record<string, [number, number]> = {
       ArrowUp: [0, 1],
@@ -244,6 +249,7 @@ export function Board({
       ArrowRight: [1, 0],
     };
     if (e.key in step) {
+      if (!keysTaken(e.target)) return;
       e.preventDefault();
       const [df, dr] = step[e.key];
       // On a flipped board "up" means towards rank 1.
@@ -401,6 +407,15 @@ export function Board({
     <div
       ref={boardRef}
       className={`board${disabled && !premoving ? ' disabled' : ''}`}
+      data-keyboard={keyboard || undefined}
+      onPointerDownCapture={() => {
+        clicking.current = true;
+        setKeyboard(false);
+      }}
+      onFocusCapture={() => {
+        if (!clicking.current) setKeyboard(true);
+        clicking.current = false;
+      }}
       role="group"
       aria-label={t('board.label', { side: t(flipped ? 'colorLower.b' : 'colorLower.w') })}
       onKeyDown={onKeyDown}

@@ -5567,3 +5567,33 @@ a:focus-visible {
   margin: 0;
   flex: 1 1 240px;
 }
+
+/* The lobby on the home page, under the hero; a variant card's dialog (online first, then this device). */
+.home-lobby {
+  width: min(760px, calc(100% - 32px));
+  margin: 32px auto 0;
+}
+.home-lobby .lobby-card {
+  width: 100%;
+}
+.variant-play {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  overflow: auto;
+}
+.variant-play h2 {
+  margin: 0;
+}
+.variant-play > p {
+  margin: 4px 0 12px;
+}
+.variant-play .lobby-card {
+  width: 100%;
+}
+.variant-play .offline-play {
+  margin-top: 16px;
+}
+.variant-play .offline-play h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}

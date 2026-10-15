@@ -7,6 +7,9 @@ import type { PieceType, VariantDefinition } from '../engine/index.ts';
 import { useI18n } from './i18n.tsx';
 import { PieceView } from './PieceView.tsx';
 import { Crown } from './Punk.tsx';
+import { LobbyCard } from './online/LobbyPage.tsx';
+import { useLobby } from './online/lobbyConnection.ts';
+import { VariantPlayDialog } from './VariantPlayDialog.tsx';
 import type { GameSettings, Mode } from './settings.ts';
 
 interface Props {
@@ -16,6 +19,8 @@ interface Props {
   onOnline: () => void;
   /** Opens the daily puzzle. */
   onDaily: () => void;
+  /** Opens an online game (made or paired from the home page's lobby). */
+  onOpenGame: (id: string) => void;
 }
 
 const STANDARD_TYPES = new Set(['k', 'q', 'r', 'b', 'n', 'p']);
@@ -60,12 +65,15 @@ function Arrow() {
 }
 
 /** Landing page: hero, the variants and the ways to play. */
-export function HomePage({ onPlay, onOnline, onDaily }: Props) {
+export function HomePage({ onPlay, onOnline, onDaily, onOpenGame }: Props) {
   const { t, vt } = useI18n();
   const today = dailyDay(Date.now());
   const done = dailyResults()[today];
   const streak = localStreak(today);
   const stats = useLiveStats();
+  const lobby = useLobby((ticket) => onOpenGame(ticket.gameId));
+  // The variant whose card was clicked: its dialog is open.
+  const [picked, setPicked] = useState<VariantDefinition | null>(null);
   return (
     <div className="home">
       <section className="hero">
@@ -140,15 +148,15 @@ export function HomePage({ onPlay, onOnline, onDaily }: Props) {
         </p>
       </section>
 
+      <section className="home-lobby" aria-label={t('lobby.tab.seeks')}>
+        <LobbyCard lobby={lobby} onOpenGame={onOpenGame} defaultVariantId={listVariants()[0].id} />
+      </section>
+
       <section className="home-cards" id="variants" aria-label={t('home.variants')}>
         {listVariants().map((v, i) => {
           const texts = vt(v);
           return (
-            <button
-              key={v.id}
-              className={`variant-card${i % 2 ? ' lime' : ''}`}
-              onClick={() => onPlay({ variantId: v.id })}
-            >
+            <button key={v.id} className={`variant-card${i % 2 ? ' lime' : ''}`} onClick={() => setPicked(v)}>
               <span className="variant-icon">
                 <PieceView variant={v} piece={{ type: signature(v), color: i % 2 ? 'w' : 'b' }} />
               </span>
@@ -183,6 +191,18 @@ export function HomePage({ onPlay, onOnline, onDaily }: Props) {
           ))}
         </div>
       </section>
+      {picked && (
+        <VariantPlayDialog
+          variant={picked}
+          lobby={lobby}
+          onOpenGame={onOpenGame}
+          onPlayOffline={(mode) => {
+            setPicked(null);
+            onPlay({ variantId: picked.id, mode });
+          }}
+          onClose={() => setPicked(null)}
+        />
+      )}
       <footer className="home-footer">
         <a href="/privacy">{t('legal.privacy')}</a>
         <a href="/terms">{t('legal.terms')}</a>
