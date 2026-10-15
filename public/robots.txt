@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Allow: /
+
+Sitemap: https://punkchess.com/sitemap.xml

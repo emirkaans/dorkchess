@@ -52,8 +52,9 @@ const escape = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Meta tags for a game page (the default tags of index.html are removed first). */
-export function previewTags(r: GameRecord, pageUrl: string, imageUrl: string): string {
-  const { title, description } = previewTexts(r);
+/** Link-preview tags (Open Graph, Twitter, description) of a page. */
+export function metaTags(p: { title: string; description: string; pageUrl: string; imageUrl: string }): string {
+  const { title, description, pageUrl, imageUrl } = p;
   const tags: [string, string, string][] = [
     ['property', 'og:type', 'website'],
     ['property', 'og:site_name', 'punkchess'],
@@ -70,4 +71,8 @@ export function previewTags(r: GameRecord, pageUrl: string, imageUrl: string): s
     ['name', 'description', description],
   ];
   return tags.map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escape(value)}">`).join('');
+}
+
+export function previewTags(r: GameRecord, pageUrl: string, imageUrl: string): string {
+  return metaTags({ ...previewTexts(r), pageUrl, imageUrl });
 }

@@ -24,6 +24,7 @@ import { handleLeaderboard } from './leaderboard.ts';
 import { handleRush } from './rush.ts';
 import { handleChallenges } from './challenges.ts';
 import { handleErrors } from './errors.ts';
+import { pagePreview, sitemap } from './pages.ts';
 import { overLimit } from './limits.ts';
 import { handlePuzzles } from './puzzles.ts';
 
@@ -156,6 +157,11 @@ export default {
 
     const page = /^\/([A-Za-z0-9]{8})(?:\/analysis)?\/?$/.exec(url.pathname);
     if (page && request.method === 'GET' && !paused) return gamePage(env, request, url, page[1]);
+    if (url.pathname === '/sitemap.xml' && !paused) return sitemap(env, url);
+    if (!paused && !url.pathname.startsWith('/api/')) {
+      const preview = await pagePreview(env, request, url);
+      if (preview) return preview;
+    }
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
