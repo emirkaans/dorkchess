@@ -20,7 +20,7 @@ describe('PWA', () => {
     const src = serviceWorkerSource(files, versionOf(files));
     // A syntax error would stop the worker from installing at all.
     expect(() => new Function(src)).not.toThrow();
-    expect(src).toContain("['/privacy', '/privacy/', '/terms', '/terms/']");
+    expect(src).toContain("['/privacy', '/privacy/', '/terms', '/terms/', '/licenses', '/licenses/']");
     // Sign-in must reach the server (it redirects to Google), never the cached app page.
     expect(src).toContain("path.startsWith('/auth/')");
   });

@@ -39,10 +39,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
     // Pages the server answers itself go straight to the network: sign-in (/auth/…, which
-    // redirects to Google), the API, and the privacy policy and terms (plain pages; a cached
+    // redirects to Google), the API, and the privacy policy, terms and licenses (plain pages; a cached
     // copy would be a redirect from privacy.html, which a navigation refuses).
     const path = new URL(request.url).pathname;
-    if (path.startsWith('/auth/') || path.startsWith('/api/') || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path)) return;
+    if (path.startsWith('/auth/') || path.startsWith('/api/') || ['/privacy', '/privacy/', '/terms', '/terms/', '/licenses', '/licenses/'].includes(path)) return;
     event.respondWith(caches.match('./', { ignoreVary: true }).then((page) => page || fetch(request)));
     return;
   }

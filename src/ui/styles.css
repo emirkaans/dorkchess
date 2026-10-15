@@ -5192,3 +5192,12 @@ a:focus-visible {
     font-size: 28px;
   }
 }
+
+/* Which engine analyses standard chess, with a link to its license. */
+.engine-credit {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+.engine-credit a {
+  color: inherit;
+}

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { classifyMoves, formatScore, graphValue, terminalScore, toWhite, whiteShare } from '../ai/analysis.ts';
 import type { WhiteScore } from '../ai/analysis.ts';
-import { BotClient, BotCancelled } from '../ai/client.ts';
+import { BotCancelled } from '../ai/client.ts';
+import { AnalysisClient } from '../ai/stockfish.ts';
 import { HINT } from '../ai/levels.ts';
 import { moveToSan } from '../engine/index.ts';
 import type { GameState, Move, PieceType, VariantDefinition } from '../engine/index.ts';
@@ -15,11 +16,13 @@ import { EngineLine } from './analysis/EngineLine.tsx';
 import type { LineMove } from '../ai/search.ts';
 import { addMove, pathTo, statesTo, treeOf } from './analysis/tree.ts';
 import { SharePanel } from './ShareTools.tsx';
+import { EngineCredit } from './EngineCredit.tsx';
 import type { PgnMeta } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
 
-/** Search time per position during analysis. */
-export const ANALYSIS_MS = 300;
+/** Search time per position during a game's analysis: Stockfish (standard chess), our engine (variants). */
+export const ANALYSIS_MS = 500;
+export const ANALYSIS_OWN_MS = 800;
 
 interface Analysis {
   /** Score per position (White's view); null = not analysed yet. */
@@ -43,7 +46,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
     running: false,
   });
   const [analysis, setAnalysis] = useState<Analysis>(empty);
-  const [client] = useState(() => new BotClient());
+  const [client] = useState(() => new AnalysisClient());
   const run = useRef(0);
   // A followed game grows: its new positions start unanalysed.
   const size = states.length;
@@ -71,7 +74,7 @@ function useAnalysis(variant: VariantDefinition, states: readonly GameState[]) {
             variantId: variant.id,
             state,
             level: HINT.level,
-            timeLimitMs: ANALYSIS_MS,
+            timeLimitMs: client.usesStockfish(variant.id) ? ANALYSIS_MS : ANALYSIS_OWN_MS,
             minThinkMs: 0,
             analyse: true,
           });
@@ -341,6 +344,7 @@ export function GameViewer({
         />
 
         {showEval && <p className="muted analysis-note">{t('analysis.marks')}</p>}
+        {showEval && <EngineCredit variantId={variant.id} />}
         <SharePanel
           variant={variant}
           states={shownLine}

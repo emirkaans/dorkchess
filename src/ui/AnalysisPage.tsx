@@ -30,6 +30,7 @@ import { PromotionDialog } from './PromotionDialog.tsx';
 import { ImportDialog, SharePanel } from './ShareTools.tsx';
 import type { ImportedLine } from './ShareTools.tsx';
 import { useI18n } from './i18n.tsx';
+import { EngineCredit } from './EngineCredit.tsx';
 
 type Tool = { kind: 'move' } | { kind: 'erase' } | { kind: 'piece'; piece: Piece };
 
@@ -487,6 +488,7 @@ export function AnalysisPage({
                   </span>
                 </div>
               )}
+              {engineOn && <EngineCredit variantId={variant.id} />}
             </div>
             <div className={`status${state?.result ? ' alert' : ''}`}>{status}</div>
 

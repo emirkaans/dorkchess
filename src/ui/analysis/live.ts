@@ -3,13 +3,19 @@
 import { useEffect, useState } from 'react';
 import { terminalScore, toWhite } from '../../ai/analysis.ts';
 import type { WhiteScore } from '../../ai/analysis.ts';
-import { BotCancelled, BotClient } from '../../ai/client.ts';
+import { BotCancelled } from '../../ai/client.ts';
+import { AnalysisClient } from '../../ai/stockfish.ts';
 import { HINT } from '../../ai/levels.ts';
 import type { GameState, Move, VariantDefinition } from '../../engine/index.ts';
 import type { LineMove } from '../../ai/search.ts';
 
-/** Engine time per position on the analysis board. */
-export const LIVE_ANALYSIS_MS = 3000;
+/**
+ * Engine time per position on the analysis board: Stockfish (standard chess)
+ * goes deep in a few seconds; our engine (variants) gets longer, its line
+ * deepening on screen meanwhile.
+ */
+export const LIVE_ANALYSIS_MS = 4000;
+export const LIVE_ANALYSIS_OWN_MS = 12000;
 
 export interface Live {
   readonly score: WhiteScore | null;
@@ -22,7 +28,7 @@ export interface Live {
 
 /** Engine on the shown position: restarts whenever it changes; stops when switched off. */
 export function useLiveAnalysis(variant: VariantDefinition, state: GameState | null, on: boolean): Live {
-  const [client] = useState(() => new BotClient());
+  const [client] = useState(() => new AnalysisClient());
   const [live, setLive] = useState<Live>({ score: null, best: null, line: [], depth: 0, thinking: false });
   useEffect(() => () => client.dispose(), [client]);
   useEffect(() => {
@@ -44,7 +50,7 @@ export function useLiveAnalysis(variant: VariantDefinition, state: GameState | n
         variantId: variant.id,
         state,
         level: HINT.level,
-        timeLimitMs: LIVE_ANALYSIS_MS,
+        timeLimitMs: client.usesStockfish(variant.id) ? LIVE_ANALYSIS_MS : LIVE_ANALYSIS_OWN_MS,
         minThinkMs: 0,
         analyse: true,
         onInfo: ({ depth, score, pv }) => {

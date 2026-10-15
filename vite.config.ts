@@ -23,7 +23,8 @@ function serviceWorker(): Plugin {
     generateBundle(_options, bundle) {
       const built = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
       // Jacket pictures stay out: each page needs one of them at most, fetched when shown.
-      const offline = filesIn('public').filter((f) => !f.startsWith('jackets/'));
+      // Stockfish (7 MB) loads only when analysis is opened.
+      const offline = filesIn('public').filter((f) => !f.startsWith('jackets/') && !f.startsWith('stockfish/'));
       const files = ['./', ...[...built, ...offline].sort().map((f) => `./${f}`)];
       // Bundle files carry a content hash in their names; files of public/ do not, so their
       // contents count too (a changed font or icon must make a new cache version).
