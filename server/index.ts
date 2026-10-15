@@ -23,6 +23,7 @@ import { handleDaily } from './daily.ts';
 import { handleLeaderboard } from './leaderboard.ts';
 import { handleRush } from './rush.ts';
 import { handleChallenges } from './challenges.ts';
+import { handleErrors } from './errors.ts';
 import { overLimit } from './limits.ts';
 import { handlePuzzles } from './puzzles.ts';
 
@@ -120,6 +121,8 @@ export default {
     if (leaders) return leaders;
     const rush = await handleRush(request, env, url);
     if (rush) return rush;
+    const errors = await handleErrors(request, url);
+    if (errors) return errors;
     const challenges = await handleChallenges(request, env, url);
     if (challenges) return challenges;
 
