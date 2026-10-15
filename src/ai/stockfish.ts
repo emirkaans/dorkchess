@@ -71,32 +71,43 @@ export function uciPosition(state: GameState): string {
 
 interface Pending {
   readonly state: GameState;
+  readonly timeLimitMs: number;
   readonly resolve: (m: BotMove) => void;
   readonly reject: (e: Error) => void;
   readonly onInfo?: ThinkOptions['onInfo'];
   last: UciInfo | null;
 }
 
-/** One Stockfish worker, one search at a time; a new request or stop() cancels the running one. */
-class StockfishClient {
+/**
+ * One Stockfish worker, one search at a time. A new request or stop() cancels
+ * the running search, but the next one only starts after the engine has
+ * answered the old one ("bestmove"): the single-threaded build crashes if a
+ * new position arrives while it is still searching. A crashed engine is
+ * started again on the next request.
+ */
+export class StockfishClient {
   private worker: Worker | null = null;
   private ready: Promise<void> | null = null;
+  // The request waiting for an answer, and the one the engine is searching now
+  // (an older, cancelled one until its "bestmove" comes in).
   private pending: Pending | null = null;
-  // "bestmove" answers still to come from searches that were stopped.
-  private stale = 0;
+  private active: Pending | null = null;
   failed = false;
 
   think(opts: ThinkOptions): Promise<BotMove> {
     this.stop();
     return new Promise<BotMove>((resolve, reject) => {
-      const p: Pending = { state: opts.state, resolve, reject, onInfo: opts.onInfo, last: null };
+      const p: Pending = {
+        state: opts.state,
+        timeLimitMs: Math.max(50, opts.timeLimitMs ?? 1000),
+        resolve,
+        reject,
+        onInfo: opts.onInfo,
+        last: null,
+      };
       this.pending = p;
       this.start()
-        .then(() => {
-          if (this.pending !== p) return;
-          this.send(uciPosition(opts.state));
-          this.send(`go movetime ${Math.max(50, opts.timeLimitMs ?? 1000)}`);
-        })
+        .then(() => this.launch())
         .catch((e: Error) => {
           if (this.pending === p) this.pending = null;
           reject(e);
@@ -108,27 +119,39 @@ class StockfishClient {
     const p = this.pending;
     if (!p) return;
     this.pending = null;
-    if (this.worker && this.ready) {
-      this.stale++;
-      this.send('stop');
-    }
+    // A search running for it is told to stop; its answer is then ignored.
+    if (this.active === p) this.send('stop');
     p.reject(new BotCancelled());
   }
 
   dispose(): void {
     this.stop();
+    this.reset();
+  }
+
+  private reset(): void {
     this.worker?.terminate();
     this.worker = null;
     this.ready = null;
-    this.stale = 0;
+    this.active = null;
   }
 
   private send(cmd: string): void {
     this.worker?.postMessage(cmd);
   }
 
+  /** Starts the waiting request if the engine is free. */
+  private launch(): void {
+    const p = this.pending;
+    if (!p || this.active || !this.worker) return;
+    this.active = p;
+    this.send(uciPosition(p.state));
+    this.send(`go movetime ${p.timeLimitMs}`);
+  }
+
   private start(): Promise<void> {
     if (this.ready) return this.ready;
+    let started = false;
     this.ready = new Promise<void>((resolve, reject) => {
       let w: Worker;
       try {
@@ -138,17 +161,23 @@ class StockfishClient {
         return reject(e instanceof Error ? e : new Error(String(e)));
       }
       this.worker = w;
-      w.onerror = () => {
-        this.failed = true;
-        this.pending?.reject(new Error('stockfish failed'));
+      w.onerror = (e) => {
+        e?.preventDefault?.();
+        // Never started: this browser cannot run it (our engine takes over). Crashed later: start afresh next time.
+        if (!started) this.failed = true;
+        const p = this.pending;
         this.pending = null;
-        reject(new Error('stockfish failed'));
+        this.reset();
+        p?.reject(new Error('stockfish stopped working'));
+        reject(new Error('stockfish stopped working'));
       };
       w.onmessage = (e: MessageEvent<string>) => {
         const line = String(e.data);
         if (line === 'uciok') this.send('isready');
-        else if (line === 'readyok') resolve();
-        else this.onLine(line);
+        else if (line === 'readyok' && !started) {
+          started = true;
+          resolve();
+        } else this.onLine(line);
       };
       this.send('uci');
     });
@@ -157,34 +186,38 @@ class StockfishClient {
 
   private onLine(line: string): void {
     if (line.startsWith('bestmove')) {
-      if (this.stale > 0) {
-        this.stale--;
-        return;
+      const done = this.active;
+      this.active = null;
+      if (done && done === this.pending) {
+        this.pending = null;
+        this.answer(done, line);
       }
-      const p = this.pending;
-      if (!p) return;
-      this.pending = null;
-      const uci = line.split(' ')[1];
-      const v = getVariant(p.state.variantId);
-      const best = uci && uci !== '(none)' ? uciToLine(uci) : null;
-      const move = best ? findMove(v, p.state, best.from, best.to, best.promotion as PieceType | undefined) : null;
-      if (!move) return p.reject(new Error(`stockfish: no move (${line})`));
-      const info = p.last;
-      p.resolve({
-        move,
-        score: info?.score ?? 0,
-        depth: info?.depth ?? 0,
-        nodes: info?.nodes ?? 0,
-        pv: info?.pv.length ? info.pv.map(uciToLine) : [best!],
-      });
+      // The engine is free: the next request (if one is waiting) starts now.
+      this.launch();
       return;
     }
     const p = this.pending;
-    if (!p || this.stale > 0) return;
+    if (!p || this.active !== p) return;
     const info = parseInfo(line);
     if (!info) return;
     p.last = info;
     p.onInfo?.({ depth: info.depth, score: info.score, pv: info.pv.map(uciToLine) });
+  }
+
+  private answer(p: Pending, line: string): void {
+    const uci = line.split(' ')[1];
+    const v = getVariant(p.state.variantId);
+    const best = uci && uci !== '(none)' ? uciToLine(uci) : null;
+    const move = best ? findMove(v, p.state, best.from, best.to, best.promotion as PieceType | undefined) : null;
+    if (!move || !best) return p.reject(new Error(`stockfish: no move (${line})`));
+    const info = p.last;
+    p.resolve({
+      move,
+      score: info?.score ?? 0,
+      depth: info?.depth ?? 0,
+      nodes: info?.nodes ?? 0,
+      pv: info?.pv.length ? info.pv.map(uciToLine) : [best],
+    });
   }
 }
 
@@ -205,8 +238,8 @@ export class AnalysisClient {
     if (!this.usesStockfish(opts.variantId)) return this.own.think(opts);
     this.own.stop();
     return this.sf.think(opts).catch((e: Error) => {
-      if (e instanceof BotCancelled || !this.sf.failed) throw e;
-      // Stockfish could not start: our engine answers instead.
+      if (e instanceof BotCancelled) throw e;
+      // Stockfish could not start, or crashed: our engine answers this one instead.
       return this.own.think(opts);
     });
   }
