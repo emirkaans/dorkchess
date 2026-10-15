@@ -421,7 +421,7 @@ describe('uygulama: erişilebilirlik', () => {
     expect(status()).toContain('Mat'); // the result stays in the panel
   });
 
-  it('oyun sonu analizi ayrı sayfada açılır, "Oyuna dön" ile oyuna dönülür', () => {
+  it('oyun sonu analizi ayrı sayfada açılır, "Oyuna dön" ile oyuna dönülür', async () => {
     startGame({ mode: 'hotseat' });
     for (const [a, b] of [
       ['f2', 'f3'],
@@ -432,8 +432,9 @@ describe('uygulama: erişilebilirlik', () => {
       move(a, b);
     fireEvent.click(screen.getByRole('button', { name: 'Oyunu analiz et' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+    // The analysis page loads the first time it is opened.
+    expect(await screen.findByRole('heading', { name: 'Analiz' })).toBeTruthy();
     expect(document.querySelector('.review-page .viewer')).not.toBeNull();
-    expect(screen.getByRole('heading', { name: 'Analiz' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '← Oyuna dön' }));
     expect(document.querySelector('.review-page')).toBeNull();
     expect(status()).toContain('Mat');
@@ -522,7 +523,7 @@ describe('analiz tahtası', () => {
   it('menüden açılır; tahta yapıcıda konum kurulur, analizde motor sorulur ve hamle oynanır', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Analiz' }));
-    expect(screen.getByRole('heading', { name: 'Tahta yapıcı' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tahta yapıcı' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tahtayı temizle' }));
     expect(document.querySelector('.analysis-problem')?.textContent).toBe('İki tarafın da şahı olmalı.');

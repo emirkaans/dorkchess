@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listVariants } from '../engine/index.ts';
 import type { LiveStats } from '../online/lobby.ts';
 import { dailyDay, dailyNumber, gridEmoji } from '../online/daily.ts';
-import { dailyResults, localStreak } from './DailyPage.tsx';
+import { dailyResults, localStreak } from './dailyStore.ts';
 import type { PieceType, VariantDefinition } from '../engine/index.ts';
 import { useI18n } from './i18n.tsx';
 import { PieceView } from './PieceView.tsx';

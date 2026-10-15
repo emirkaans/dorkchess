@@ -1,41 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  dailyDay,
-  dailyNumber,
-  dailyShareText,
-  gridEmoji,
-  gridSolved,
-  nextDailyAt,
-  streakOf,
-} from '../online/daily.ts';
+import { dailyDay, dailyNumber, dailyShareText, gridEmoji, gridSolved, nextDailyAt } from '../online/daily.ts';
 import type { DailyResponse, DailySaved } from '../online/daily.ts';
-import { loadJSON, saveJSON } from '../storage/local.ts';
+import { dailyResults, localStreak, saveLocal } from './dailyStore.ts';
 import { useAccount } from './account.ts';
 import { Board } from './Board.tsx';
 import { useI18n } from './i18n.tsx';
 import { NewPatches } from './NewPatches.tsx';
 import { usePuzzleRunner } from './puzzleRunner.ts';
 import type { Prefs } from './prefs.ts';
-
-/** This browser's daily results: day → grid. Signed-in players' are also on the server. */
-const RESULTS_KEY = 'daily:results';
-
-export const dailyResults = (): Record<string, string> => loadJSON<Record<string, string>>(RESULTS_KEY, {});
-
-/** This browser's streak (a guest's only one). */
-export const localStreak = (today: string): number =>
-  streakOf(
-    Object.entries(dailyResults())
-      .filter(([, grid]) => gridSolved(grid))
-      .map(([day]) => day),
-    today,
-  );
-
-function saveLocal(day: string, grid: string) {
-  const all = dailyResults();
-  if (all[day]) return;
-  saveJSON(RESULTS_KEY, { ...all, [day]: grid });
-}
 
 function countdown(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
