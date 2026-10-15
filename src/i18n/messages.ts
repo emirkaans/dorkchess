@@ -266,7 +266,7 @@ export const tr = {
   'newGame.blackLevel': 'Siyah seviyesi',
   'newGame.delay': 'Hamleler arası',
   'newGame.seconds': '{n} sn',
-  'newGame.time': 'Süre (dakika + hamle başı artış saniye)',
+  'newGame.time': 'Süre',
   'newGame.cancel': 'Vazgeç',
   'newGame.start': 'Oyuna başla',
 
@@ -871,7 +871,7 @@ export const en: Record<MessageKey, string> = {
   'newGame.blackLevel': 'Black level',
   'newGame.delay': 'Between moves',
   'newGame.seconds': '{n} s',
-  'newGame.time': 'Time (minutes + increment seconds per move)',
+  'newGame.time': 'Time',
   'newGame.cancel': 'Cancel',
   'newGame.start': 'Start game',
 

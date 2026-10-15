@@ -196,9 +196,9 @@ export function HomePage({ onPlay, onOnline, onDaily, onOpenGame }: Props) {
           variant={picked}
           lobby={lobby}
           onOpenGame={onOpenGame}
-          onPlayOffline={(mode) => {
+          onPlayOffline={(mode, variantId) => {
             setPicked(null);
-            onPlay({ variantId: picked.id, mode });
+            onPlay({ variantId, mode });
           }}
           onClose={() => setPicked(null)}
         />

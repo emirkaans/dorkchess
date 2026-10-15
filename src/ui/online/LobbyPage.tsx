@@ -192,12 +192,15 @@ export function SeekList({
   lobby,
   defaultVariantId,
   startPosting = false,
+  onVariant,
 }: {
   mine: Seek | null;
   lobby: Lobby;
   defaultVariantId: string;
   /** Opens on the form to post a game (the home page's variant dialog). */
   startPosting?: boolean;
+  /** Told when another variant is picked. */
+  onVariant?: (variantId: string) => void;
 }) {
   const { t, vt } = useI18n();
   const me = playerIdentity().id;
@@ -283,7 +286,10 @@ export function SeekList({
                     type="radio"
                     name="seek-variant"
                     checked={variantId === v.id}
-                    onChange={() => setVariantId(v.id)}
+                    onChange={() => {
+                      setVariantId(v.id);
+                      onVariant?.(v.id);
+                    }}
                   />
                   {vt(v).name}
                 </label>
@@ -357,11 +363,14 @@ export function FriendGame({
   onOpenGame,
   defaultVariantId,
   challenge,
+  onVariant,
 }: {
   onOpenGame: (id: string) => void;
   defaultVariantId: string;
   /** Username of the challenged player. */
   challenge?: string;
+  /** Told when another variant is picked. */
+  onVariant?: (variantId: string) => void;
 }) {
   const { t, vt } = useI18n();
   const account = useAccount();
@@ -426,7 +435,10 @@ export function FriendGame({
                 type="radio"
                 name="online-variant"
                 checked={variantId === v.id}
-                onChange={() => setVariantId(v.id)}
+                onChange={() => {
+                  setVariantId(v.id);
+                  onVariant?.(v.id);
+                }}
               />
               {vt(v).name}
             </label>
