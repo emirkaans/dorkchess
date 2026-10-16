@@ -25,6 +25,7 @@ export type Route =
   | { readonly kind: 'daily' }
   | { readonly kind: 'rush' }
   | { readonly kind: 'tv' }
+  | { readonly kind: 'admin' }
   | { readonly kind: 'gangs'; readonly tag: string | null }
   | { readonly kind: 'tournaments'; readonly id: string | null }
   | { readonly kind: 'leaderboard' }
@@ -41,6 +42,7 @@ const RESERVED = new Set([
   'daily',
   'rush',
   'tv',
+  'admin',
   'gangs',
   'gang',
   'tournaments',
@@ -73,6 +75,7 @@ export function parseRoute(pathname: string): Route {
   if (p === '/daily') return { kind: 'daily' };
   if (p === '/rush') return { kind: 'rush' };
   if (p === '/tv') return { kind: 'tv' };
+  if (p === '/admin') return { kind: 'admin' };
   if (p === '/gangs') return { kind: 'gangs', tag: null };
   if (p === '/tournaments') return { kind: 'tournaments', id: null };
   const tournament = /^\/tournament\/([A-Za-z0-9]{8})$/.exec(p);
@@ -107,6 +110,8 @@ export function pathOf(r: Route): string {
       return '/daily';
     case 'rush':
       return '/rush';
+    case 'admin':
+      return '/admin';
     case 'tv':
       return '/tv';
     case 'gangs':

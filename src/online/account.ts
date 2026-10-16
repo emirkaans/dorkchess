@@ -8,6 +8,8 @@ export interface AccountUser {
   readonly id: string;
   readonly username: string;
   readonly rating: number | null;
+  /** Staff only (src/online/admin.ts): opens /admin. */
+  readonly role?: 'admin' | 'moderator';
 }
 
 /** GET /api/me: who this browser is. */

@@ -47,7 +47,7 @@ export async function handleLeaderboard(request: Request, env: AuthEnv, url: URL
   if (asked) {
     const rows = await env.DB.prepare(
       `SELECT r.category, u.username, r.rating, r.rd, r.games FROM ratings r JOIN users u ON u.id = r.user_id
-       WHERE r.category = ?1 AND r.games > 0 AND r.updated_at >= ?2
+       WHERE r.category = ?1 AND r.games > 0 AND r.updated_at >= ?2 AND u.banned_at IS NULL
        ORDER BY ${order} LIMIT ?3`,
     )
       .bind(asked, since, LEADERS_PAGE)
@@ -60,7 +60,7 @@ export async function handleLeaderboard(request: Request, env: AuthEnv, url: URL
        SELECT r.category, u.username, r.rating, r.rd, r.games,
               ROW_NUMBER() OVER (PARTITION BY r.category ORDER BY ${order}) AS place
        FROM ratings r JOIN users u ON u.id = r.user_id
-       WHERE r.games > 0 AND r.updated_at >= ?1)
+       WHERE r.games > 0 AND r.updated_at >= ?1 AND u.banned_at IS NULL)
      WHERE place <= ?2 ORDER BY category, place`,
   )
     .bind(since, LEADERS_TOP)

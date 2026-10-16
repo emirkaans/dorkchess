@@ -18,6 +18,7 @@ export type Page =
   | 'tv'
   | 'gangs'
   | 'tournaments'
+  | 'admin'
   | 'leaderboard'
   | 'loading';
 

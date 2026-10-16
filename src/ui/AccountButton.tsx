@@ -120,6 +120,12 @@ export function AccountButton({ locale, onLocale, onSettings }: Props) {
               {t('profile.mine')}
             </a>
           )}
+          {user?.role && (
+            <a role="menuitem" className="account-row" href="/admin">
+              <span>{t('admin.title')}</span>
+              <Chevron />
+            </a>
+          )}
           <button role="menuitem" className="account-row" onClick={() => setView('language')}>
             <span>{t('toolbar.language')}</span>
             <span className="account-value">{LOCALES[locale]}</span>

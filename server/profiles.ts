@@ -104,7 +104,9 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
   const m = /^\/api\/users\/([^/]+)(?:\/(games|history))?$/.exec(url.pathname);
   if (!m || request.method !== 'GET') return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);
-  const user = await env.DB.prepare('SELECT id, username, created_at, jacket FROM users WHERE username = ?1')
+  const user = await env.DB.prepare(
+    'SELECT id, username, created_at, jacket FROM users WHERE username = ?1 AND banned_at IS NULL',
+  )
     .bind(decodeURIComponent(m[1]))
     .first<{ id: string; username: string; created_at: number; jacket: string | null }>();
   if (!user) return json({ error: 'not-found' }, 404);

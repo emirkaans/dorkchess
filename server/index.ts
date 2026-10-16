@@ -24,6 +24,7 @@ import { handleLeaderboard } from './leaderboard.ts';
 import { handleRush } from './rush.ts';
 import { handleChallenges } from './challenges.ts';
 import { handleErrors } from './errors.ts';
+import { handleAdmin } from './admin.ts';
 import { handleFollows } from './follows.ts';
 import { handleGangs } from './gangs.ts';
 import { pagePreview, sitemap } from './pages.ts';
@@ -129,7 +130,9 @@ export default {
     if (leaders) return leaders;
     const rush = await handleRush(request, env, url);
     if (rush) return rush;
-    const errors = await handleErrors(request, url);
+    const admin = await handleAdmin(request, env, url);
+    if (admin) return admin;
+    const errors = await handleErrors(request, url, env.DB);
     if (errors) return errors;
     const tournaments = await handleTournaments(request, env, url);
     if (tournaments) return tournaments;

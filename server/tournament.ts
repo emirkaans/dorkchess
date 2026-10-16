@@ -97,6 +97,15 @@ export class Tournament extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/init' && request.method === 'POST') return this.init(request);
+    if (url.pathname === '/cancel' && request.method === 'POST') {
+      // Called off by staff (server/admin.ts): everyone on the page is told, then it is gone.
+      await this.ctx.storage.deleteAlarm();
+      await this.ctx.storage.deleteAll();
+      this.state = null;
+      this.games = {};
+      for (const ws of this.ctx.getWebSockets()) ws.close(4404, 'cancelled');
+      return json({ ok: true });
+    }
     const state = await this.load();
     if (!state) return json({ error: 'not-found' }, 404);
     if (url.pathname === '/result' && request.method === 'POST') {

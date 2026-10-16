@@ -11,6 +11,7 @@
 //   POST /api/auth/delete                  deletes the signed-in account (and its sign-in link, sessions)
 
 import { suggestUsername, usernameProblem } from '../src/online/account.ts';
+import { isStaffRole } from '../src/online/admin.ts';
 import type { AccountUser, MeResponse, UsernameProblem } from '../src/online/account.ts';
 import {
   base64url,
@@ -72,12 +73,14 @@ export async function currentUser(request: Request, env: AuthEnv): Promise<Accou
   const token = parseCookies(request.headers.get('cookie'))[SESSION_COOKIE];
   if (!token) return null;
   const row = await env.DB.prepare(
-    `SELECT u.id, u.username, u.rating FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.id = ?1 AND s.expires_at > ?2`,
+    `SELECT u.id, u.username, u.rating, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.id = ?1 AND s.expires_at > ?2 AND u.banned_at IS NULL`,
   )
     .bind(await sha256hex(token), Date.now())
-    .first<{ id: string; username: string; rating: number | null }>();
-  return row ? { id: row.id, username: row.username, rating: row.rating } : null;
+    .first<{ id: string; username: string; rating: number | null; role: string | null }>();
+  if (!row) return null;
+  const role = isStaffRole(row.role) ? row.role : null;
+  return { id: row.id, username: row.username, rating: row.rating, ...(role ? { role } : {}) };
 }
 
 async function newSession(env: AuthEnv, userId: string, secure: boolean): Promise<string> {
@@ -176,9 +179,14 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
       res.ok && tokens.id_token ? idTokenClaims(tokens.id_token, env.GOOGLE_CLIENT_ID, Date.now() / 1000) : null;
     if (!claims) return redirect('/?signin=failed', [clearOauth]);
 
-    const known = await env.DB.prepare('SELECT user_id FROM identities WHERE provider = ?1 AND subject = ?2')
+    const known = await env.DB.prepare(
+      `SELECT i.user_id, u.banned_at FROM identities i JOIN users u ON u.id = i.user_id
+       WHERE i.provider = ?1 AND i.subject = ?2`,
+    )
       .bind('google', claims.sub)
-      .first<{ user_id: string }>();
+      .first<{ user_id: string; banned_at: number | null }>();
+    // A banned account does not sign in (and cannot make a new one with the same Google account).
+    if (known?.banned_at) return redirect('/?signin=banned', [clearOauth]);
     if (known) return redirect(saved.back, [clearOauth, await newSession(env, known.user_id, secure)]);
 
     // First sign-in: remember who this is until a username is picked.
@@ -276,7 +284,7 @@ export async function handleAuth(request: Request, env: AuthEnv, url: URL): Prom
   return json({ error: 'not-found' }, 404);
 }
 
-async function usernameTaken(env: AuthEnv, name: string): Promise<boolean> {
+export async function usernameTaken(env: AuthEnv, name: string): Promise<boolean> {
   const row = await env.DB.prepare('SELECT 1 FROM users WHERE username = ?1').bind(name).first();
   return row !== null;
 }

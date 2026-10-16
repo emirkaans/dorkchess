@@ -6237,3 +6237,107 @@ a:focus-visible {
     justify-self: start;
   }
 }
+
+/* /admin: running the site (staff only), in the tournament pages' look. */
+.admin-title {
+  font-size: 44px;
+}
+.admin-tabs {
+  flex-wrap: wrap;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.admin-stats div {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #1f1f23;
+  border: 2px dashed #3a3a40;
+}
+.admin-stats dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.admin-stats dd {
+  margin: 4px 0 0;
+  font: 400 36px/1 var(--display);
+  color: var(--lime);
+}
+.admin-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.admin-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.admin-main a {
+  color: var(--fg);
+  font: 500 16px/1.2 var(--ui);
+}
+.admin-main small {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+.admin-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--lime);
+  color: var(--lime);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.admin-tag.bad {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.admin-actions button,
+.admin-actions select {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.admin-actions button.danger {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.admin-errors {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-errors li {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1f1f23;
+}
+.admin-errors pre {
+  margin: 4px 0 0;
+  overflow-x: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+@media (max-width: 640px) {
+  .admin-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-actions {
+    justify-content: flex-start;
+  }
+}

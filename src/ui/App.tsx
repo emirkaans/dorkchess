@@ -65,6 +65,7 @@ const ProfilePage = lazy(() => import('./ProfilePage.tsx').then((m) => ({ defaul
 const PuzzlePage = lazy(() => import('./PuzzlePage.tsx').then((m) => ({ default: m.PuzzlePage })));
 const DailyPage = lazy(() => import('./DailyPage.tsx').then((m) => ({ default: m.DailyPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage.tsx').then((m) => ({ default: m.LeaderboardPage })));
+const AdminPage = lazy(() => import('./AdminPage.tsx').then((m) => ({ default: m.AdminPage })));
 const TournamentsPage = lazy(() => import('./TournamentsPage.tsx').then((m) => ({ default: m.TournamentsPage })));
 const GangsPage = lazy(() => import('./GangsPage.tsx').then((m) => ({ default: m.GangsPage })));
 const TvPage = lazy(() => import('./TvPage.tsx').then((m) => ({ default: m.TvPage })));
@@ -123,6 +124,13 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const [showHighlight, setShowHighlight] = useState(true);
   const boardArea = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('signin') !== 'banned') return;
+    setNotice(t('notice.banned'));
+    history.replaceState(null, '', location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // A new app version is installed and waiting (service worker): offer a reload.
   const [updateReady, setUpdateReady] = useState(false);
   useEffect(() => onUpdateReady(() => setUpdateReady(true)), []);
@@ -262,6 +270,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
         r.kind === 'daily' ||
         r.kind === 'rush' ||
         r.kind === 'tv' ||
+        r.kind === 'admin' ||
         r.kind === 'leaderboard'
       )
         return setPage(r.kind);
@@ -540,6 +549,8 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
           />
         ) : page === 'leaderboard' ? (
           <LeaderboardPage />
+        ) : page === 'admin' ? (
+          <AdminPage />
         ) : page === 'tournaments' ? (
           <TournamentsPage
             id={tournamentId}
