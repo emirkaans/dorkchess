@@ -299,16 +299,24 @@ function TournamentRoom({
     );
   }
   const me = v.standings.find((p) => p.userId === v.you) ?? null;
-  const podium = v.status === 'finished' ? v.standings.filter((p) => p.score > 0).slice(0, 3) : [];
+  // The top three once they have points: patches on the jacket, the winner's in the middle.
+  const podium = v.standings.filter((p) => p.score > 0).slice(0, 3);
 
   return (
-    <main className="profile-page tournament-page">
-      <div className="profile-head">
-        <div className="profile-title">
-          <h1 className="profile-name">{v.name}</h1>
-          <p className="muted">
+    <main className="tournament-page">
+      <header className="tz-head">
+        <div className="tz-badge" aria-hidden="true">
+          <Crown />
+        </div>
+        <div className="tz-title">
+          <p className="tz-meta">
             {vt(getVariant(v.variantId)).name} · {timeControl(v.timeControlId).label} ·{' '}
-            {t(v.rated ? 'lobby.rated' : 'lobby.casual')} · {t('tournament.by', { name: v.createdBy })} ·{' '}
+            {t(v.rated ? 'lobby.rated' : 'lobby.casual')}
+          </p>
+          <RansomTitle text={v.name} />
+          <p className="tz-sub">
+            {t('tournament.by', { name: v.createdBy })} · {t('tournament.playersN', { n: String(v.standings.length) })}{' '}
+            · {t('tournament.games', { n: String(v.games) })} ·{' '}
             <a
               href="/tournaments"
               onClick={(e) => {
@@ -320,7 +328,7 @@ function TournamentRoom({
             </a>
           </p>
         </div>
-        <span className={`tournament-clock ${v.status}`}>
+        <div className={`tz-clock ${v.status}`}>
           <small>
             {v.status === 'created'
               ? t('tournament.startsInLabel')
@@ -328,28 +336,30 @@ function TournamentRoom({
                 ? t('tournament.endsInLabel')
                 : t('tournament.over')}
           </small>
-          {v.status === 'created'
-            ? clockText(v.startsAt - now)
-            : v.status === 'started'
-              ? clockText(v.endsAt - now)
-              : '🏁'}
-        </span>
-      </div>
+          <span>
+            {v.status === 'created'
+              ? clockText(v.startsAt - now)
+              : v.status === 'started'
+                ? clockText(v.endsAt - now)
+                : '—'}
+          </span>
+        </div>
+      </header>
 
-      <div className="tournament-bar">
+      <div className="tz-bar">
         {v.status !== 'finished' && account.user && (
           <>
             {!me || me.paused ? (
-              <button className="primary" onClick={link.join} disabled={link.status !== 'open'}>
+              <button className="tz-pill primary" onClick={link.join} disabled={link.status !== 'open'}>
                 {me ? t('tournament.resume') : t('tournament.join')}
               </button>
             ) : (
-              <button onClick={link.withdraw} disabled={link.status !== 'open'}>
+              <button className="tz-pill" onClick={link.withdraw} disabled={link.status !== 'open'}>
                 {v.status === 'created' ? t('tournament.withdraw') : t('tournament.pause')}
               </button>
             )}
             {me?.game ? (
-              <button className="primary" onClick={() => onOpenGame(me.game!)}>
+              <button className="tz-pill primary" onClick={() => onOpenGame(me.game!)}>
                 {t('tournament.backToGame')}
               </button>
             ) : me && !me.paused && v.status === 'started' ? (
@@ -362,11 +372,8 @@ function TournamentRoom({
         {v.status !== 'finished' && !account.user && !account.loading && (
           <span className="muted">{t('tournament.signIn')}</span>
         )}
-        <span className="muted">
-          👥 {v.standings.length} · ⚔️ {t('tournament.games', { n: String(v.games) })}
-        </span>
         <button
-          className="tournament-share"
+          className="tz-pill ghost"
           onClick={() => {
             void navigator.clipboard?.writeText(`${location.origin}/tournament/${v.id}`).then(() => setCopied(true));
           }}
@@ -377,49 +384,87 @@ function TournamentRoom({
       {link.error && <p className="error">{t(`tournament.error.${link.error}`)}</p>}
 
       {podium.length > 0 && (
-        <ol className="tournament-podium">
+        <ol className="tz-podium" aria-label={t('tournament.podium')}>
           {podium.map((p, i) => (
-            <li key={p.userId} className={`place-${i + 1}`}>
-              <span className="podium-medal">{i === 0 ? <Crown /> : i + 1}</span>
+            <li key={p.userId} className={`tz-patch place-${i + 1}`}>
+              {i === 0 ? <Crown /> : <span className="tz-roman">{i === 1 ? 'II' : 'III'}</span>}
               <ProfileLink username={p.username}>{p.username}</ProfileLink>
-              <strong>{p.score}</strong>
+              <strong>{t('tournament.points', { n: String(p.score) })}</strong>
+              {i === 0 && p.fire && (
+                <span className="tz-fire-tag">
+                  <Flame />
+                  {t('tournament.fireTag')}
+                </span>
+              )}
             </li>
           ))}
         </ol>
       )}
 
-      <ol className="tournament-standings">
-        {v.standings.length === 0 && <li className="muted gang-empty">{t('tournament.nobody')}</li>}
+      <ol className="tz-standings">
+        {v.standings.length === 0 && <li className="tz-empty muted">{t('tournament.nobody')}</li>}
         {v.standings.map((p, i) => (
-          <li key={p.userId} className={`${p.userId === v.you ? 'mine' : ''}${p.paused ? ' paused' : ''}`}>
-            <span className="leader-place">{i + 1}</span>
-            <span className="tournament-player">
+          <li
+            key={p.userId}
+            className={`tz-row${i === 0 && p.score > 0 ? ' lead' : ''}${p.userId === v.you ? ' mine' : ''}${p.paused ? ' paused' : ''}`}
+          >
+            <span className="tz-place">{i + 1}</span>
+            <span className="tz-player">
               <ProfileLink username={p.username}>{p.username}</ProfileLink>
               {p.fire && (
-                <span className="tournament-fire" title={t('tournament.onFire')}>
-                  🔥
+                <span className="tz-fire" title={t('tournament.onFire')}>
+                  <Flame />
                 </span>
               )}
-              {p.paused && <span className="muted"> · {t('tournament.paused')}</span>}
               {p.game && <span className="tournament-playing" title={t('tournament.playing')} />}
+              {p.paused && <span className="tz-paused">{t('tournament.paused')}</span>}
             </span>
-            <span className="tournament-sheet" aria-label={t('tournament.sheet')}>
-              {p.sheet.slice(-14).map((s) => (
+            <span className="tz-sheet" aria-label={t('tournament.sheet')}>
+              {p.sheet.slice(-12).map((s) => (
                 <a
                   key={s.gameId}
                   href={`/${s.gameId}`}
-                  className={`sheet-${s.r}${s.fire ? ' fire' : ''}`}
+                  className={`tz-dot ${s.r}${s.fire ? ' fire' : ''}`}
                   title={t(`tournament.result.${s.r}`)}
                 >
                   {s.pts}
                 </a>
               ))}
             </span>
-            <span className="gang-score">{p.score}</span>
+            <span className="tz-score">{p.score}</span>
           </li>
         ))}
       </ol>
       <Rules />
     </main>
+  );
+}
+
+const Flame = () => (
+  <svg className="tz-flame" viewBox="0 0 24 28" aria-hidden="true">
+    <path d="M12 2c1 5 6 7 6 14a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5 0 2.5 1 4 2.5 4.5C11 10 10 6 12 2z" />
+  </svg>
+);
+
+/**
+ * The tournament's name as a ransom note: each letter cut from something
+ * else (seven looks in turn), spaces kept as gaps. Read out as the plain name.
+ */
+function RansomTitle({ text }: { text: string }) {
+  // Words stay whole when the line breaks.
+  const words = text.toLocaleUpperCase('tr').split(/\s+/).filter(Boolean);
+  let n = 0;
+  return (
+    <h1 className="tz-ransom" aria-label={text}>
+      {words.map((word, w) => (
+        <span key={w} className="tz-word" aria-hidden="true">
+          {[...word].map((ch, i) => (
+            <span key={i} className={`tz-cut c${n++ % 7}`}>
+              {ch}
+            </span>
+          ))}
+        </span>
+      ))}
+    </h1>
   );
 }
