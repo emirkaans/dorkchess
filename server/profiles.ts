@@ -24,7 +24,9 @@ const json = (data: unknown, status = 200) =>
 async function jacketStats(db: D1Database, userId: string): Promise<JacketStats> {
   const [patches, games, rating, rush, daily] = await db.batch([
     db.prepare('SELECT count(*) AS n FROM user_patches WHERE user_id = ?1').bind(userId),
-    db.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1').bind(userId),
+    db
+      .prepare("SELECT count(*) AS n FROM games WHERE (white_user = ?1 OR black_user = ?1) AND result != '*'")
+      .bind(userId),
     db
       .prepare("SELECT max(rating) AS r FROM ratings WHERE user_id = ?1 AND category != 'puzzle' AND rd <= ?2")
       .bind(userId, PROVISIONAL_RD),
@@ -52,10 +54,10 @@ async function rivals(db: D1Database, userId: string): Promise<{ nemesis: Rival 
     .prepare(
       `SELECT u.username, SUM(r.won) AS wins, SUM(r.lost) AS losses, SUM(r.drawn) AS draws FROM (
          SELECT black_user AS opp, result = '1-0' AS won, result = '0-1' AS lost, result = '1/2-1/2' AS drawn
-           FROM games WHERE white_user = ?1 AND black_user IS NOT NULL
+           FROM games WHERE white_user = ?1 AND black_user IS NOT NULL AND result != '*'
          UNION ALL
          SELECT white_user, result = '0-1', result = '1-0', result = '1/2-1/2'
-           FROM games WHERE black_user = ?1 AND white_user IS NOT NULL
+           FROM games WHERE black_user = ?1 AND white_user IS NOT NULL AND result != '*'
        ) r JOIN users u ON u.id = r.opp
        GROUP BY r.opp`,
     )
@@ -101,6 +103,19 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
     await env.DB.prepare('UPDATE users SET jacket = ?1 WHERE id = ?2').bind(jacket.id, user.id).run();
     return json({ jacket: jacket.id });
   }
+  if (url.pathname === '/api/users' && request.method === 'GET') {
+    // Players by the start of their username (the top bar's search); suspended ones are left out.
+    if (!env.DB) return json([]);
+    const q = (url.searchParams.get('q') ?? '').trim().slice(0, 20);
+    if (q.length < 2 || !/^[A-Za-z0-9_-]+$/.test(q)) return json([]);
+    const rows = await env.DB.prepare(
+      `SELECT username FROM users WHERE username LIKE ?1 ESCAPE '\\' AND banned_at IS NULL
+       ORDER BY length(username), username LIMIT 10`,
+    )
+      .bind(`${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+      .all<{ username: string }>();
+    return json(rows.results);
+  }
   const m = /^\/api\/users\/([^/]+)(?:\/(games|history))?$/.exec(url.pathname);
   if (!m || request.method !== 'GET') return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);
@@ -125,7 +140,9 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
         losses: number;
         draws: number;
       }>();
-    const count = await env.DB.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1')
+    const count = await env.DB.prepare(
+      "SELECT count(*) AS n FROM games WHERE (white_user = ?1 OR black_user = ?1) AND result != '*'",
+    )
       .bind(user.id)
       .first<{ n: number }>();
     const patches = await env.DB.prepare(

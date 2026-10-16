@@ -30,6 +30,8 @@ const LIMITED_READS = [
   /^\/api\/tournaments/,
   /^\/api\/leaderboard$/,
   /^\/api\/users\//,
+  /^\/api\/users$/,
+  /^\/api\/me\/follows$/,
   /^\/api\/auth\/username$/,
   /^\/api\/lobby\/ws$/,
   /^\/api\/games\/[^/]+\/ws$/,

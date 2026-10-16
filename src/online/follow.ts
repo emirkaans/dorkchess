@@ -30,3 +30,9 @@ export function sortFollowing(list: readonly FollowStatus[]): FollowStatus[] {
   const rank = { playing: 0, lobby: 1, offline: 2 } as const;
   return [...list].sort((a, b) => rank[a.status] - rank[b.status] || a.username.localeCompare(b.username));
 }
+
+/** GET /api/me/follows: the signed-in player's followers and the players they follow, newest first. */
+export interface FollowLists {
+  readonly followers: readonly string[];
+  readonly following: readonly string[];
+}

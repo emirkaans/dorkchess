@@ -73,7 +73,9 @@ export interface RatingPoint {
 }
 
 /** The game's outcome for the profile's player. */
-export function outcomeFor(g: Pick<ProfileGame, 'result' | 'color'>): 'win' | 'loss' | 'draw' {
+export function outcomeFor(g: Pick<ProfileGame, 'result' | 'color'>): 'win' | 'loss' | 'draw' | 'aborted' {
+  // An aborted game (fewer than two moves): listed, counted for nothing.
+  if (g.result === '*') return 'aborted';
   if (g.result === '1/2-1/2') return 'draw';
   return (g.result === '1-0') === (g.color === 'w') ? 'win' : 'loss';
 }

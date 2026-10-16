@@ -4,6 +4,7 @@ import { getVariant, listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
 import { outcomeFor } from '../online/profile.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint } from '../online/profile.ts';
+import type { FollowLists } from '../online/follow.ts';
 import { allCategories, variantOfCategory } from '../rating/categories.ts';
 import { useI18n } from './i18n.tsx';
 import { BattleJacket, jacketSrc } from './BattleJacket.tsx';
@@ -36,6 +37,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   // The big jacket with every patch opens in a window; the page shows it small.
   const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
+  // Own profile: the followers or following list being shown.
+  const [followList, setFollowList] = useState<'followers' | 'following' | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -177,9 +180,33 @@ export function ProfilePage({ username, onOpen }: Props) {
             </a>
           )}
           <p className="muted profile-follows">
-            {t('follow.followers', { n: String(profile.followers) })} ·{' '}
-            {t('follow.following', { n: String(profile.following) })}
+            {mine ? (
+              <>
+                <button className="link-button" onClick={() => setFollowList('followers')}>
+                  {t('follow.followers', { n: String(profile.followers) })}
+                </button>{' '}
+                ·{' '}
+                <button className="link-button" onClick={() => setFollowList('following')}>
+                  {t('follow.following', { n: String(profile.following) })}
+                </button>
+              </>
+            ) : (
+              <>
+                {t('follow.followers', { n: String(profile.followers) })} ·{' '}
+                {t('follow.following', { n: String(profile.following) })}
+              </>
+            )}
           </p>
+          {followList && (
+            <FollowListDialog
+              which={followList}
+              onClose={() => setFollowList(null)}
+              onOpen={(path) => {
+                setFollowList(null);
+                onOpen(path);
+              }}
+            />
+          )}
           {account.user && !mine && (
             <div className="profile-actions">
               <button className="primary challenge-button" onClick={() => setChallenging(profile.username)}>
@@ -464,4 +491,50 @@ async function shareJacket(svg: SVGSVGElement, jacketId: string, username: strin
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/** The signed-in player's own followers or following, from their profile. */
+function FollowListDialog({
+  which,
+  onClose,
+  onOpen,
+}: {
+  which: 'followers' | 'following';
+  onClose: () => void;
+  onOpen: (path: string) => void;
+}) {
+  const { t } = useI18n();
+  const [lists, setLists] = useState<FollowLists | null>(null);
+  useEffect(() => {
+    fetch('/api/me/follows', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? (r.json() as Promise<FollowLists>) : { followers: [], following: [] }))
+      .then(setLists)
+      .catch(() => setLists({ followers: [], following: [] }));
+  }, []);
+  const title = t(which === 'followers' ? 'follow.listFollowers' : 'follow.listFollowing');
+  const names = lists?.[which] ?? null;
+  return (
+    <Modal label={title} onClose={onClose} className="player-search">
+      <h2>{title}</h2>
+      {!names && <p className="muted">{t('leaders.loading')}</p>}
+      {names?.length === 0 && <p className="muted">{t('follow.listEmpty')}</p>}
+      {names && names.length > 0 && (
+        <ul className="player-search-list">
+          {names.map((name) => (
+            <li key={name}>
+              <a
+                href={`/@/${name}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onOpen(`/@/${name}`);
+                }}
+              >
+                {name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccountButton } from './AccountButton.tsx';
+import { PlayerSearch } from './PlayerSearch.tsx';
 import { useI18n } from './i18n.tsx';
 import { Crown } from './Punk.tsx';
 import type { Prefs } from './prefs.ts';
@@ -147,6 +148,7 @@ export function Toolbar({
           </button>
         </nav>
         <div className="toolbar-end">
+          <PlayerSearch />
           <AccountButton
             locale={prefs.locale}
             onLocale={(locale) => onPrefs((p) => ({ ...p, locale }))}

@@ -318,7 +318,7 @@ export function AnalysisPage({
         {analysing && engineOn && <EvalBar score={live.score} flipped={flipped} />}
       </div>
 
-      <aside className="analysis-side">
+      <aside className={`analysis-side${mode === 'edit' ? ' editing' : ''}`}>
         <div className="analysis-head">
           <svg className="bolt" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
@@ -334,127 +334,130 @@ export function AnalysisPage({
 
         {mode === 'edit' ? (
           <>
-            <label className="analysis-field">
-              <span>{t('analysisPage.variant')}</span>
-              <select value={variantId} onChange={(e) => changeVariant(e.target.value)}>
-                {listVariants().map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {vt(v).name}
-                  </option>
+            {/* The settings scroll when the screen is short; the button below stays in view. */}
+            <div className="analysis-edit-scroll">
+              <label className="analysis-field">
+                <span>{t('analysisPage.variant')}</span>
+                <select value={variantId} onChange={(e) => changeVariant(e.target.value)}>
+                  {listVariants().map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {vt(v).name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="palette" role="group" aria-label={t('analysisPage.pieces')}>
+                {toolButton(
+                  'move',
+                  tool.kind === 'move',
+                  t('analysisPage.toolMove'),
+                  () => setTool({ kind: 'move' }),
+                  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" />
+                  </svg>,
+                )}
+                {toolButton(
+                  'erase',
+                  tool.kind === 'erase',
+                  t('analysisPage.toolErase'),
+                  () => {
+                    setTool({ kind: 'erase' });
+                    setPickFrom(null);
+                  },
+                  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20 20H9L4 15a2 2 0 0 1 0-3l8-8a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3l-8 8" />
+                    <path d="M8 9l7 7" />
+                  </svg>,
+                )}
+                {(['w', 'b'] as Color[]).flatMap((color) =>
+                  pieceTypes.map((type) => {
+                    const active = tool.kind === 'piece' && samePiece(tool.piece, { type, color });
+                    return toolButton(
+                      `${color}${type}`,
+                      active,
+                      `${t(`color.${color}`)} ${texts.pieceName(type)}`,
+                      () => {
+                        setTool({ kind: 'piece', piece: { type, color } });
+                        setPickFrom(null);
+                      },
+                      <PieceView variant={variant} piece={{ type, color }} />,
+                    );
+                  }),
+                )}
+              </div>
+              <p className="muted analysis-hint">{t('analysisPage.hint')}</p>
+
+              <fieldset className="analysis-row">
+                <legend>{t('analysisPage.toMove')}</legend>
+                {(['w', 'b'] as Color[]).map((c) => (
+                  <label key={c} className={`chip${editPos.turn === c ? ' on' : ''}`}>
+                    <input
+                      type="radio"
+                      name="analysis-turn"
+                      checked={editPos.turn === c}
+                      onChange={() => setEditPos((p) => ({ ...p, turn: c }))}
+                    />
+                    {t(`color.${c}`)}
+                  </label>
                 ))}
-              </select>
-            </label>
+              </fieldset>
 
-            <div className="palette" role="group" aria-label={t('analysisPage.pieces')}>
-              {toolButton(
-                'move',
-                tool.kind === 'move',
-                t('analysisPage.toolMove'),
-                () => setTool({ kind: 'move' }),
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" />
-                </svg>,
-              )}
-              {toolButton(
-                'erase',
-                tool.kind === 'erase',
-                t('analysisPage.toolErase'),
-                () => {
-                  setTool({ kind: 'erase' });
-                  setPickFrom(null);
-                },
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20 20H9L4 15a2 2 0 0 1 0-3l8-8a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3l-8 8" />
-                  <path d="M8 9l7 7" />
-                </svg>,
-              )}
-              {(['w', 'b'] as Color[]).flatMap((color) =>
-                pieceTypes.map((type) => {
-                  const active = tool.kind === 'piece' && samePiece(tool.piece, { type, color });
-                  return toolButton(
-                    `${color}${type}`,
-                    active,
-                    `${t(`color.${color}`)} ${texts.pieceName(type)}`,
-                    () => {
-                      setTool({ kind: 'piece', piece: { type, color } });
-                      setPickFrom(null);
-                    },
-                    <PieceView variant={variant} piece={{ type, color }} />,
-                  );
-                }),
-              )}
-            </div>
-            <p className="muted analysis-hint">{t('analysisPage.hint')}</p>
+              <fieldset className="analysis-row">
+                <legend>{t('analysisPage.castling')}</legend>
+                {(['wK', 'wQ', 'bK', 'bQ'] as CastleRight[]).map((right) => (
+                  <label key={right} className={`chip${editPos.castling[right] ? ' on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={editPos.castling[right]}
+                      onChange={() =>
+                        setEditPos((p) => ({ ...p, castling: { ...p.castling, [right]: !p.castling[right] } }))
+                      }
+                    />
+                    {t(`color.${right[0] as Color}`)} {right[1] === 'K' ? 'O-O' : 'O-O-O'}
+                  </label>
+                ))}
+              </fieldset>
 
-            <fieldset className="analysis-row">
-              <legend>{t('analysisPage.toMove')}</legend>
-              {(['w', 'b'] as Color[]).map((c) => (
-                <label key={c} className={`chip${editPos.turn === c ? ' on' : ''}`}>
-                  <input
-                    type="radio"
-                    name="analysis-turn"
-                    checked={editPos.turn === c}
-                    onChange={() => setEditPos((p) => ({ ...p, turn: c }))}
-                  />
-                  {t(`color.${c}`)}
-                </label>
-              ))}
-            </fieldset>
-
-            <fieldset className="analysis-row">
-              <legend>{t('analysisPage.castling')}</legend>
-              {(['wK', 'wQ', 'bK', 'bQ'] as CastleRight[]).map((right) => (
-                <label key={right} className={`chip${editPos.castling[right] ? ' on' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={editPos.castling[right]}
-                    onChange={() =>
-                      setEditPos((p) => ({ ...p, castling: { ...p.castling, [right]: !p.castling[right] } }))
-                    }
-                  />
-                  {t(`color.${right[0] as Color}`)} {right[1] === 'K' ? 'O-O' : 'O-O-O'}
-                </label>
-              ))}
-            </fieldset>
-
-            <div className="analysis-buttons">
-              <button onClick={() => loadPosition(parseFen(variant, variant.startPosition))}>
-                {t('analysisPage.start')}
-              </button>
-              <button
-                onClick={() =>
-                  loadPosition({
-                    ...editPos,
-                    board: emptyBoard(),
-                    castling: { wK: false, wQ: false, bK: false, bQ: false },
-                  })
-                }
-              >
-                {t('analysisPage.clear')}
-              </button>
-              <button onClick={() => setFlipped((f) => !f)}>{t('controls.flip')}</button>
-            </div>
-
-            <label className="analysis-field">
-              <span>FEN</span>
-              <span className="fen-row">
-                <input
-                  value={fenDraft ?? editFen}
-                  spellCheck={false}
-                  onChange={(e) => {
-                    setFenDraft(e.target.value);
-                    setFenError(null);
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && applyFen()}
-                  onBlur={applyFen}
-                />
-                <button onClick={() => copyFen(editFen)}>
-                  {copied ? t('controls.copied') : t('analysisPage.copy')}
+              <div className="analysis-buttons">
+                <button onClick={() => loadPosition(parseFen(variant, variant.startPosition))}>
+                  {t('analysisPage.start')}
                 </button>
-              </span>
-            </label>
-            {fenError && <p className="error">{fenError}</p>}
-            {problem && <p className="analysis-problem">{t(`analysisPage.invalid.${problem}`)}</p>}
+                <button
+                  onClick={() =>
+                    loadPosition({
+                      ...editPos,
+                      board: emptyBoard(),
+                      castling: { wK: false, wQ: false, bK: false, bQ: false },
+                    })
+                  }
+                >
+                  {t('analysisPage.clear')}
+                </button>
+                <button onClick={() => setFlipped((f) => !f)}>{t('controls.flip')}</button>
+              </div>
+
+              <label className="analysis-field">
+                <span>FEN</span>
+                <span className="fen-row">
+                  <input
+                    value={fenDraft ?? editFen}
+                    spellCheck={false}
+                    onChange={(e) => {
+                      setFenDraft(e.target.value);
+                      setFenError(null);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && applyFen()}
+                    onBlur={applyFen}
+                  />
+                  <button onClick={() => copyFen(editFen)}>
+                    {copied ? t('controls.copied') : t('analysisPage.copy')}
+                  </button>
+                </span>
+              </label>
+              {fenError && <p className="error">{fenError}</p>}
+              {problem && <p className="analysis-problem">{t(`analysisPage.invalid.${problem}`)}</p>}
+            </div>
 
             <button className="primary analysis-go" onClick={startAnalysis} disabled={!!problem}>
               <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">

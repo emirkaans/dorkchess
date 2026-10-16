@@ -45,6 +45,7 @@ import type {
 } from '../src/online/tournament.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import { withAccountHeaders } from './account-headers.ts';
+import { isStaffRole } from '../src/online/admin.ts';
 import { currentUser, sameOrigin } from './auth.ts';
 import type { Env } from './game-room.ts';
 
@@ -459,6 +460,8 @@ export async function handleTournaments(request: Request, env: Env, url: URL): P
   if (!sameOrigin(request, env.PUBLIC_ORIGIN || url.origin, url)) return json({ error: 'forbidden' }, 403);
   const user = await currentUser(request, env).catch(() => null);
   if (!user) return json({ error: 'signed-out' }, 401);
+  // Only staff (src/online/admin.ts) make tournaments.
+  if (!isStaffRole(user.role)) return json({ error: 'forbidden' }, 403);
   const body = (await request.json().catch(() => ({}))) as Partial<CreateTournament>;
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (tournamentNameProblem(name)) return json({ error: 'name' }, 400);
@@ -468,10 +471,6 @@ export async function handleTournaments(request: Request, env: Env, url: URL): P
     return json({ error: 'bad-request' }, 400);
   if (!(TOURNAMENT_START_IN as readonly number[]).includes(Number(body.startIn)))
     return json({ error: 'bad-request' }, 400);
-  const open = await env.DB.prepare('SELECT 1 FROM tournaments WHERE owner_id = ?1 AND ends_at > ?2')
-    .bind(user.id, now)
-    .first();
-  if (open) return json({ error: 'one-open' }, 409);
 
   const id = randomGameId();
   const startsAt = now + Number(body.startIn) * 60_000;

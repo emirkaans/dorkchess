@@ -130,9 +130,11 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
     setError(
       data?.error === 'one-open'
         ? 'tournament.problem.oneOpen'
-        : data?.error === 'name'
-          ? 'tournament.problem.name'
-          : 'signup.problem.network',
+        : data?.error === 'forbidden'
+          ? 'tournament.problem.staff'
+          : data?.error === 'name'
+            ? 'tournament.problem.name'
+            : 'signup.problem.network',
     );
   };
 
@@ -188,12 +190,11 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
       </header>
 
       <div className="tz-bar">
-        {account.user && !making && (
+        {account.user?.role && !making && (
           <button className="tz-pill primary" onClick={() => setMaking(true)}>
             {t('tournament.make')}
           </button>
         )}
-        {!account.user && !account.loading && <span className="muted">{t('tournament.signIn')}</span>}
       </div>
 
       {making && (

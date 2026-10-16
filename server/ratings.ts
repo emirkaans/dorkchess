@@ -63,18 +63,42 @@ export async function withRatings(room: Room, db: D1Database | undefined, now: n
 }
 
 /**
- * Records a finished game: aborted games (fewer than two moves) and games
- * between guests are not kept; a rated game updates both ratings. Returns the
- * room marked as recorded, with the rating changes. Throws when the database
- * fails (nothing is written then, so it can be tried again).
+ * Records a finished game: games between guests are not kept; an aborted game
+ * (fewer than two moves) is kept for the players' histories only, with result
+ * '*' and termination 'aborted', counting for nothing (ratings, statistics,
+ * patches, rivals, gangs); a rated game updates both ratings. Returns the room
+ * marked as recorded, with the rating changes. Throws when the database fails
+ * (nothing is written then, so it can be tried again).
  */
 export async function settleGame(room: Room, db: D1Database | undefined, now: number): Promise<Room> {
   if (room.phase !== 'over' || room.recorded) return room;
   const w = room.seats.w?.account ?? null;
   const b = room.seats.b?.account ?? null;
-  if (!db || room.moves.length < ABORT_PLIES || (!w && !b)) return { ...room, recorded: true };
+  if (!db || (!w && !b)) return { ...room, recorded: true };
   const record: GameRecord | null = recordOfRoom(room);
   if (!record) return { ...room, recorded: true };
+  if (room.moves.length < ABORT_PLIES) {
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO games (id, variant_id, time_control, category, rated, white_user, black_user, white_name,
+           black_name, result, termination, start_fen, moves, ended_at)
+         VALUES (?1, ?2, ?3, NULL, 0, ?4, ?5, ?6, ?7, '*', 'aborted', ?8, ?9, ?10)`,
+      )
+      .bind(
+        room.id,
+        room.variantId,
+        room.timeControlId,
+        w?.id ?? null,
+        b?.id ?? null,
+        record.white,
+        record.black,
+        record.startFen,
+        JSON.stringify(record.moves),
+        now,
+      )
+      .run();
+    return { ...room, recorded: true };
+  }
 
   const category = ratingCategory(room.variantId, room.timeControlId);
   const rated = ratedRoom(room) && category !== null;
@@ -194,10 +218,12 @@ export async function settleGame(room: Room, db: D1Database | undefined, now: nu
 async function earnedPatches(db: D1Database, userId: string, game: PatchContext): Promise<string[]> {
   const [have, count, recent, variants] = await db.batch([
     db.prepare('SELECT patch_id FROM user_patches WHERE user_id = ?1').bind(userId),
-    db.prepare('SELECT count(*) AS n FROM games WHERE white_user = ?1 OR black_user = ?1').bind(userId),
+    db
+      .prepare("SELECT count(*) AS n FROM games WHERE (white_user = ?1 OR black_user = ?1) AND result != '*'")
+      .bind(userId),
     db
       .prepare(
-        'SELECT result, white_user FROM games WHERE white_user = ?1 OR black_user = ?1 ORDER BY ended_at DESC LIMIT 10',
+        "SELECT result, white_user FROM games WHERE (white_user = ?1 OR black_user = ?1) AND result != '*' ORDER BY ended_at DESC LIMIT 10",
       )
       .bind(userId),
     db

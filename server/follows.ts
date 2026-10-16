@@ -3,12 +3,13 @@
 //   POST   /api/follows/:username   the signed-in player follows them
 //   DELETE /api/follows/:username   … stops following
 //   GET    /api/follows             the followed players and what they are doing now
+//   GET    /api/me/follows          the signed-in player's followers and following
 //
 // "What they are doing" comes from the lobby (Durable Object): who is in it,
 // and who is playing which game.
 
 import { MAX_FOLLOWING, sortFollowing } from '../src/online/follow.ts';
-import type { FollowStatus, FollowingResponse, Presence } from '../src/online/follow.ts';
+import type { FollowLists, FollowStatus, FollowingResponse, Presence } from '../src/online/follow.ts';
 import type { Env } from './game-room.ts';
 import { currentUser, sameOrigin } from './auth.ts';
 
@@ -20,6 +21,24 @@ const json = (data: unknown, status = 200) =>
 
 /** Answers a follow request, or returns null when `url` is not one. */
 export async function handleFollows(request: Request, env: Env, url: URL): Promise<Response | null> {
+  if (url.pathname === '/api/me/follows' && request.method === 'GET') {
+    // The signed-in player's own followers and following (their profile lists them).
+    if (!env.DB) return json({ error: 'accounts-off' }, 503);
+    const me = await currentUser(request, env).catch(() => null);
+    if (!me) return json({ error: 'signed-out' }, 401);
+    const [followers, following] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT u.username FROM follows f JOIN users u ON u.id = f.follower
+         WHERE f.followee = ?1 AND u.banned_at IS NULL ORDER BY f.created_at DESC LIMIT 500`,
+      ).bind(me.id),
+      env.DB.prepare(
+        `SELECT u.username FROM follows f JOIN users u ON u.id = f.followee
+         WHERE f.follower = ?1 AND u.banned_at IS NULL ORDER BY f.created_at DESC LIMIT 500`,
+      ).bind(me.id),
+    ]);
+    const names = (r: D1Result) => (r.results as { username: string }[]).map((x) => x.username);
+    return json({ followers: names(followers), following: names(following) } satisfies FollowLists);
+  }
   const m = /^\/api\/follows(?:\/([A-Za-z][A-Za-z0-9_-]{2,19}))?$/.exec(url.pathname);
   if (!m) return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);

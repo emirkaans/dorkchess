@@ -2611,6 +2611,53 @@ button.primary:hover:not(:disabled) {
   flex-direction: column;
   gap: 14px;
 }
+/* The board editor: its settings, compact, beside the board and no taller than it. */
+.analysis-edit-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.analysis-side.editing {
+  gap: 10px;
+}
+.analysis-side.editing .palette {
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+  padding: 6px;
+}
+.analysis-side.editing .analysis-hint {
+  margin: 0;
+}
+.analysis-side.editing .analysis-row legend {
+  margin-bottom: 4px;
+}
+.analysis-side.editing .chip {
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+.analysis-side.editing .analysis-field input,
+.analysis-side.editing .analysis-field select {
+  min-height: 38px;
+}
+.analysis-side.editing .analysis-buttons button {
+  min-height: 38px;
+}
+.analysis-side.editing .analysis-go {
+  flex: none;
+  min-height: 52px;
+}
+@media (min-width: 900px) {
+  .analysis-side.editing {
+    height: var(--board);
+  }
+  .analysis-edit-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+}
 .analysis-page .viewer-moves {
   flex: none;
   height: clamp(160px, calc(var(--board) - 470px), 520px);
@@ -3837,6 +3884,10 @@ button.primary:hover:not(:disabled) {
 }
 .outcome.draw {
   color: var(--muted);
+}
+.outcome.aborted {
+  color: #8a8590;
+  text-decoration: line-through;
 }
 .game-meta {
   font-size: 13px;
@@ -6340,4 +6391,57 @@ a:focus-visible {
   .admin-actions {
     justify-content: flex-start;
   }
+}
+
+/* The top bar's player search, and a profile's own follower lists (same dialog look). */
+.player-search-button {
+  flex: none;
+}
+.modal.player-search {
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100svh - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal.player-search h2 {
+  margin: 0;
+}
+.player-search-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.player-search-list a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 2px dashed #3a3a40;
+  background: #1f1f23;
+  color: var(--fg);
+  font: 500 16px/1.2 var(--ui);
+  text-decoration: none;
+}
+.player-search-list a:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.profile-follows .link-button {
+  padding: 0;
+  min-height: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.profile-follows .link-button:hover {
+  color: var(--pink);
 }
