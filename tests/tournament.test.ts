@@ -158,8 +158,8 @@ describe('spray tags', () => {
     expect(TAG_STYLES.filter((s) => !s.need)).toHaveLength(5);
     const none = { patches: 0, games: 0, bestRating: null, rushBest: 0, dailyBest: 0, mates: 0 };
     expect(TAG_STYLES.filter((s) => tagOpen(s, none))).toHaveLength(5);
-    expect(tagOpen(tagById('crowned'), { ...none, mates: 1 })).toBe(true);
-    expect(tagById('nope').id).toBe('riot');
+    expect(tagOpen(tagById('crown'), { ...none, mates: 1 })).toBe(true);
+    expect(tagById('nope').id).toBe('signature');
     // The same name sprays the same way.
     expect(seeded('AdaPunk')()).toBe(seeded('AdaPunk')());
   });

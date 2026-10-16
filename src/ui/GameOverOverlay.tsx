@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from './i18n.tsx';
 
 /** How long the result stays on the board (the CSS fade ends at the same time). */
-export const GAME_OVER_MS = 3600;
+export const GAME_OVER_MS = 1800;
 
 /**
  * Laid over the board when the game is over: for a few seconds the board darkens

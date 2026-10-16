@@ -12,8 +12,9 @@ import { useAccount } from './account.ts';
 import { AccountSettings } from './AccountSettings.tsx';
 import { JacketWindow } from './JacketWindow.tsx';
 import { Modal } from './Modal.tsx';
-import { SprayTag } from './SprayTag.tsx';
-import { TAG_STYLES, tagOpen } from '../achievements/tags.ts';
+import { SprayPlayer, SprayStill } from './SprayTag.tsx';
+import { TAG_STYLES, tagById, tagOpen } from '../achievements/tags.ts';
+import { loadPrefs } from './prefs.ts';
 import { progress } from '../achievements/jackets.ts';
 import { ProfileLink } from './ProfileLink.tsx';
 import { FriendGame } from './online/LobbyPage.tsx';
@@ -354,16 +355,13 @@ export function ProfilePage({ username, onOpen }: Props) {
         </section>
       )}
 
-      <section className="tag-card" aria-label={t('tag.title')}>
-        <h2>{t(mine ? 'tag.title' : 'tag.theirs')}</h2>
-        <SprayTag username={profile.username} styleId={profile.tag} still />
+      <section className="tag-card" aria-label={t(mine ? 'tag.title' : 'tag.theirs')}>
+        <span className="tag-card-label">{t(mine ? 'tag.title' : 'tag.theirs')}</span>
+        <SprayStill username={profile.username} styleId={profile.tag} className="tag-card-art" />
         {mine && (
-          <>
-            <p>{t('tag.hint')}</p>
-            <button className="tz-pill ghost tag-change" onClick={() => setPickingTag(true)}>
-              {t('tag.change')}
-            </button>
-          </>
+          <button className="tz-pill ghost tag-change" onClick={() => setPickingTag(true)}>
+            {t('tag.change')}
+          </button>
         )}
       </section>
       {pickingTag && (
@@ -574,7 +572,13 @@ function FollowListDialog({
   );
 }
 
-/** The spray tag styles: the open ones to pick, the others with what earns them. */
+/** Styles shown per page in the picker. */
+const TAGS_PER_PAGE = 6;
+
+/**
+ * The spray tag picker: a board to try styles on (each click sprays it again),
+ * the styles a page at a time, and the one tried kept with a button.
+ */
 function TagPicker({
   username,
   current,
@@ -589,30 +593,91 @@ function TagPicker({
   onPick: (id: string) => void;
 }) {
   const { t } = useI18n();
+  const [trying, setTrying] = useState(current);
+  const [playKey, setPlayKey] = useState(0);
+  const [page, setPage] = useState(
+    () => Math.floor(TAG_STYLES.findIndex((s) => s.id === current) / TAGS_PER_PAGE) || 0,
+  );
+  const pages = Math.ceil(TAG_STYLES.length / TAGS_PER_PAGE);
+  const sound = loadPrefs().sound;
+  const style = tagById(trying);
+  const open = tagOpen(style, stats);
+  const lockText = (s: (typeof TAG_STYLES)[number]) =>
+    s.need
+      ? `${t(`jacket.need.${s.need.kind}`, { n: String(s.need.n) })} (${progress(s.need, stats)}/${s.need.n})`
+      : '';
+  const tryOut = (id: string) => {
+    setTrying(id);
+    setPlayKey((k) => k + 1);
+  };
   return (
     <Modal label={t('tag.pick')} onClose={onClose} className="tag-picker">
       <h2>{t('tag.pick')}</h2>
-      <div className="tag-grid">
-        {TAG_STYLES.map((style) => {
-          const open = tagOpen(style, stats);
-          return (
-            <button
-              key={style.id}
-              className={`tag-option${style.id === current ? ' on' : ''}`}
-              disabled={!open}
-              onClick={() => onPick(style.id)}
-            >
-              <SprayTag username={username} styleId={style.id} still />
-              <small>
-                {style.id === current
-                  ? t('tag.mine')
-                  : !open && style.need
-                    ? `${t('tag.locked')} · ${t(`jacket.need.${style.need.kind}`, { n: String(style.need.n) })} (${progress(style.need, stats)}/${style.need.n})`
-                    : ''}
-              </small>
+      <div className="tag-picker-body">
+        <div className="tag-try">
+          <div className="tag-stage">
+            <SprayPlayer username={username} styleId={trying} playKey={playKey} sound={sound} />
+          </div>
+          <p className="tag-try-name">
+            <strong>{t(`tag.style.${trying}` as MessageKey)}</strong>
+            {!open && (
+              <span className="tag-lock">
+                {' '}
+                · {t('tag.locked')} · {lockText(style)}
+              </span>
+            )}
+          </p>
+          <div className="tag-try-actions">
+            <button className="tz-pill ghost" onClick={() => setPlayKey((k) => k + 1)}>
+              {t('tag.again')}
             </button>
-          );
-        })}
+            <button className="tz-pill primary" disabled={!open || trying === current} onClick={() => onPick(trying)}>
+              {trying === current ? t('tag.mine') : t('tag.use')}
+            </button>
+          </div>
+        </div>
+        <div className="tag-list">
+          <div className="tag-grid">
+            {TAG_STYLES.slice(page * TAGS_PER_PAGE, (page + 1) * TAGS_PER_PAGE).map((s) => {
+              const sOpen = tagOpen(s, stats);
+              return (
+                <button
+                  key={s.id}
+                  className={`tag-option${s.id === trying ? ' on' : ''}${sOpen ? '' : ' locked'}`}
+                  onClick={() => tryOut(s.id)}
+                  title={sOpen ? undefined : lockText(s)}
+                >
+                  <SprayStill username={username} styleId={s.id} className="tag-option-art" />
+                  <span className="tag-option-row">
+                    <b>{t(`tag.style.${s.id}` as MessageKey)}</b>
+                    <small>
+                      {s.id === current
+                        ? t('tag.mine')
+                        : sOpen
+                          ? ''
+                          : `🔒 ${s.need ? progress(s.need, stats) : 0}/${s.need?.n ?? 0}`}
+                    </small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="tag-pager">
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} aria-label={t('tag.prev')}>
+              ‹
+            </button>
+            <span>
+              {page + 1} / {pages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+              disabled={page === pages - 1}
+              aria-label={t('tag.next')}
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </div>
     </Modal>
   );
