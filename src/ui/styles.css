@@ -5683,10 +5683,6 @@ a:focus-visible {
 }
 
 /* Tournaments (/tournaments, /tournament/<id>): the list, the form, a tournament's standings. */
-.tournament-rules {
-  max-width: 70ch;
-  font-size: 13px;
-}
 .tournament-waiting {
   color: var(--lime);
   animation: pulse 1.6s ease-in-out infinite;
@@ -6159,12 +6155,28 @@ a:focus-visible {
 
 /* The tournament list (/tournaments) in the same look: each tournament a patch row,
    its time control on a round patch (lime: playing, pink: soon, grey: over). */
-.tz-title .tournament-rules {
+.tz-rule {
   margin: 0;
-  max-width: 64ch;
+  max-width: 70ch;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   font-size: 13px;
-  line-height: 1.55;
-  color: var(--muted);
+  line-height: 1.5;
+  color: var(--fg);
+}
+.tz-format {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font: 400 18px/1 var(--display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--pink);
+}
+.tz-format.swiss {
+  background: var(--lime);
 }
 .tz-section {
   display: flex;

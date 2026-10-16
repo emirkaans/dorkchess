@@ -3,7 +3,6 @@ import { timeControl } from '../clock/clock.ts';
 import { getVariant, listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
 import {
-  EARLY_DRAW_PLIES,
   SWISS_ROUNDS,
   TOURNAMENT_FORMATS,
   TOURNAMENT_MINUTES,
@@ -56,8 +55,9 @@ const clockText = (ms: number) => {
 function Rules({ format }: { format: TournamentFormat }) {
   const { t } = useI18n();
   return (
-    <p className="muted tournament-rules">
-      {format === 'swiss' ? t('tournament.swissRules') : t('tournament.rules', { plies: String(EARLY_DRAW_PLIES / 2) })}
+    <p className="tz-rule">
+      <strong className={`tz-format ${format}`}>{t(`tournament.format.${format}`)}</strong>
+      <span>{t(format === 'swiss' ? 'tournament.swissRules' : 'tournament.rules')}</span>
     </p>
   );
 }

@@ -543,7 +543,7 @@ export const tr = {
   'menu.tournaments': 'Turnuvalar',
   'tournament.title': 'Turnuvalar',
   'tournament.rules':
-    'Arena: süre bitene kadar boşta olan oyuncular sürekli yeniden eşleşir. Galibiyet 2, beraberlik 1 puan. Üst üste 2 galibiyetten sonra 🔥 olursun: kazanmayı bırakana kadar puanların iki katı. İlk {plies} hamlede beraberlik puan vermez. Süre bitince süren oyunlar sayılmaz.',
+    'Süre bitene kadar boşta olan herkes yeniden eşleşir; galibiyet 2, beraberlik 1 puan, üst üste 2 galibiyetten sonra puanlar ikiye katlanır.',
   'tournament.make': 'Turnuva aç',
   'tournament.makeButton': 'Turnuvayı aç',
   'tournament.name': 'Turnuvanın adı',
@@ -592,7 +592,7 @@ export const tr = {
   'tournament.podium': 'Kürsü',
   'tournament.points': '{n} puan',
   'tournament.fireTag': 'Seride x2',
-  'tournament.arena': 'Arena turnuvaları · herkese açık',
+  'tournament.arena': 'Arena ve Swiss · herkese açık',
   'tournament.formatLabel': 'Tür',
   'tournament.format.arena': 'Arena',
   'tournament.format.swiss': 'Swiss',
@@ -601,7 +601,7 @@ export const tr = {
   'tournament.roundLabel': 'Tur',
   'tournament.swissLive': 'Turlar sürüyor',
   'tournament.swissRules':
-    'Swiss: belli sayıda tur; her turda herkes bir oyun oynar, puanı yakın ve daha önce karşılaşmadığı biriyle eşleşir. Galibiyet 1, beraberlik ½ puan; tek sayıda oyuncu varsa biri o turu bay geçer (+1). Eşitlikte Buchholz (rakiplerin puan toplamı) belirler. Oyununa gelmeyen o oyunu kaybeder ve duraklatılır.',
+    'Belli sayıda tur oynanır; her turda puanı yakın ve daha önce karşılaşmadığın biriyle eşleşirsin, galibiyet 1, beraberlik ½ puan.',
   'tournament.nextRound': 'Sıradaki tur {time} sonra',
   'tournament.byeNow': 'Bu tur bay geçtin (+1); sıradaki turu bekle.',
   'tournament.roundGoing': 'Tur sürüyor; sıradaki turda eşleşeceksin.',
@@ -1272,7 +1272,7 @@ export const en: Record<MessageKey, string> = {
   'menu.tournaments': 'Tournaments',
   'tournament.title': 'Tournaments',
   'tournament.rules':
-    'Arena: until the time is up, free players are paired again and again. A win is 2 points, a draw 1. After 2 wins in a row you are on 🔥: your points count double until you stop winning. A draw in the first {plies} moves gives no points. Games still going at the end do not count.',
+    'Until the time is up, everyone free is paired again; a win is 2 points, a draw 1, and after 2 wins in a row points count double.',
   'tournament.make': 'Make a tournament',
   'tournament.makeButton': 'Make it',
   'tournament.name': "The tournament's name",
@@ -1321,7 +1321,7 @@ export const en: Record<MessageKey, string> = {
   'tournament.podium': 'Podium',
   'tournament.points': '{n} points',
   'tournament.fireTag': 'On fire x2',
-  'tournament.arena': 'Arena tournaments · open to all',
+  'tournament.arena': 'Arena and Swiss · open to all',
   'tournament.formatLabel': 'Format',
   'tournament.format.arena': 'Arena',
   'tournament.format.swiss': 'Swiss',
@@ -1330,7 +1330,7 @@ export const en: Record<MessageKey, string> = {
   'tournament.roundLabel': 'Round',
   'tournament.swissLive': 'Rounds under way',
   'tournament.swissRules':
-    'Swiss: a set number of rounds; each round everyone plays one game, against someone on a similar score they have not met. A win is 1 point, a draw ½; with an odd number of players, one sits a round out with a bye (+1). Ties are broken by Buchholz (the total score of the opponents). A player who does not come to their game loses it and is paused.',
+    'A set number of rounds; each round you meet someone on a similar score you have not played, a win is 1 point, a draw ½.',
   'tournament.nextRound': 'Next round in {time}',
   'tournament.byeNow': 'You have a bye this round (+1); wait for the next one.',
   'tournament.roundGoing': 'A round is under way; you are paired in the next one.',
