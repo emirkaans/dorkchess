@@ -32,7 +32,9 @@ import { handlePuzzles } from './puzzles.ts';
 
 export { GameRoom } from './game-room.ts';
 export { Lobby } from './lobby.ts';
+export { Tournament } from './tournament.ts';
 import { withAccountHeaders } from './account-headers.ts';
+import { handleTournaments } from './tournament.ts';
 
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
@@ -129,6 +131,8 @@ export default {
     if (rush) return rush;
     const errors = await handleErrors(request, url);
     if (errors) return errors;
+    const tournaments = await handleTournaments(request, env, url);
+    if (tournaments) return tournaments;
     const gangs = await handleGangs(request, env, url);
     if (gangs) return gangs;
     const follows = await handleFollows(request, env, url);

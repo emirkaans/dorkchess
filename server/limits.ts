@@ -27,6 +27,7 @@ const LIMITED_READS = [
   /^\/api\/challenges$/,
   /^\/api\/follows$/,
   /^\/api\/gangs/,
+  /^\/api\/tournaments/,
   /^\/api\/leaderboard$/,
   /^\/api\/users\//,
   /^\/api\/auth\/username$/,
@@ -36,7 +37,11 @@ const LIMITED_READS = [
 ];
 
 export function limitKind(method: string, path: string): LimitKind | null {
-  if (method === 'POST' && (path === '/api/games' || /^\/api\/games\/[^/]+\/join$/.test(path))) return 'create';
+  if (
+    method === 'POST' &&
+    (path === '/api/games' || path === '/api/tournaments' || /^\/api\/games\/[^/]+\/join$/.test(path))
+  )
+    return 'create';
   if (
     method !== 'GET' &&
     method !== 'HEAD' &&

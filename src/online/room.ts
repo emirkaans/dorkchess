@@ -75,6 +75,8 @@ export interface Room {
   readonly recorded?: boolean;
   /** Patches the game earned each player (src/achievements/patches.ts). */
   readonly newPatches?: Readonly<Partial<Record<Color, readonly string[]>>>;
+  /** The arena tournament the game belongs to (server/tournament.ts): no rematch, the result is reported there. */
+  readonly tournamentId?: string;
 }
 
 /**
@@ -224,6 +226,19 @@ export function gameOf(room: Room): GameState | null {
 
 function finish(room: Room, outcome: OnlineOutcome, now: number): Room {
   return { ...room, phase: 'over', outcome, drawOffer: null, gone: {}, clock: stopClock(room.clock, now) };
+}
+
+/**
+ * A tournament game nobody started in time (server/tournament.ts): ended
+ * before ABORT_PLIES, so it does not count. The side that kept the others
+ * waiting (a setup question not answered, or the first move not made) is
+ * named the loser only so the tournament knows whom to pause.
+ */
+export function noShow(room: Room, now: number): Room {
+  if ((room.phase !== 'playing' && room.phase !== 'setup') || room.moves.length >= ABORT_PLIES) return room;
+  const open = setupQuestions(getVariant(room.variantId)).find((q) => !(q.id in room.answers));
+  const idle: Color = room.phase === 'setup' ? (open ? answerer(open) : 'w') : room.moves.length === 0 ? 'w' : 'b';
+  return finish(room, { reason: 'abandon', winner: opposite(idle) }, now);
 }
 
 /** Ends the game on time or for a player who stayed away, if either is due at `now`. */
@@ -383,6 +398,7 @@ export function viewOf(
     drawOffer: room.drawOffer,
     rematchOffer: room.rematchOffer ?? null,
     rematchId: room.rematchId ?? null,
+    tournamentId: room.tournamentId ?? null,
     now,
   };
 }

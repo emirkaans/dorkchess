@@ -5630,3 +5630,217 @@ a:focus-visible {
   margin: 0 0 8px;
   font-size: 14px;
 }
+
+/* Tournaments (/tournaments, /tournament/<id>): the list, the form, a tournament's standings. */
+.tournament-rules {
+  max-width: 70ch;
+  font-size: 13px;
+}
+.tournament-make {
+  align-self: flex-start;
+}
+.tournament-form {
+  max-width: 640px;
+}
+.tournament-form h2 {
+  margin: 0;
+}
+.tournament-section h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.tournament-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tournament-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.tournament-list li:first-child {
+  border-top: none;
+}
+.tournament-list a {
+  display: grid;
+  gap: 2px;
+  color: var(--fg);
+  text-decoration: none;
+  min-width: 0;
+}
+.tournament-list a:hover strong {
+  color: var(--pink);
+}
+.tournament-list a span {
+  font-size: 12px;
+}
+.tournament-count {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+}
+.tournament-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  font: 400 40px/1 var(--display);
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.tournament-clock.created {
+  color: var(--pink);
+}
+.tournament-clock small {
+  font: 400 12px/1.4 var(--ui);
+  color: var(--muted);
+}
+.tournament-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.tournament-share {
+  margin-left: auto;
+}
+.tournament-waiting {
+  color: var(--lime);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.tournament-podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tournament-podium li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 110px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tournament-podium li.place-1 {
+  order: 2;
+  padding-block: 20px;
+  border-color: var(--lime);
+}
+.tournament-podium li.place-2 {
+  order: 1;
+}
+.tournament-podium li.place-3 {
+  order: 3;
+}
+.podium-medal {
+  font: 400 22px/1 var(--display);
+  color: var(--lime);
+}
+.tournament-standings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tournament-standings li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 56px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--border);
+}
+.tournament-standings li:first-child {
+  border-top: none;
+}
+.tournament-standings li.mine {
+  box-shadow: inset 4px 0 0 var(--lime);
+}
+.tournament-standings li.paused {
+  opacity: 0.6;
+}
+.tournament-standings li.gang-empty {
+  display: block;
+  padding: 12px;
+}
+.tournament-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tournament-playing {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  flex: none;
+}
+.tournament-sheet {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.tournament-sheet a {
+  min-width: 18px;
+  padding: 0 3px;
+  text-align: center;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--muted);
+}
+.tournament-sheet a.sheet-w {
+  color: var(--lime);
+}
+.tournament-sheet a.sheet-d {
+  color: var(--fg);
+}
+.tournament-sheet a.fire {
+  background: rgba(255, 46, 147, 0.18);
+  color: var(--pink);
+  font-weight: 700;
+}
+.tournament-return {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 600px) {
+  .tournament-standings li {
+    grid-template-columns: 26px minmax(0, 1fr) 44px;
+  }
+  .tournament-standings .tournament-sheet {
+    grid-column: 2 / 4;
+    justify-content: flex-start;
+  }
+  .tournament-standings .gang-score {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .tournament-list li {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+  .tournament-list li > .muted {
+    grid-column: 1;
+  }
+}

@@ -671,7 +671,8 @@ function OnlineGame({
             {t('analysis.button')}
           </button>
         )}
-        {view.phase === 'over' && you && opponent && !view.rematchId && (
+        {view.tournamentId && view.phase === 'over' && <TournamentReturn id={view.tournamentId} auto={!!you} />}
+        {view.phase === 'over' && you && opponent && !view.rematchId && !view.tournamentId && (
           <div className="controls rematch">
             {view.rematchOffer === opposite(you) ? (
               <>
@@ -698,7 +699,7 @@ function OnlineGame({
             {t('online.watchRematch')}
           </button>
         )}
-        {(view.phase === 'over' || !you) && (
+        {(view.phase === 'over' || !you) && !view.tournamentId && (
           <button className="primary new-game-button" onClick={onLobby}>
             {t('online.newGame')}
           </button>
@@ -827,5 +828,38 @@ function JoinCard({
         {t('online.join')}
       </button>
     </form>
+  );
+}
+
+/** Seconds before a tournament player is taken back to the tournament after a game. */
+const TOURNAMENT_RETURN_S = 5;
+
+/** After a tournament game: back to the tournament (its players go by themselves, to be paired again). */
+function TournamentReturn({ id, auto }: { id: string; auto: boolean }) {
+  const { t } = useI18n();
+  const [left, setLeft] = useState(auto ? TOURNAMENT_RETURN_S : null);
+  const go = () => {
+    history.pushState(null, '', `/tournament/${id}`);
+    dispatchEvent(new PopStateEvent('popstate'));
+  };
+  useEffect(() => {
+    if (left === null) return;
+    if (left <= 0) return go();
+    const timer = setTimeout(() => setLeft(left - 1), 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [left]);
+  return (
+    <div className="controls tournament-return">
+      <button className="primary new-game-button" onClick={go}>
+        {t('tournament.back')}
+        {left !== null && ` (${left})`}
+      </button>
+      {left !== null && (
+        <button className="control" onClick={() => setLeft(null)}>
+          {t('tournament.stay')}
+        </button>
+      )}
+    </div>
   );
 }

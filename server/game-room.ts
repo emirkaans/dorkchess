@@ -12,6 +12,7 @@ import {
   createRoom,
   draw,
   joinRoom,
+  noShow,
   rematch,
   nextDeadline,
   playMove,
@@ -26,6 +27,7 @@ import { randomGameId, recordOfRoom, validateRecord } from '../src/online/record
 import type { GameInfo, GameRecord, RecordSaved, RecordUpload } from '../src/online/record.ts';
 import { previewVersion, renderPreview } from './og.ts';
 import type { Lobby } from './lobby.ts';
+import type { Tournament } from './tournament.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
 import { settleGame, withRatings } from './ratings.ts';
 import { STICKER_GAP_MS, isSticker } from '../src/online/stickers.ts';
@@ -35,6 +37,7 @@ import type { LimitEnv } from './limits.ts';
 export interface Env extends AuthEnv, LimitEnv {
   readonly GAME: DurableObjectNamespace<GameRoom>;
   readonly LOBBY: DurableObjectNamespace<Lobby>;
+  readonly TOURNAMENT: DurableObjectNamespace<Tournament>;
   readonly ASSETS: Fetcher;
 }
 
@@ -118,6 +121,17 @@ export class GameRoom extends DurableObject<Env> {
           .catch(() => undefined),
       );
     }
+    // A tournament game that just ended tells its tournament (which also asks later if this is lost).
+    if (room.tournamentId && room.phase === 'over' && before !== 'over' && room.outcome) {
+      const end = { gameId: room.id, winner: room.outcome.winner, plies: room.moves.length };
+      const tournament = this.env.TOURNAMENT.get(this.env.TOURNAMENT.idFromName(room.tournamentId));
+      this.ctx.waitUntil(
+        tournament
+          .fetch('https://tournament/result', { method: 'POST', body: JSON.stringify(end) })
+          .then(() => undefined)
+          .catch(() => undefined),
+      );
+    }
     if (room.phase === 'over' && !room.recorded) {
       try {
         room = await settleGame(room, this.env.DB, Date.now());
@@ -179,6 +193,14 @@ export class GameRoom extends DurableObject<Env> {
       if (url.pathname === '/info' && request.method === 'GET') return await this.info();
       if (url.pathname === '/og' && request.method === 'GET') return await this.preview();
       if (url.pathname === '/adopt' && request.method === 'POST') return await this.adopt(request);
+      if (url.pathname === '/noshow' && request.method === 'POST') {
+        // A tournament game not started in time (asked by the tournament, never by a browser).
+        const room = await this.load();
+        if (!room) return json({ error: 'not-found' }, 404);
+        const next = noShow(room, Date.now());
+        if (next !== room) this.broadcast(await this.save(next));
+        return json({ ok: true });
+      }
       if (url.pathname === '/record' && request.method === 'PUT') return await this.putRecord(request);
     } catch (e) {
       if (e instanceof RoomError) return json({ error: e.code }, e.code === 'not-found' ? 404 : 400);
@@ -341,6 +363,8 @@ export class GameRoom extends DurableObject<Env> {
           next = draw(room, color, msg.action, now);
           break;
         case 'rematch': {
+          // Tournament games: the tournament pairs the next game.
+          if (room.tournamentId) return;
           const r = rematch(room, color, msg.action, randomGameId());
           if (r.next) {
             const stub = this.env.GAME.get(this.env.GAME.idFromName(r.next.id));

@@ -17,6 +17,7 @@ export type Page =
   | 'rush'
   | 'tv'
   | 'gangs'
+  | 'tournaments'
   | 'leaderboard'
   | 'loading';
 
@@ -32,6 +33,7 @@ interface Props {
   onLeaderboard: () => void;
   onTv: () => void;
   onGangs: () => void;
+  onTournaments: () => void;
   onSettings: () => void;
 }
 
@@ -47,6 +49,7 @@ export function Toolbar({
   onLeaderboard,
   onTv,
   onGangs,
+  onTournaments,
   onSettings,
 }: Props) {
   const { t } = useI18n();
@@ -98,6 +101,13 @@ export function Toolbar({
             onClick={close(onPlay)}
           >
             {t('menu.play')}
+          </button>
+          <button
+            className={page === 'tournaments' ? 'on' : ''}
+            aria-current={page === 'tournaments' ? 'page' : undefined}
+            onClick={close(onTournaments)}
+          >
+            {t('menu.tournaments')}
           </button>
           <button
             className={page === 'puzzles' || page === 'daily' || page === 'rush' ? 'on' : ''}

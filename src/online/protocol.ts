@@ -104,6 +104,8 @@ export interface GameView {
   /** After the game: the side asking for a rematch, and the new game's id once agreed. */
   readonly rematchOffer: Color | null;
   readonly rematchId: string | null;
+  /** The tournament the game is part of, or null. */
+  readonly tournamentId?: string | null;
   /** Server time when this view was made (clients use it to sync their clocks). */
   readonly now: number;
 }

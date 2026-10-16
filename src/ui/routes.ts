@@ -9,6 +9,7 @@
 //   /rush             Puzzle Rush
 //   /tv               watch the best game being played
 //   /gangs            gangs (/gang/<TAG>: one gang)
+//   /tournaments      arena tournaments (/tournament/<id>: one tournament)
 //   /leaderboard      the best players
 //   /<gameId>         a game (being played, or finished)
 //   /<gameId>/analysis   analysis of that game
@@ -25,6 +26,7 @@ export type Route =
   | { readonly kind: 'rush' }
   | { readonly kind: 'tv' }
   | { readonly kind: 'gangs'; readonly tag: string | null }
+  | { readonly kind: 'tournaments'; readonly id: string | null }
   | { readonly kind: 'leaderboard' }
   | { readonly kind: 'game'; readonly id: string }
   | { readonly kind: 'review'; readonly id: string };
@@ -41,6 +43,8 @@ const RESERVED = new Set([
   'tv',
   'gangs',
   'gang',
+  'tournaments',
+  'tournament',
   'leaderboard',
   'assets',
   'icons',
@@ -70,6 +74,9 @@ export function parseRoute(pathname: string): Route {
   if (p === '/rush') return { kind: 'rush' };
   if (p === '/tv') return { kind: 'tv' };
   if (p === '/gangs') return { kind: 'gangs', tag: null };
+  if (p === '/tournaments') return { kind: 'tournaments', id: null };
+  const tournament = /^\/tournament\/([A-Za-z0-9]{8})$/.exec(p);
+  if (tournament) return { kind: 'tournaments', id: tournament[1] };
   const gang = /^\/gang\/([A-Za-z0-9]{2,4})$/.exec(p);
   if (gang) return { kind: 'gangs', tag: gang[1].toUpperCase() };
   if (p === '/leaderboard') return { kind: 'leaderboard' };
@@ -104,6 +111,8 @@ export function pathOf(r: Route): string {
       return '/tv';
     case 'gangs':
       return r.tag ? `/gang/${r.tag}` : '/gangs';
+    case 'tournaments':
+      return r.id ? `/tournament/${r.id}` : '/tournaments';
     case 'leaderboard':
       return '/leaderboard';
     case 'game':
