@@ -74,6 +74,8 @@ export interface PublicPlayer {
   readonly diff: number | null;
   /** Patches the game earned this player (once over). */
   readonly newPatches: readonly string[];
+  /** Their spray tag style (signed-in players), sprayed when they checkmate. */
+  readonly tag?: string | null;
 }
 
 /** Everything a client needs to draw the game; sent after every change. */

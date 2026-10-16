@@ -7,6 +7,8 @@ import { Board } from './Board.tsx';
 import { BoardResizer } from './BoardResizer.tsx';
 import { GameControls, GameTools } from './GameControls.tsx';
 import { GameOverOverlay } from './GameOverOverlay.tsx';
+import { SprayTag } from './SprayTag.tsx';
+import { useAccount } from './account.ts';
 import { GameViewer } from './GameViewer.tsx';
 import { HomePage } from './HomePage.tsx';
 import { Modal } from './Modal.tsx';
@@ -124,6 +126,7 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
   const [showHighlight, setShowHighlight] = useState(true);
   const boardArea = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const account = useAccount();
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('signin') !== 'banned') return;
@@ -696,6 +699,15 @@ function GameScreen({ prefs, setPrefs }: { prefs: Prefs; setPrefs: Dispatch<SetS
                         }
                       />
                     )}
+                    {/* Checkmating the computer: the signed-in player's spray tag goes on the board. */}
+                    {vsBot &&
+                      view.finalOutcome?.reason === 'checkmate' &&
+                      view.finalOutcome.winner &&
+                      players[view.finalOutcome.winner].kind === 'human' &&
+                      account.user &&
+                      atEnd && (
+                        <SprayTag username={account.user.username} styleId={account.user.tag} sound={prefs.sound} />
+                      )}
                     {promotion && (
                       <PromotionDialog
                         variant={variant}

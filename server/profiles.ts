@@ -4,6 +4,7 @@
 //   GET /api/users/:username/games?before=<ms>     finished games, newest first (20 a page)
 //   GET /api/users/:username/history?category=…    rating after each rated game of a category
 //   POST /api/me/jacket { jacket }                 the signed-in player picks a jacket they have earned
+//   POST /api/me/tag { tag }                       … and a spray tag style
 
 import { PROVISIONAL_RD } from '../src/rating/glicko2.ts';
 import type { ProfileGame, ProfileRating, ProfileResponse, RatingPoint, Rival } from '../src/online/profile.ts';
@@ -11,6 +12,7 @@ import type { AuthEnv } from './auth.ts';
 import { currentUser, sameOrigin } from './auth.ts';
 import { JACKETS, jacketById, jacketOpen, longestRun } from '../src/achievements/jackets.ts';
 import type { JacketStats } from '../src/achievements/jackets.ts';
+import { TAG_STYLES, tagById, tagOpen } from '../src/achievements/tags.ts';
 
 const PAGE = 20;
 
@@ -22,7 +24,7 @@ const json = (data: unknown, status = 200) =>
 
 /** What earns the jackets: patches, games, the best settled rating, Puzzle Rush, daily puzzles. */
 async function jacketStats(db: D1Database, userId: string): Promise<JacketStats> {
-  const [patches, games, rating, rush, daily] = await db.batch([
+  const [patches, games, rating, rush, daily, mates] = await db.batch([
     db.prepare('SELECT count(*) AS n FROM user_patches WHERE user_id = ?1').bind(userId),
     db
       .prepare("SELECT count(*) AS n FROM games WHERE (white_user = ?1 OR black_user = ?1) AND result != '*'")
@@ -32,6 +34,12 @@ async function jacketStats(db: D1Database, userId: string): Promise<JacketStats>
       .bind(userId, PROVISIONAL_RD),
     db.prepare('SELECT best FROM rush_scores WHERE user_id = ?1').bind(userId),
     db.prepare('SELECT day FROM daily_results WHERE user_id = ?1 AND solved = 1').bind(userId),
+    db
+      .prepare(
+        `SELECT count(*) AS n FROM games WHERE termination = 'checkmate' AND
+           ((white_user = ?1 AND result = '1-0') OR (black_user = ?1 AND result = '0-1'))`,
+      )
+      .bind(userId),
   ]);
   const first = <T>(r: D1Result) => r.results[0] as T | undefined;
   const best = first<{ r: number | null }>(rating)?.r;
@@ -41,6 +49,7 @@ async function jacketStats(db: D1Database, userId: string): Promise<JacketStats>
     bestRating: best == null ? null : Math.round(best),
     rushBest: first<{ best: number }>(rush)?.best ?? 0,
     dailyBest: longestRun((daily.results as { day: string }[]).map((d) => d.day)),
+    mates: first<{ n: number }>(mates)?.n ?? 0,
   };
 }
 
@@ -91,6 +100,18 @@ async function followInfo(db: D1Database, userId: string, request: Request, env:
 
 /** Answers a profile request, or returns null when `url` is not one. */
 export async function handleProfiles(request: Request, env: AuthEnv, url: URL): Promise<Response | null> {
+  if (url.pathname === '/api/me/tag' && request.method === 'POST') {
+    if (!env.DB) return json({ error: 'accounts-off' }, 503);
+    if (!sameOrigin(request, env.PUBLIC_ORIGIN || url.origin, url)) return json({ error: 'forbidden' }, 403);
+    const user = await currentUser(request, env);
+    if (!user) return json({ error: 'signed-out' }, 401);
+    const body = (await request.json().catch(() => ({}))) as { tag?: unknown };
+    const style = TAG_STYLES.find((s) => s.id === body.tag);
+    if (!style) return json({ error: 'not-found' }, 404);
+    if (!tagOpen(style, await jacketStats(env.DB, user.id))) return json({ error: 'locked' }, 403);
+    await env.DB.prepare('UPDATE users SET tag = ?1 WHERE id = ?2').bind(style.id, user.id).run();
+    return json({ tag: style.id });
+  }
   if (url.pathname === '/api/me/jacket' && request.method === 'POST') {
     if (!env.DB) return json({ error: 'accounts-off' }, 503);
     if (!sameOrigin(request, env.PUBLIC_ORIGIN || url.origin, url)) return json({ error: 'forbidden' }, 403);
@@ -120,10 +141,10 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
   if (!m || request.method !== 'GET') return null;
   if (!env.DB) return json({ error: 'accounts-off' }, 503);
   const user = await env.DB.prepare(
-    'SELECT id, username, created_at, jacket FROM users WHERE username = ?1 AND banned_at IS NULL',
+    'SELECT id, username, created_at, jacket, tag FROM users WHERE username = ?1 AND banned_at IS NULL',
   )
     .bind(decodeURIComponent(m[1]))
-    .first<{ id: string; username: string; created_at: number; jacket: string | null }>();
+    .first<{ id: string; username: string; created_at: number; jacket: string | null; tag: string | null }>();
   if (!user) return json({ error: 'not-found' }, 404);
 
   if (!m[2]) {
@@ -174,6 +195,7 @@ export async function handleProfiles(request: Request, env: AuthEnv, url: URL): 
           .bind(user.id)
           .first<{ tag: string; name: string }>()) ?? null,
       jacket: jacketById(user.jacket).id,
+      tag: tagById(user.tag).id,
       stats: await jacketStats(env.DB, user.id),
     } satisfies ProfileResponse);
   }

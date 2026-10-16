@@ -12,6 +12,7 @@ import type { Glicko } from '../src/rating/glicko2.ts';
 import { listVariants } from '../src/engine/index.ts';
 import type { Color } from '../src/engine/index.ts';
 import { newPatches } from '../src/achievements/patches.ts';
+import { tagById } from '../src/achievements/tags.ts';
 import type { PatchContext } from '../src/achievements/patches.ts';
 
 interface RatingRow {
@@ -44,6 +45,31 @@ export async function currentRatings(
     );
   }
   return out;
+}
+
+/** A room gets its signed-in players' spray tag styles (once both seats are taken), for a checkmate. */
+export async function withTags(room: Room, db: D1Database | undefined): Promise<Room> {
+  const w = room.seats.w?.account?.id;
+  const b = room.seats.b?.account?.id;
+  if (!db || room.tags || !room.seats.w || !room.seats.b || (!w && !b)) return room;
+  try {
+    const rows = await db
+      .prepare('SELECT id, tag FROM users WHERE id IN (?1, ?2)')
+      .bind(w ?? '', b ?? '')
+      .all<{ id: string; tag: string | null }>();
+    const of = (id: string | undefined) => {
+      const row = id ? rows.results.find((r) => r.id === id) : undefined;
+      return row ? tagById(row.tag).id : undefined;
+    };
+    const tags: Partial<Record<Color, string>> = {};
+    const tw = of(w);
+    const tb = of(b);
+    if (tw) tags.w = tw;
+    if (tb) tags.b = tb;
+    return { ...room, tags };
+  } catch {
+    return room; // no tags: nothing is sprayed
+  }
 }
 
 /** A rated room gets both players' ratings to show (once, when both seats are taken). */

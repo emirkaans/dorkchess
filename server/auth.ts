@@ -12,6 +12,7 @@
 
 import { suggestUsername, usernameProblem } from '../src/online/account.ts';
 import { isStaffRole } from '../src/online/admin.ts';
+import { tagById } from '../src/achievements/tags.ts';
 import type { AccountUser, MeResponse, UsernameProblem } from '../src/online/account.ts';
 import {
   base64url,
@@ -73,14 +74,20 @@ export async function currentUser(request: Request, env: AuthEnv): Promise<Accou
   const token = parseCookies(request.headers.get('cookie'))[SESSION_COOKIE];
   if (!token) return null;
   const row = await env.DB.prepare(
-    `SELECT u.id, u.username, u.rating, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.username, u.rating, u.role, u.tag FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id = ?1 AND s.expires_at > ?2 AND u.banned_at IS NULL`,
   )
     .bind(await sha256hex(token), Date.now())
-    .first<{ id: string; username: string; rating: number | null; role: string | null }>();
+    .first<{ id: string; username: string; rating: number | null; role: string | null; tag: string | null }>();
   if (!row) return null;
   const role = isStaffRole(row.role) ? row.role : null;
-  return { id: row.id, username: row.username, rating: row.rating, ...(role ? { role } : {}) };
+  return {
+    id: row.id,
+    username: row.username,
+    rating: row.rating,
+    tag: tagById(row.tag).id,
+    ...(role ? { role } : {}),
+  };
 }
 
 async function newSession(env: AuthEnv, userId: string, secure: boolean): Promise<string> {

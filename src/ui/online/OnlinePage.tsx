@@ -20,6 +20,7 @@ import { BoardResizer } from '../BoardResizer.tsx';
 import { MoveList } from '../MoveList.tsx';
 import { useStepKeys } from '../stepKeys.ts';
 import { GameOverOverlay } from '../GameOverOverlay.tsx';
+import { SprayTag } from '../SprayTag.tsx';
 import { PlayerRow } from '../PlayerRow.tsx';
 import { PromotionDialog } from '../PromotionDialog.tsx';
 import { Splatter } from '../Punk.tsx';
@@ -503,6 +504,18 @@ function OnlineGame({
                   }
                 />
               )}
+              {/* A checkmate: the winner's spray tag goes on the board (signed-in players have one). */}
+              {view.outcome?.reason === 'checkmate' &&
+                view.outcome.winner &&
+                atEnd &&
+                view.players[view.outcome.winner]?.username &&
+                view.players[view.outcome.winner]?.tag && (
+                  <SprayTag
+                    username={view.players[view.outcome.winner]!.username!}
+                    styleId={view.players[view.outcome.winner]!.tag}
+                    sound={prefs.sound}
+                  />
+                )}
               {open.length > 0 && (
                 <SetupDialog
                   variant={variant}

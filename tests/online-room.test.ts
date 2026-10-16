@@ -101,12 +101,13 @@ describe('online oda', () => {
       name: 'Bora',
       connected: false,
       deadline: 1000 + RECONNECT_MS,
-      // A guest: no account, no rating.
+      // A guest: no account, no rating, no spray tag.
       username: null,
       rating: null,
       provisional: false,
       diff: null,
       newPatches: [],
+      tag: null,
     });
     expect(JSON.stringify(view)).not.toContain('tb'); // tokens never leave the server
 

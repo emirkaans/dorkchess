@@ -12,6 +12,9 @@ import { useAccount } from './account.ts';
 import { AccountSettings } from './AccountSettings.tsx';
 import { JacketWindow } from './JacketWindow.tsx';
 import { Modal } from './Modal.tsx';
+import { SprayTag } from './SprayTag.tsx';
+import { TAG_STYLES, tagOpen } from '../achievements/tags.ts';
+import { progress } from '../achievements/jackets.ts';
 import { ProfileLink } from './ProfileLink.tsx';
 import { FriendGame } from './online/LobbyPage.tsx';
 import { PATCHES } from '../achievements/patches.ts';
@@ -37,6 +40,8 @@ export function ProfilePage({ username, onOpen }: Props) {
   // The big jacket with every patch opens in a window; the page shows it small.
   const [showJacket, setShowJacket] = useState(false);
   const account = useAccount();
+  // Own profile: the spray tag picker is open.
+  const [pickingTag, setPickingTag] = useState(false);
   // Own profile: the followers or following list being shown.
   const [followList, setFollowList] = useState<'followers' | 'following' | null>(null);
 
@@ -349,6 +354,36 @@ export function ProfilePage({ username, onOpen }: Props) {
         </section>
       )}
 
+      <section className="tag-card" aria-label={t('tag.title')}>
+        <h2>{t(mine ? 'tag.title' : 'tag.theirs')}</h2>
+        <SprayTag username={profile.username} styleId={profile.tag} still />
+        {mine && (
+          <>
+            <p>{t('tag.hint')}</p>
+            <button className="tz-pill ghost tag-change" onClick={() => setPickingTag(true)}>
+              {t('tag.change')}
+            </button>
+          </>
+        )}
+      </section>
+      {pickingTag && (
+        <TagPicker
+          username={profile.username}
+          current={profile.tag}
+          stats={profile.stats}
+          onClose={() => setPickingTag(false)}
+          onPick={async (id) => {
+            const res = await fetch('/api/me/tag', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ tag: id }),
+            }).catch(() => null);
+            if (res?.ok) setProfile((p) => (p && typeof p === 'object' ? { ...p, tag: id } : p));
+            setPickingTag(false);
+          }}
+        />
+      )}
       <section className="profile-games" aria-label={t('profile.recent')}>
         <h2>{t('profile.recent')}</h2>
         {games.length === 0 && <p className="muted">{t('profile.noGames')}</p>}
@@ -535,6 +570,50 @@ function FollowListDialog({
           ))}
         </ul>
       )}
+    </Modal>
+  );
+}
+
+/** The spray tag styles: the open ones to pick, the others with what earns them. */
+function TagPicker({
+  username,
+  current,
+  stats,
+  onClose,
+  onPick,
+}: {
+  username: string;
+  current: string;
+  stats: ProfileResponse['stats'];
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Modal label={t('tag.pick')} onClose={onClose} className="tag-picker">
+      <h2>{t('tag.pick')}</h2>
+      <div className="tag-grid">
+        {TAG_STYLES.map((style) => {
+          const open = tagOpen(style, stats);
+          return (
+            <button
+              key={style.id}
+              className={`tag-option${style.id === current ? ' on' : ''}`}
+              disabled={!open}
+              onClick={() => onPick(style.id)}
+            >
+              <SprayTag username={username} styleId={style.id} still />
+              <small>
+                {style.id === current
+                  ? t('tag.mine')
+                  : !open && style.need
+                    ? `${t('tag.locked')} · ${t(`jacket.need.${style.need.kind}`, { n: String(style.need.n) })} (${progress(style.need, stats)}/${style.need.n})`
+                    : ''}
+              </small>
+            </button>
+          );
+        })}
+      </div>
     </Modal>
   );
 }

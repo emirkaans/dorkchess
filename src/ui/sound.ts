@@ -2,7 +2,7 @@
 // short wooden "tok"s like a piece put down on a board: a noise click for the
 // contact plus a low body that drops in pitch.
 
-export type SoundKind = 'move' | 'capture' | 'check' | 'captureCheck' | 'end' | 'mate' | 'lowtime' | 'start';
+export type SoundKind = 'move' | 'capture' | 'check' | 'captureCheck' | 'end' | 'mate' | 'lowtime' | 'start' | 'spray';
 
 /** Sound of a played move: a capture always cracks (with a check ping on top when it also checks). */
 export const moveSound = (captured: boolean, check: boolean): SoundKind =>
@@ -106,6 +106,27 @@ function tok(ac: AudioContext, start: number, weight = 1) {
   tone(ac, 190 - 30 * weight, start, 0.14, 'sine', 0.55 * weight, 105);
 }
 
+/** A spray can: the ball rattles twice, then the paint hisses out. */
+function spray(ac: AudioContext, start: number) {
+  snap(ac, start, 4200, 0.35, 0.02);
+  snap(ac, start + 0.09, 3800, 0.3, 0.02);
+  const src = ac.createBufferSource();
+  src.buffer = noiseBuffer(ac);
+  src.loop = true;
+  const high = ac.createBiquadFilter();
+  high.type = 'highpass';
+  high.frequency.value = 3500;
+  const g = ac.createGain();
+  const t = start + 0.2;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.22, t + 0.06);
+  g.gain.setValueAtTime(0.22, t + 0.85);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 1.15);
+  src.connect(high).connect(g).connect(ac.destination);
+  src.start(t);
+  src.stop(t + 1.2);
+}
+
 export function playSound(kind: SoundKind): void {
   const ac = audio();
   if (!ac) return;
@@ -113,6 +134,9 @@ export function playSound(kind: SoundKind): void {
   switch (kind) {
     case 'move':
       tok(ac, t);
+      break;
+    case 'spray':
+      spray(ac, t);
       break;
     case 'capture':
       // Only the crack, like a nutshell breaking (no "tok" of a plain move).

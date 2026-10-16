@@ -29,7 +29,7 @@ import { previewVersion, renderPreview } from './og.ts';
 import type { Lobby } from './lobby.ts';
 import type { Tournament } from './tournament.ts';
 import { ACCOUNT_ID, ACCOUNT_NAME } from './account-headers.ts';
-import { settleGame, withRatings } from './ratings.ts';
+import { settleGame, withRatings, withTags } from './ratings.ts';
 import { STICKER_GAP_MS, isSticker } from '../src/online/stickers.ts';
 import type { AuthEnv } from './auth.ts';
 import type { LimitEnv } from './limits.ts';
@@ -213,7 +213,7 @@ export class GameRoom extends DurableObject<Env> {
   private async adopt(request: Request): Promise<Response> {
     if ((await this.load()) || (await this.ctx.storage.get('record'))) return json({ error: 'bad-request' }, 409);
     const room = (await request.json()) as Room;
-    await this.save(await withRatings(room, this.env.DB, Date.now()));
+    await this.save(await withTags(await withRatings(room, this.env.DB, Date.now()), this.env.DB));
     return json({ ok: true });
   }
 
@@ -292,7 +292,7 @@ export class GameRoom extends DurableObject<Env> {
     const body = (await request.json()) as { name?: unknown };
     const token = crypto.randomUUID();
     const joined = joinRoom(room, typeof body.name === 'string' ? body.name : '', token, this.accountOf(request));
-    const saved = await this.save(await withRatings(joined.room, this.env.DB, Date.now()));
+    const saved = await this.save(await withTags(await withRatings(joined.room, this.env.DB, Date.now()), this.env.DB));
     this.broadcast(saved);
     return json({ gameId: room.id, color: joined.color, token });
   }

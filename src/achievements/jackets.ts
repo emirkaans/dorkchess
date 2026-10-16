@@ -12,6 +12,8 @@ export interface JacketStats {
   readonly rushBest: number;
   /** Longest run of daily puzzles solved in a row. */
   readonly dailyBest: number;
+  /** Online games won by checkmate (missing in older callers: none). */
+  readonly mates?: number;
 }
 
 export type JacketNeed =
@@ -19,7 +21,8 @@ export type JacketNeed =
   | { readonly kind: 'games'; readonly n: number }
   | { readonly kind: 'rating'; readonly n: number }
   | { readonly kind: 'rush'; readonly n: number }
-  | { readonly kind: 'daily'; readonly n: number };
+  | { readonly kind: 'daily'; readonly n: number }
+  | { readonly kind: 'mates'; readonly n: number };
 
 export interface JacketDef {
   readonly id: string;
@@ -59,6 +62,8 @@ export function progress(need: JacketNeed, s: JacketStats): number {
       return s.rushBest;
     case 'daily':
       return s.dailyBest;
+    case 'mates':
+      return s.mates ?? 0;
   }
 }
 

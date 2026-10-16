@@ -42,6 +42,8 @@ export interface ProfileResponse {
   readonly gang: { readonly tag: string; readonly name: string } | null;
   /** The jacket the player picked. */
   readonly jacket: string;
+  /** The spray tag style the player picked (src/achievements/tags.ts). */
+  readonly tag: string;
   /** What earns the other jackets. */
   readonly stats: JacketStats;
 }

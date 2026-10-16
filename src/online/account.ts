@@ -8,6 +8,8 @@ export interface AccountUser {
   readonly id: string;
   readonly username: string;
   readonly rating: number | null;
+  /** The spray tag style (src/achievements/tags.ts), sprayed when they checkmate. */
+  readonly tag?: string;
   /** Staff only (src/online/admin.ts): opens /admin. */
   readonly role?: 'admin' | 'moderator';
 }

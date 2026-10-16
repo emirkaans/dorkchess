@@ -75,6 +75,8 @@ export interface Room {
   readonly recorded?: boolean;
   /** Patches the game earned each player (src/achievements/patches.ts). */
   readonly newPatches?: Readonly<Partial<Record<Color, readonly string[]>>>;
+  /** Spray tag styles of the signed-in players (src/achievements/tags.ts), sprayed on a checkmate. */
+  readonly tags?: Readonly<Partial<Record<Color, string>>>;
   /** The arena tournament the game belongs to (server/tournament.ts): no rematch, the result is reported there. */
   readonly tournamentId?: string;
 }
@@ -375,6 +377,7 @@ export function viewOf(
       provisional: rating?.provisional ?? false,
       diff: room.ratingDiff?.[c] ?? null,
       newPatches: room.newPatches?.[c] ?? [],
+      tag: room.tags?.[c] ?? null,
     };
   };
   const finite = (ms: number) => (Number.isFinite(ms) ? ms : null);
