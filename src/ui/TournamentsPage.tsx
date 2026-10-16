@@ -139,55 +139,72 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
   const row = (s: TournamentSummary) => (
     <li key={s.id}>
       <a
+        className={`tz-row tz-item ${s.status}`}
         href={`/tournament/${s.id}`}
         onClick={(e) => {
           e.preventDefault();
           onOpen(`/tournament/${s.id}`);
         }}
       >
-        <strong>{s.name}</strong>
-        <span className="muted">
-          {vt(getVariant(s.variantId)).name} · {timeControl(s.timeControlId).label} ·{' '}
-          {t(s.rated ? 'lobby.rated' : 'lobby.casual')}
+        <span className="tz-tc" aria-hidden="true">
+          {timeControl(s.timeControlId).label}
         </span>
+        <span className="tz-item-text">
+          <strong>{s.name}</strong>
+          <span>
+            {vt(getVariant(s.variantId)).name} · {timeControl(s.timeControlId).label} ·{' '}
+            {t(s.rated ? 'lobby.rated' : 'lobby.casual')}
+          </span>
+        </span>
+        <span className="tz-item-when">
+          {s.status === 'created' ? (
+            t('tournament.startsIn', { time: clockText(s.startsAt - now) })
+          ) : s.status === 'started' ? (
+            t('tournament.endsIn', { time: clockText(s.endsAt - now) })
+          ) : s.winner ? (
+            <>
+              <Crown /> {s.winner}
+            </>
+          ) : (
+            t('tournament.over')
+          )}
+        </span>
+        <span className="tz-item-count">{t('tournament.playersN', { n: String(s.players) })}</span>
       </a>
-      <span className="muted">
-        {s.status === 'created'
-          ? t('tournament.startsIn', { time: clockText(s.startsAt - now) })
-          : s.status === 'started'
-            ? t('tournament.endsIn', { time: clockText(s.endsAt - now) })
-            : s.winner
-              ? `🏆 ${s.winner}`
-              : t('tournament.over')}
-      </span>
-      <span className="tournament-count">👥 {s.players}</span>
     </li>
   );
 
   return (
-    <main className="profile-page tournaments-page">
-      <div className="profile-head">
-        <div className="profile-title">
-          <h1 className="profile-name">{t('tournament.title')}</h1>
+    <main className="tournament-page">
+      <header className="tz-head">
+        <div className="tz-badge" aria-hidden="true">
+          <Crown />
+        </div>
+        <div className="tz-title">
+          <p className="tz-meta">{t('tournament.arena')}</p>
+          <RansomTitle text={t('tournament.title')} />
           <Rules />
         </div>
+      </header>
+
+      <div className="tz-bar">
+        {account.user && !making && (
+          <button className="tz-pill primary" onClick={() => setMaking(true)}>
+            {t('tournament.make')}
+          </button>
+        )}
+        {!account.user && !account.loading && <span className="muted">{t('tournament.signIn')}</span>}
       </div>
 
-      {account.user && !making && (
-        <button className="primary tournament-make" onClick={() => setMaking(true)}>
-          {t('tournament.make')}
-        </button>
-      )}
-      {!account.user && !account.loading && <p className="muted">{t('tournament.signIn')}</p>}
       {making && (
         <form
-          className="tournament-form lobby-card online-card"
+          className="tz-form"
           onSubmit={(e) => {
             e.preventDefault();
             void create();
           }}
         >
-          <h2>{t('tournament.make')}</h2>
+          <h2 className="tz-section-title">{t('tournament.make')}</h2>
           <label className="analysis-field">
             <span>{t('tournament.name')}</span>
             <input value={name} maxLength={30} onChange={(e) => setName(e.target.value)} />
@@ -233,11 +250,11 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
             label={(r) => t(r ? 'lobby.rated' : 'lobby.casual')}
           />
           {error && <p className="error">{t(error)}</p>}
-          <div className="lobby-actions pair">
-            <button type="button" onClick={() => setMaking(false)}>
+          <div className="tz-form-actions">
+            <button type="button" className="tz-pill ghost" onClick={() => setMaking(false)}>
               {t('settings.back')}
             </button>
-            <button className="primary analysis-go" type="submit" disabled={busy}>
+            <button className="tz-pill primary" type="submit" disabled={busy}>
               {t('tournament.makeButton')}
             </button>
           </div>
@@ -246,7 +263,7 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
 
       {!list && <p className="muted">{t('leaders.loading')}</p>}
       {list && list.live.length + list.upcoming.length + list.finished.length === 0 && (
-        <p className="muted">{t('tournament.none')}</p>
+        <p className="tz-empty muted">{t('tournament.none')}</p>
       )}
       {list &&
         (
@@ -258,9 +275,9 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
         ).map(
           ([title, items]) =>
             items.length > 0 && (
-              <section key={title} className="tournament-section">
-                <h2>{t(title)}</h2>
-                <ul className="tournament-list">{items.map(row)}</ul>
+              <section key={title} className="tz-section">
+                <h2 className="tz-section-title">{t(title)}</h2>
+                <ul className="tz-standings">{items.map(row)}</ul>
               </section>
             ),
         )}

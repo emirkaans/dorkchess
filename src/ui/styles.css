@@ -5636,54 +5636,6 @@ a:focus-visible {
   max-width: 70ch;
   font-size: 13px;
 }
-.tournament-make {
-  align-self: flex-start;
-}
-.tournament-form {
-  max-width: 640px;
-}
-.tournament-form h2 {
-  margin: 0;
-}
-.tournament-section h2 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-.tournament-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--border);
-  background: var(--panel);
-}
-.tournament-list li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 56px;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-}
-.tournament-list li:first-child {
-  border-top: none;
-}
-.tournament-list a {
-  display: grid;
-  gap: 2px;
-  color: var(--fg);
-  text-decoration: none;
-  min-width: 0;
-}
-.tournament-list a:hover strong {
-  color: var(--pink);
-}
-.tournament-list a span {
-  font-size: 12px;
-}
-.tournament-count {
-  justify-self: end;
-  font-variant-numeric: tabular-nums;
-}
 .tournament-waiting {
   color: var(--lime);
   animation: pulse 1.6s ease-in-out infinite;
@@ -5703,14 +5655,6 @@ a:focus-visible {
 .tournament-return {
   display: flex;
   gap: 8px;
-}
-@media (max-width: 600px) {
-  .tournament-list li {
-    grid-template-columns: minmax(0, 1fr) 48px;
-  }
-  .tournament-list li > .muted {
-    grid-column: 1;
-  }
 }
 
 /* A tournament (/tournament/<id>), "jacket patches": a stitched leather head with
@@ -6159,5 +6103,137 @@ a:focus-visible {
     grid-column: 2 / 4;
     grid-row: 2;
     justify-content: flex-start;
+  }
+}
+
+/* The tournament list (/tournaments) in the same look: each tournament a patch row,
+   its time control on a round patch (lime: playing, pink: soon, grey: over). */
+.tz-title .tournament-rules {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.tz-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tz-section-title {
+  margin: 0;
+  font: 400 26px/1 var(--display);
+  letter-spacing: 0.04em;
+}
+.tz-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  background: #1b1b1f;
+  border: 2px dashed #4a4a52;
+}
+.tz-form .chip {
+  min-height: 38px;
+  font-size: 14px;
+  justify-content: center;
+}
+.tz-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.tz-form-actions .tz-pill.ghost {
+  margin-left: 0;
+}
+.tz-item {
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  min-height: 60px;
+  color: var(--fg);
+  text-decoration: none;
+}
+.tz-item:hover {
+  border-color: var(--pink);
+}
+.tz-tc {
+  width: 46px;
+  height: 46px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #2a2a2e;
+  border: 2px dashed #6a6a72;
+  font:
+    700 12px/1 'Space Mono',
+    monospace;
+}
+.tz-item.started .tz-tc {
+  background: var(--lime);
+  color: var(--bg);
+  border: none;
+  outline: 2px dashed var(--lime);
+  outline-offset: 2px;
+}
+.tz-item.created .tz-tc {
+  background: var(--pink);
+  color: var(--bg);
+  border: none;
+  outline: 2px dashed var(--pink);
+  outline-offset: 2px;
+}
+.tz-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tz-item-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 17px/1.2 var(--ui);
+}
+.tz-item-text span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tz-item-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 14px/1.2 var(--ui);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tz-item.started .tz-item-when {
+  color: var(--lime);
+}
+.tz-item.created .tz-item-when {
+  color: var(--pink);
+}
+.tz-item-when svg {
+  width: 18px;
+  height: 18px;
+  color: var(--lime);
+}
+.tz-item-count {
+  justify-self: end;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px dashed #6a6a72;
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .tz-item {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+  .tz-item-when,
+  .tz-item-count {
+    grid-column: 2;
+    justify-self: start;
   }
 }
