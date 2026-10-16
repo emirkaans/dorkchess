@@ -1,14 +1,17 @@
-// Arena tournaments (src/online/tournament.ts has the rules):
+// Tournaments, Arena or Swiss (src/online/tournament.ts has the rules):
 //
 //   GET  /api/tournaments              live, upcoming and recently finished ones (D1)
-//   POST /api/tournaments { … }        a signed-in player makes one (one open at a time)
+//   POST /api/tournaments { … }        staff make one
 //   GET  /api/tournaments/:id          its standings (the Durable Object)
 //   GET  /api/tournaments/:id/ws       its WebSocket: standings as they change, pairings
 //
-// Each tournament is a Durable Object. While it runs, an alarm pairs the free
-// players every few seconds: joined, not paused, not in a game, and with the
-// tournament page open (a WebSocket). Their game rooms report the result
-// (/result); a room that could not report is asked for it later.
+// Each tournament is a Durable Object driven by an alarm. Arena: while it
+// runs, the free players are paired every few seconds: joined, not paused,
+// not in a game, and with the tournament page open (a WebSocket). Swiss:
+// round by round, every joined player who is not paused is paired at once;
+// the next round starts a little after the last game of a round ends. Game
+// rooms report their results (/result); a room that could not report is asked
+// for it later, and a game nobody starts in time is called off (no-show).
 
 import { DurableObject } from 'cloudflare:workers';
 import { timeControl } from '../src/clock/clock.ts';
@@ -18,23 +21,33 @@ import { ABORT_PLIES, createRoom, joinRoom } from '../src/online/room.ts';
 import type { Room, SeatAccount } from '../src/online/room.ts';
 import type { Color } from '../src/engine/index.ts';
 import type { GameInfo } from '../src/online/record.ts';
+import type { SeatTicket } from '../src/online/protocol.ts';
 import {
   PAIRING_MS,
+  SWISS_ROUNDS,
+  SWISS_ROUND_GAP_MS,
   TOURNAMENT_MAX_PLAYERS,
   TOURNAMENT_MINUTES,
   TOURNAMENT_START_IN,
   TOURNAMENT_TIME_CONTROLS,
+  buchholz,
   newPlayer,
   onFire,
   pairings,
   resultFor,
   scored,
   standings,
+  swissBye,
+  swissEndEstimate,
+  swissPairings,
+  swissScored,
+  swissStandings,
   tournamentNameProblem,
 } from '../src/online/tournament.ts';
 import type {
   CreateTournament,
   TournamentClientMessage,
+  TournamentFormat,
   TournamentList,
   TournamentMeta,
   TournamentPlayer,
@@ -67,8 +80,12 @@ interface LiveGame {
   readonly started?: boolean;
 }
 
-/** Time to make the first move (each side) before a tournament game is called off as a no-show. */
-const FIRST_MOVE_MS = 30_000;
+/**
+ * Time to make the first move (each side) before a tournament game is called
+ * off as a no-show: Arena players are on the page when paired; Swiss players
+ * may have to come back to it.
+ */
+const FIRST_MOVE_MS: Record<TournamentFormat, number> = { arena: 30_000, swiss: 60_000 };
 
 /** Longest a game of this time control should take; after that its room is asked how it ended. */
 function overdueMs(timeControlId: string): number {
@@ -76,15 +93,20 @@ function overdueMs(timeControlId: string): number {
   return 2 * (tc.initialMs ?? 0) + 160 * tc.incrementMs + 5 * 60_000;
 }
 
+const formatOf = (s: Pick<TournamentMeta, 'format'>): TournamentFormat => s.format ?? 'arena';
+
 export class Tournament extends DurableObject<Env> {
   private state: TournamentState | null = null;
   private games: Record<string, LiveGame> = {};
+  /** Each player's seat in their game going on (sent again when they come back to the page). */
+  private tickets: Record<string, SeatTicket> = {};
   private loaded = false;
 
   private async load(): Promise<TournamentState | null> {
     if (!this.loaded) {
       this.state = (await this.ctx.storage.get<TournamentState>('state')) ?? null;
       this.games = (await this.ctx.storage.get<Record<string, LiveGame>>('games')) ?? {};
+      this.tickets = (await this.ctx.storage.get<Record<string, SeatTicket>>('tickets')) ?? {};
       this.loaded = true;
     }
     return this.state;
@@ -92,7 +114,7 @@ export class Tournament extends DurableObject<Env> {
 
   private async save(state: TournamentState) {
     this.state = state;
-    await this.ctx.storage.put({ state, games: this.games });
+    await this.ctx.storage.put({ state, games: this.games, tickets: this.tickets });
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -104,6 +126,7 @@ export class Tournament extends DurableObject<Env> {
       await this.ctx.storage.deleteAll();
       this.state = null;
       this.games = {};
+      this.tickets = {};
       for (const ws of this.ctx.getWebSockets()) ws.close(4404, 'cancelled');
       return json({ ok: true });
     }
@@ -121,13 +144,16 @@ export class Tournament extends DurableObject<Env> {
     const username = request.headers.get(ACCOUNT_NAME);
     server.serializeAttachment((id && username ? { id, username } : null) satisfies SeatAccount | null);
     this.send(server, { t: 'state', view: this.view(state, id) });
+    // Back on the page during their game (a Swiss round may have started while away): their seat.
+    const ticket = id ? this.tickets[id] : undefined;
+    if (id && ticket && state.players[id]?.game === ticket.gameId) this.send(server, { t: 'ticket', ticket });
     await this.wake();
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  /** Someone came to the page or joined while the pairing alarm sleeps (nobody was there): pair soon. */
+  /** Arena: someone came to the page or joined while the pairing alarm sleeps (nobody was there): pair soon. */
   private async wake() {
-    if (this.state?.status !== 'started') return;
+    if (this.state?.status !== 'started' || formatOf(this.state) !== 'arena') return;
     const at = await this.ctx.storage.getAlarm();
     if (at === null || at > Date.now() + PAIRING_MS) await this.ctx.storage.setAlarm(Date.now() + PAIRING_MS);
   }
@@ -135,13 +161,16 @@ export class Tournament extends DurableObject<Env> {
   private async init(request: Request): Promise<Response> {
     if (await this.load()) return json({ error: 'bad-request' }, 409);
     const meta = (await request.json()) as TournamentMeta;
-    await this.save({ ...meta, status: 'created', players: {} });
+    await this.save({ ...meta, status: 'created', players: {}, round: 0, nextRoundAt: null });
     await this.ctx.storage.setAlarm(meta.startsAt);
     return json({ ok: true });
   }
 
+  private ranked(state: TournamentState): TournamentPlayer[] {
+    return formatOf(state) === 'swiss' ? swissStandings(state.players) : standings(Object.values(state.players));
+  }
+
   private view(state: TournamentState, you: string | null): TournamentView {
-    const list = standings(Object.values(state.players));
     return {
       id: state.id,
       name: state.name,
@@ -151,8 +180,12 @@ export class Tournament extends DurableObject<Env> {
       startsAt: state.startsAt,
       endsAt: state.endsAt,
       createdBy: state.createdBy,
+      format: formatOf(state),
+      rounds: state.rounds,
+      round: state.round ?? 0,
+      nextRoundAt: state.nextRoundAt ?? null,
       status: state.status,
-      standings: list.map((p) => ({
+      standings: this.ranked(state).map((p) => ({
         userId: p.userId,
         username: p.username,
         score: p.score,
@@ -160,7 +193,9 @@ export class Tournament extends DurableObject<Env> {
         streak: p.streak,
         paused: p.paused,
         game: p.game,
-        fire: onFire(p),
+        byes: p.byes,
+        fire: formatOf(state) === 'arena' && onFire(p),
+        buchholz: buchholz(p, state.players),
       })),
       games: Object.keys(this.games).length,
       you: you && state.players[you] ? you : null,
@@ -205,6 +240,7 @@ export class Tournament extends DurableObject<Env> {
       if (!mine && Object.keys(state.players).length >= TOURNAMENT_MAX_PLAYERS) {
         return this.send(ws, { t: 'error', code: 'full' });
       }
+      // A Swiss latecomer plays from the next round on.
       const player = mine ? { ...mine, paused: false } : newPlayer(me.id, me.username);
       await this.save({ ...state, players: { ...state.players, [me.id]: player } });
       if (!mine) await this.countPlayers();
@@ -237,7 +273,7 @@ export class Tournament extends DurableObject<Env> {
     const state = await this.load();
     if (!state || state.status === 'finished') return;
     const now = Date.now();
-    if (now >= state.endsAt) return this.finish();
+    if (formatOf(state) === 'arena' && now >= state.endsAt) return this.finish();
     if (state.status === 'created') {
       await this.save({ ...state, status: 'started' });
       await this.env.DB?.prepare("UPDATE tournaments SET status = 'started' WHERE id = ?1")
@@ -246,13 +282,109 @@ export class Tournament extends DurableObject<Env> {
         .catch(() => undefined);
     }
     await this.checkOverdue(now);
+    if (formatOf(state) === 'swiss') return this.swissTick();
     await this.pair();
     // Nobody on the page and no game going: nothing to pair for a while.
     const idle = this.ctx.getWebSockets().length === 0 && Object.keys(this.games).length === 0;
     await this.ctx.storage.setAlarm(Math.min(state.endsAt, Date.now() + (idle ? 30_000 : PAIRING_MS)));
   }
 
-  /** Pairs the free players who have the page open. */
+  /** Swiss: start the next round when it is due, finish after the last; else check again soon. */
+  private async swissTick() {
+    const state = this.state;
+    if (!state) return;
+    const playing = Object.keys(this.games).length > 0;
+    if (!playing) {
+      const round = state.round ?? 0;
+      if (round >= (state.rounds ?? 0)) return this.finish();
+      const due = round === 0 || (state.nextRoundAt ?? 0) <= Date.now();
+      if (due) {
+        await this.startRound();
+        if (!this.state || this.state.status === 'finished') return;
+      }
+    }
+    const next =
+      Object.keys(this.games).length > 0
+        ? Date.now() + PAIRING_MS
+        : (this.state?.nextRoundAt ?? Date.now() + PAIRING_MS);
+    await this.ctx.storage.setAlarm(Math.max(next, Date.now() + 1000));
+  }
+
+  /** Swiss: pairs everyone joined and not paused for the next round (the odd one out gets a bye). */
+  private async startRound() {
+    const state = this.state;
+    if (!state) return;
+    const active = Object.values(state.players).filter((p) => !p.paused);
+    // Fewer than two players left: nothing more to play.
+    if (active.length < 2) return this.finish();
+    const { pairs, bye } = swissPairings(active, state.players, Math.random);
+    let players: Record<string, TournamentPlayer> = { ...state.players };
+    if (bye) players[bye] = swissBye(players[bye]);
+    for (const [w, b] of pairs) {
+      const next = await this.makeGame(state, players, w, b);
+      if (next) players = next;
+    }
+    await this.save({ ...state, players, round: (state.round ?? 0) + 1, nextRoundAt: null });
+    this.broadcast();
+  }
+
+  /**
+   * Makes the game room for a pairing and tells the two players (those on the
+   * page are taken to it). Returns the players updated, or null when the room
+   * could not be made.
+   */
+  private async makeGame(
+    state: TournamentState,
+    players: Record<string, TournamentPlayer>,
+    w: string,
+    b: string,
+  ): Promise<Record<string, TournamentPlayer> | null> {
+    const gameId = randomGameId();
+    const tokens = { w: crypto.randomUUID(), b: crypto.randomUUID() };
+    const seat = (id: string): SeatAccount => ({ id, username: players[id].username });
+    const created = createRoom(
+      gameId,
+      { variantId: state.variantId, timeControlId: state.timeControlId, color: 'w', name: '', rated: state.rated },
+      tokens.w,
+      Math.random,
+      seat(w),
+    );
+    const joined = joinRoom(created.room, '', tokens.b, seat(b));
+    const room: Room = { ...joined.room, tournamentId: state.id };
+    const res = await this.env.GAME.get(this.env.GAME.idFromName(gameId))
+      .fetch(`https://room/adopt?id=${gameId}`, { method: 'POST', body: JSON.stringify(room) })
+      .catch(() => null);
+    if (!res?.ok) return null;
+    this.games[gameId] = { w, b, at: Date.now() };
+    this.tickets[w] = { gameId, color: 'w', token: tokens.w };
+    this.tickets[b] = { gameId, color: 'b', token: tokens.b };
+    const met = (p: TournamentPlayer, other: string) => [...(p.opponents ?? []), other];
+    const next = {
+      ...players,
+      [w]: {
+        ...players[w],
+        game: gameId,
+        lastOpponent: b,
+        colorBalance: players[w].colorBalance + 1,
+        opponents: met(players[w], b),
+      },
+      [b]: {
+        ...players[b],
+        game: gameId,
+        lastOpponent: w,
+        colorBalance: players[b].colorBalance - 1,
+        opponents: met(players[b], w),
+      },
+    };
+    for (const ws of this.ctx.getWebSockets()) {
+      const id = this.account(ws)?.id;
+      const color: Color | null = id === w ? 'w' : id === b ? 'b' : null;
+      if (color) this.send(ws, { t: 'paired', ticket: { gameId, color, token: tokens[color] } });
+    }
+    return next;
+  }
+
+  /** Arena: pairs the free players who have the page open. */
   private async pair() {
     const state = this.state;
     if (!state) return;
@@ -264,35 +396,10 @@ export class Tournament extends DurableObject<Env> {
     const free = Object.values(state.players).filter((p) => !p.paused && !p.game && present.has(p.userId));
     const pairs = pairings(free, Math.random);
     if (pairs.length === 0) return;
-    let players = { ...state.players };
+    let players: Record<string, TournamentPlayer> = { ...state.players };
     for (const [w, b] of pairs) {
-      const gameId = randomGameId();
-      const tokens = { w: crypto.randomUUID(), b: crypto.randomUUID() };
-      const seat = (id: string): SeatAccount => ({ id, username: players[id].username });
-      const created = createRoom(
-        gameId,
-        { variantId: state.variantId, timeControlId: state.timeControlId, color: 'w', name: '', rated: state.rated },
-        tokens.w,
-        Math.random,
-        seat(w),
-      );
-      const joined = joinRoom(created.room, '', tokens.b, seat(b));
-      const room: Room = { ...joined.room, tournamentId: state.id };
-      const res = await this.env.GAME.get(this.env.GAME.idFromName(gameId))
-        .fetch(`https://room/adopt?id=${gameId}`, { method: 'POST', body: JSON.stringify(room) })
-        .catch(() => null);
-      if (!res?.ok) continue;
-      this.games[gameId] = { w, b, at: Date.now() };
-      players = {
-        ...players,
-        [w]: { ...players[w], game: gameId, lastOpponent: b, colorBalance: players[w].colorBalance + 1 },
-        [b]: { ...players[b], game: gameId, lastOpponent: w, colorBalance: players[b].colorBalance - 1 },
-      };
-      for (const ws of this.ctx.getWebSockets()) {
-        const id = this.account(ws)?.id;
-        const color: Color | null = id === w ? 'w' : id === b ? 'b' : null;
-        if (color) this.send(ws, { t: 'paired', ticket: { gameId, color, token: tokens[color] } });
-      }
+      const next = await this.makeGame(state, players, w, b);
+      if (next) players = next;
     }
     await this.save({ ...state, players });
     this.broadcast();
@@ -303,17 +410,18 @@ export class Tournament extends DurableObject<Env> {
     const state = this.state;
     if (!state) return;
     const limit = overdueMs(state.timeControlId);
+    const firstMove = FIRST_MOVE_MS[formatOf(state)];
     for (const [gameId, g] of Object.entries(this.games)) {
       const age = now - g.at;
-      if (!g.started && age >= FIRST_MOVE_MS) {
-        // Not started yet: White has FIRST_MOVE_MS for the first move, Black as long again for theirs.
+      if (!g.started && age >= firstMove) {
+        // Not started yet: White has the time for the first move, Black as long again for theirs.
         const room = this.env.GAME.get(this.env.GAME.idFromName(gameId));
         const res = await room.fetch(`https://room/info?id=${gameId}`).catch(() => null);
         const info = res?.ok ? ((await res.json()) as GameInfo) : null;
         const plies = info?.record?.moves.length ?? 0;
         if (info?.kind === 'online' && info.phase !== 'over') {
           if (plies >= ABORT_PLIES) this.games[gameId] = { ...g, started: true };
-          else if (plies === 0 || age >= 2 * FIRST_MOVE_MS) {
+          else if (plies === 0 || age >= 2 * firstMove) {
             // The room ends it and reports back (/result).
             await room.fetch(`https://room/noshow?id=${gameId}`, { method: 'POST' }).catch(() => null);
           }
@@ -337,21 +445,41 @@ export class Tournament extends DurableObject<Env> {
     const g = this.games[end.gameId];
     if (!state || !g) return;
     delete this.games[end.gameId];
+    const swiss = formatOf(state) === 'swiss';
     const players = { ...state.players };
     const free = (id: string): TournamentPlayer => ({ ...players[id], game: null });
     if (state.status === 'finished') {
       // Games still going at the end do not count.
     } else if (end.plies < ABORT_PLIES) {
-      // Aborted: no points; whoever kept the game from starting (or left it) is paused.
+      // Not played (a no-show, or left at once): whoever kept the game from starting is paused.
+      // In Swiss the one who came wins the game; in Arena neither scores.
       const idle = end.winner ? (end.winner === 'w' ? g.b : g.w) : end.plies === 0 ? g.w : g.b;
-      players[g.w] = { ...free(g.w), paused: idle === g.w || players[g.w].paused };
-      players[g.b] = { ...free(g.b), paused: idle === g.b || players[g.b].paused };
+      const other = idle === g.w ? g.b : g.w;
+      players[idle] = { ...free(idle), paused: true };
+      players[other] = swiss ? swissScored(players[other], end.gameId, 'w') : free(other);
+      if (swiss) players[idle] = swissScored(players[idle], end.gameId, 'l');
+    } else if (swiss) {
+      players[g.w] = swissScored(players[g.w], end.gameId, resultFor('w', end.winner));
+      players[g.b] = swissScored(players[g.b], end.gameId, resultFor('b', end.winner));
     } else {
       players[g.w] = scored(players[g.w], end.gameId, resultFor('w', end.winner), end.plies);
       players[g.b] = scored(players[g.b], end.gameId, resultFor('b', end.winner), end.plies);
     }
-    for (const id of [g.w, g.b]) if (players[id] && players[id].game === end.gameId) players[id] = free(id);
-    await this.save({ ...state, players });
+    for (const id of [g.w, g.b]) {
+      if (players[id] && players[id].game === end.gameId) players[id] = free(id);
+      if (this.tickets[id]?.gameId === end.gameId) delete this.tickets[id];
+    }
+    // Swiss: the last game of the round starts the clock for the next one.
+    const roundOver = swiss && Object.keys(this.games).length === 0 && state.status === 'started';
+    await this.save({
+      ...state,
+      players,
+      nextRoundAt: roundOver ? Date.now() + SWISS_ROUND_GAP_MS : state.nextRoundAt,
+    });
+    if (roundOver)
+      await this.ctx.storage.setAlarm(
+        Date.now() + ((state.round ?? 0) >= (state.rounds ?? 0) ? 1000 : SWISS_ROUND_GAP_MS),
+      );
     this.broadcast();
   }
 
@@ -361,18 +489,23 @@ export class Tournament extends DurableObject<Env> {
     const players = Object.fromEntries(
       Object.entries(state.players).map(([id, p]) => [id, { ...p, game: null }]),
     ) as Record<string, TournamentPlayer>;
-    const done: TournamentState = { ...state, status: 'finished', players };
+    const now = Date.now();
+    // A Swiss tournament ends when its rounds do: the real end replaces the estimate.
+    const endsAt = formatOf(state) === 'swiss' ? now : state.endsAt;
+    const done: TournamentState = { ...state, status: 'finished', players, endsAt, nextRoundAt: null };
     this.games = {};
+    this.tickets = {};
     await this.save(done);
     await this.ctx.storage.deleteAlarm();
-    const list = standings(Object.values(players));
+    const list = this.ranked(done);
     await this.env.DB?.prepare(
-      "UPDATE tournaments SET status = 'finished', players = ?1, winner = ?2, standings = ?3 WHERE id = ?4",
+      "UPDATE tournaments SET status = 'finished', players = ?1, winner = ?2, standings = ?3, ends_at = ?4 WHERE id = ?5",
     )
       .bind(
         list.length,
         list[0] && list[0].score > 0 ? list[0].username : null,
         JSON.stringify(list.slice(0, 50).map((p) => ({ username: p.username, score: p.score, games: p.sheet.length }))),
+        endsAt,
         state.id,
       )
       .run()
@@ -399,9 +532,23 @@ interface Row {
   status: string;
   players: number;
   winner: string | null;
+  format: string | null;
+  rounds: number | null;
 }
 
+const COLUMNS =
+  'id, name, variant_id, time_control_id, rated, starts_at, ends_at, status, players, winner, format, rounds';
+
+/**
+ * Whether a tournament row is over: finished by its alarm, or (Arena) past its
+ * end, which the table's status can lag behind by an alarm. A Swiss tournament
+ * ends with its rounds, whatever the estimate said.
+ */
+const OVER_SQL = "(status = 'finished' OR (coalesce(format, 'arena') = 'arena' AND ends_at <= ?1))";
+
 function summary(r: Row, now: number): TournamentSummary {
+  const format: TournamentFormat = r.format === 'swiss' ? 'swiss' : 'arena';
+  const over = r.status === 'finished' || (format === 'arena' && now >= r.ends_at);
   return {
     id: r.id,
     name: r.name,
@@ -410,10 +557,11 @@ function summary(r: Row, now: number): TournamentSummary {
     rated: r.rated === 1,
     startsAt: r.starts_at,
     endsAt: r.ends_at,
-    // The table's status can lag behind the clock by an alarm.
-    status: now >= r.ends_at ? 'finished' : now >= r.starts_at ? 'started' : 'created',
+    status: over ? 'finished' : now >= r.starts_at ? 'started' : 'created',
     players: r.players,
     winner: r.winner,
+    format,
+    rounds: r.rounds,
   };
 }
 
@@ -437,14 +585,12 @@ export async function handleTournaments(request: Request, env: Env, url: URL): P
 
   if (request.method === 'GET') {
     const rows = await env.DB.prepare(
-      `SELECT id, name, variant_id, time_control_id, rated, starts_at, ends_at, status, players, winner
-       FROM tournaments WHERE ends_at > ?1 ORDER BY starts_at LIMIT 50`,
+      `SELECT ${COLUMNS} FROM tournaments WHERE NOT ${OVER_SQL} ORDER BY starts_at LIMIT 50`,
     )
       .bind(now)
       .all<Row>();
     const done = await env.DB.prepare(
-      `SELECT id, name, variant_id, time_control_id, rated, starts_at, ends_at, status, players, winner
-       FROM tournaments WHERE ends_at <= ?1 ORDER BY ends_at DESC LIMIT 20`,
+      `SELECT ${COLUMNS} FROM tournaments WHERE ${OVER_SQL} ORDER BY ends_at DESC LIMIT 20`,
     )
       .bind(now)
       .all<Row>();
@@ -465,15 +611,20 @@ export async function handleTournaments(request: Request, env: Env, url: URL): P
   const body = (await request.json().catch(() => ({}))) as Partial<CreateTournament>;
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (tournamentNameProblem(name)) return json({ error: 'name' }, 400);
+  const format: TournamentFormat = body.format === 'swiss' ? 'swiss' : 'arena';
   if (!listVariants().some((v) => v.id === body.variantId)) return json({ error: 'bad-request' }, 400);
   if (!TOURNAMENT_TIME_CONTROLS.includes(String(body.timeControlId))) return json({ error: 'bad-request' }, 400);
-  if (!(TOURNAMENT_MINUTES as readonly number[]).includes(Number(body.minutes)))
-    return json({ error: 'bad-request' }, 400);
   if (!(TOURNAMENT_START_IN as readonly number[]).includes(Number(body.startIn)))
+    return json({ error: 'bad-request' }, 400);
+  if (format === 'arena' && !(TOURNAMENT_MINUTES as readonly number[]).includes(Number(body.minutes)))
+    return json({ error: 'bad-request' }, 400);
+  if (format === 'swiss' && !(SWISS_ROUNDS as readonly number[]).includes(Number(body.rounds)))
     return json({ error: 'bad-request' }, 400);
 
   const id = randomGameId();
   const startsAt = now + Number(body.startIn) * 60_000;
+  const tc = timeControl(String(body.timeControlId));
+  const rounds = format === 'swiss' ? Number(body.rounds) : undefined;
   const meta: TournamentMeta = {
     id,
     name,
@@ -481,14 +632,32 @@ export async function handleTournaments(request: Request, env: Env, url: URL): P
     timeControlId: String(body.timeControlId),
     rated: body.rated !== false,
     startsAt,
-    endsAt: startsAt + Number(body.minutes) * 60_000,
+    endsAt:
+      format === 'swiss'
+        ? swissEndEstimate(startsAt, rounds!, tc.initialMs ?? 0, tc.incrementMs)
+        : startsAt + Number(body.minutes) * 60_000,
     createdBy: user.username,
+    format,
+    ...(rounds ? { rounds } : {}),
   };
   await env.DB.prepare(
-    `INSERT INTO tournaments (id, name, owner_id, variant_id, time_control_id, rated, starts_at, ends_at, status, players, created_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'created', 0, ?9)`,
+    `INSERT INTO tournaments (id, name, owner_id, variant_id, time_control_id, rated, starts_at, ends_at, status, players,
+       created_at, format, rounds)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'created', 0, ?9, ?10, ?11)`,
   )
-    .bind(id, name, user.id, meta.variantId, meta.timeControlId, meta.rated ? 1 : 0, startsAt, meta.endsAt, now)
+    .bind(
+      id,
+      name,
+      user.id,
+      meta.variantId,
+      meta.timeControlId,
+      meta.rated ? 1 : 0,
+      startsAt,
+      meta.endsAt,
+      now,
+      format,
+      rounds ?? null,
+    )
     .run();
   const res = await env.TOURNAMENT.get(env.TOURNAMENT.idFromName(id)).fetch('https://tournament/init', {
     method: 'POST',

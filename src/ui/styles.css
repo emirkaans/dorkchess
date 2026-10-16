@@ -6445,3 +6445,21 @@ a:focus-visible {
 .profile-follows .link-button:hover {
   color: var(--pink);
 }
+
+/* Swiss: a bye on the score sheet, and the tie-break under the score. */
+.tz-dot.b {
+  background: transparent;
+  border: 2px solid var(--lime);
+  color: var(--lime);
+}
+.tz-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.tz-bh {
+  font:
+    400 11px/1.2 'Space Mono',
+    monospace;
+  color: var(--muted);
+}

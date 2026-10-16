@@ -63,6 +63,9 @@ export function useTournament(id: string, onPaired: (ticket: SeatTicket) => void
         } else if (msg.t === 'paired') {
           saveTicket(msg.ticket);
           paired.current(msg.ticket);
+        } else if (msg.t === 'ticket') {
+          // A game of ours going on (paired while we were away): its seat, for "back to your game".
+          saveTicket(msg.ticket);
         } else if (msg.t === 'error') {
           const code = msg.code;
           setError(code);

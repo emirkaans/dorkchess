@@ -4,12 +4,14 @@ import { getVariant, listVariants } from '../engine/index.ts';
 import type { MessageKey } from '../i18n/index.ts';
 import {
   EARLY_DRAW_PLIES,
+  SWISS_ROUNDS,
+  TOURNAMENT_FORMATS,
   TOURNAMENT_MINUTES,
   TOURNAMENT_START_IN,
   TOURNAMENT_TIME_CONTROLS,
   tournamentNameProblem,
 } from '../online/tournament.ts';
-import type { TournamentList, TournamentSummary, TournamentView } from '../online/tournament.ts';
+import type { TournamentFormat, TournamentList, TournamentSummary, TournamentView } from '../online/tournament.ts';
 import { useAccount } from './account.ts';
 import { useI18n } from './i18n.tsx';
 import { useTournament } from './online/tournamentConnection.ts';
@@ -51,10 +53,21 @@ const clockText = (ms: number) => {
   return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
 };
 
-function Rules() {
+function Rules({ format }: { format: TournamentFormat }) {
   const { t } = useI18n();
-  return <p className="muted tournament-rules">{t('tournament.rules', { plies: String(EARLY_DRAW_PLIES / 2) })}</p>;
+  return (
+    <p className="muted tournament-rules">
+      {format === 'swiss' ? t('tournament.swissRules') : t('tournament.rules', { plies: String(EARLY_DRAW_PLIES / 2) })}
+    </p>
+  );
 }
+
+/** A score as shown: Swiss half points as ½ (1.5 → 1½). */
+export const scoreText = (n: number): string => {
+  const whole = Math.floor(n);
+  const half = n - whole >= 0.5;
+  return half ? (whole === 0 ? '½' : `${whole}½`) : String(whole);
+};
 
 function Chips<T extends string | number | boolean>({
   legend,
@@ -92,7 +105,9 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
   const [name, setName] = useState('');
   const [variantId, setVariantId] = useState(listVariants()[0].id);
   const [timeControlId, setTimeControlId] = useState('3+2');
+  const [format, setFormat] = useState<TournamentFormat>('arena');
   const [minutes, setMinutes] = useState<number>(30);
+  const [rounds, setRounds] = useState<number>(5);
   const [startIn, setStartIn] = useState<number>(5);
   const [rated, setRated] = useState(true);
   const [error, setError] = useState<MessageKey | null>(null);
@@ -122,7 +137,7 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, variantId, timeControlId, minutes, startIn, rated }),
+      body: JSON.stringify({ name, variantId, timeControlId, minutes, startIn, rated, format, rounds }),
     }).catch(() => null);
     setBusy(false);
     const data = (await res?.json().catch(() => null)) as { id?: string; error?: string } | null;
@@ -154,6 +169,8 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
         <span className="tz-item-text">
           <strong>{s.name}</strong>
           <span>
+            {t(`tournament.format.${s.format}`)}
+            {s.format === 'swiss' && s.rounds ? ` (${t('tournament.roundsN', { n: String(s.rounds) })})` : ''} ·{' '}
             {vt(getVariant(s.variantId)).name} · {timeControl(s.timeControlId).label} ·{' '}
             {t(s.rated ? 'lobby.rated' : 'lobby.casual')}
           </span>
@@ -161,6 +178,8 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
         <span className="tz-item-when">
           {s.status === 'created' ? (
             t('tournament.startsIn', { time: clockText(s.startsAt - now) })
+          ) : s.status === 'started' && s.format === 'swiss' ? (
+            t('tournament.swissLive')
           ) : s.status === 'started' ? (
             t('tournament.endsIn', { time: clockText(s.endsAt - now) })
           ) : s.winner ? (
@@ -185,7 +204,8 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
         <div className="tz-title">
           <p className="tz-meta">{t('tournament.arena')}</p>
           <RansomTitle text={t('tournament.title')} />
-          <Rules />
+          <Rules format="arena" />
+          <Rules format="swiss" />
         </div>
       </header>
 
@@ -211,6 +231,14 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
             <input value={name} maxLength={30} onChange={(e) => setName(e.target.value)} />
           </label>
           <Chips
+            legend={t('tournament.formatLabel')}
+            name="t-format"
+            options={TOURNAMENT_FORMATS}
+            value={format}
+            onChange={setFormat}
+            label={(f) => t(`tournament.format.${f}`)}
+          />
+          <Chips
             legend={t('newGame.variant')}
             name="t-variant"
             options={listVariants().map((v) => v.id)}
@@ -226,14 +254,25 @@ function TournamentIndex({ onOpen }: { onOpen: (path: string) => void }) {
             onChange={setTimeControlId}
             label={(id) => timeControl(id).label}
           />
-          <Chips
-            legend={t('tournament.length')}
-            name="t-minutes"
-            options={TOURNAMENT_MINUTES}
-            value={minutes as (typeof TOURNAMENT_MINUTES)[number]}
-            onChange={setMinutes}
-            label={(m) => t('tournament.minutes', { n: String(m) })}
-          />
+          {format === 'arena' ? (
+            <Chips
+              legend={t('tournament.length')}
+              name="t-minutes"
+              options={TOURNAMENT_MINUTES}
+              value={minutes as (typeof TOURNAMENT_MINUTES)[number]}
+              onChange={setMinutes}
+              label={(m) => t('tournament.minutes', { n: String(m) })}
+            />
+          ) : (
+            <Chips
+              legend={t('tournament.roundsLabel')}
+              name="t-rounds"
+              options={SWISS_ROUNDS}
+              value={rounds as (typeof SWISS_ROUNDS)[number]}
+              onChange={setRounds}
+              label={(n) => String(n)}
+            />
+          )}
           <Chips
             legend={t('tournament.startIn')}
             name="t-start"
@@ -317,6 +356,7 @@ function TournamentRoom({
     );
   }
   const me = v.standings.find((p) => p.userId === v.you) ?? null;
+  const swiss = v.format === 'swiss';
   // The top three once they have points: patches on the jacket, the winner's in the middle.
   const podium = v.standings.filter((p) => p.score > 0).slice(0, 3);
 
@@ -328,6 +368,8 @@ function TournamentRoom({
         </div>
         <div className="tz-title">
           <p className="tz-meta">
+            {t(`tournament.format.${v.format}`)}
+            {swiss && v.rounds ? ` · ${t('tournament.roundsN', { n: String(v.rounds) })}` : ''} ·{' '}
             {vt(getVariant(v.variantId)).name} · {timeControl(v.timeControlId).label} ·{' '}
             {t(v.rated ? 'lobby.rated' : 'lobby.casual')}
           </p>
@@ -350,16 +392,20 @@ function TournamentRoom({
           <small>
             {v.status === 'created'
               ? t('tournament.startsInLabel')
-              : v.status === 'started'
-                ? t('tournament.endsInLabel')
-                : t('tournament.over')}
+              : v.status === 'started' && swiss
+                ? t('tournament.roundLabel')
+                : v.status === 'started'
+                  ? t('tournament.endsInLabel')
+                  : t('tournament.over')}
           </small>
           <span>
             {v.status === 'created'
               ? clockText(v.startsAt - now)
-              : v.status === 'started'
-                ? clockText(v.endsAt - now)
-                : '—'}
+              : v.status === 'started' && swiss
+                ? `${v.round}/${v.rounds ?? '?'}`
+                : v.status === 'started'
+                  ? clockText(v.endsAt - now)
+                  : '—'}
           </span>
         </div>
       </header>
@@ -380,6 +426,14 @@ function TournamentRoom({
               <button className="tz-pill primary" onClick={() => onOpenGame(me.game!)}>
                 {t('tournament.backToGame')}
               </button>
+            ) : me && !me.paused && v.status === 'started' && swiss ? (
+              <span className="tournament-waiting">
+                {v.nextRoundAt
+                  ? t('tournament.nextRound', { time: clockText(v.nextRoundAt - now) })
+                  : me.sheet.length === v.round && me.sheet[me.sheet.length - 1]?.r === 'b'
+                    ? t('tournament.byeNow')
+                    : t('tournament.roundGoing')}
+              </span>
             ) : me && !me.paused && v.status === 'started' ? (
               <span className="tournament-waiting">{t('tournament.waiting')}</span>
             ) : me && !me.paused && v.status === 'created' ? (
@@ -407,7 +461,7 @@ function TournamentRoom({
             <li key={p.userId} className={`tz-patch place-${i + 1}`}>
               {i === 0 ? <Crown /> : <span className="tz-roman">{i === 1 ? 'II' : 'III'}</span>}
               <ProfileLink username={p.username}>{p.username}</ProfileLink>
-              <strong>{t('tournament.points', { n: String(p.score) })}</strong>
+              <strong>{t('tournament.points', { n: scoreText(p.score) })}</strong>
               {i === 0 && p.fire && (
                 <span className="tz-fire-tag">
                   <Flame />
@@ -438,22 +492,35 @@ function TournamentRoom({
               {p.paused && <span className="tz-paused">{t('tournament.paused')}</span>}
             </span>
             <span className="tz-sheet" aria-label={t('tournament.sheet')}>
-              {p.sheet.slice(-12).map((s) => (
-                <a
-                  key={s.gameId}
-                  href={`/${s.gameId}`}
-                  className={`tz-dot ${s.r}${s.fire ? ' fire' : ''}`}
-                  title={t(`tournament.result.${s.r}`)}
-                >
-                  {s.pts}
-                </a>
-              ))}
+              {p.sheet.slice(-12).map((s, i) =>
+                s.r === 'b' ? (
+                  <span key={`bye-${i}`} className="tz-dot b" title={t('tournament.result.b')}>
+                    B
+                  </span>
+                ) : (
+                  <a
+                    key={s.gameId}
+                    href={`/${s.gameId}`}
+                    className={`tz-dot ${s.r}${s.fire ? ' fire' : ''}`}
+                    title={t(`tournament.result.${s.r}`)}
+                  >
+                    {scoreText(s.pts)}
+                  </a>
+                ),
+              )}
             </span>
-            <span className="tz-score">{p.score}</span>
+            <span className="tz-score">
+              {scoreText(p.score)}
+              {swiss && (
+                <small className="tz-bh" title={t('tournament.buchholz')}>
+                  BH {scoreText(p.buchholz)}
+                </small>
+              )}
+            </span>
           </li>
         ))}
       </ol>
-      <Rules />
+      <Rules format={v.format} />
     </main>
   );
 }
